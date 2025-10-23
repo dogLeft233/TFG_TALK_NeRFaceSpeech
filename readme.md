@@ -1,7 +1,10 @@
-# 开发说明
-- 文档文件夹`/doc`,目前使用AI分析了一些项目代码，放在`/doc/AI_Analysis`中
+# 开发日志
 - 先到`develop`分支中开发，测试成功再合并到`main`分支中
 - 尽量不要擅自修改别人写的代码
+---
+- 文档文件夹`/doc`,目前使用AI分析了一些项目代码，放在`/doc/AI_Analysis`中
+- `/doc`中加入了个人运行环境构建过程，只能保证跑通`llm_talk`和`metrics`
+- 加了`FID/FVD`评价方法，在`metrics/FID_FVD.py`
 
 # 接口
 
