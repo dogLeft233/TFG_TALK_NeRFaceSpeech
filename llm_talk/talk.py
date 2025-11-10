@@ -1,7 +1,7 @@
 import logging
 import re
-from llm_talk.llm import get_llm_response_api, LLMError
-from llm_talk.tts import get_tts_response_api, TTSError, manage_tts_model
+from .llm import get_llm_response_api, LLMError
+from .tts import get_tts_response_api, TTSError, manage_tts_model
 from typing import List, Dict, Any
 
 # 配置日志

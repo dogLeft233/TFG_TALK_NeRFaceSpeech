@@ -17,7 +17,7 @@
 
 #### 1. Talk 对话接口
 ```python
-from llm_talk.talk import get_talk_response_api
+from llm_talk import get_talk_response_api
 
 # 完整对话功能
 result = get_talk_response_api(
@@ -58,7 +58,7 @@ result = get_talk_response_api(
 
 #### 2. LLM 大语言模型接口
 ```python
-from llm_talk.llm import get_llm_response_api
+from llm_talk import get_llm_response_api
 
 # LLM问答
 result = get_llm_response_api("用户问题")
@@ -78,7 +78,7 @@ result = get_llm_response_api("用户问题")
 
 #### 3. TTS 语音合成接口
 ```python
-from llm_talk.tts import get_tts_response_api, manage_tts_model
+from llm_talk import get_tts_response_api, manage_tts_model
 
 # 文本转语音
 result = get_tts_response_api(
@@ -120,7 +120,7 @@ model_reload = manage_tts_model('reload')      # 重新加载
 
 #### 1. 音频保存
 ```python
-from llm_talk.tts import save_wav_to_file
+from llm_talk import save_wav_to_file
 
 # 保存WAV文件
 success = save_wav_to_file(wav_data, "output.wav")
@@ -130,7 +130,7 @@ success = save_wav_to_file(wav_data, "output.wav")
 
 #### 1. 基础使用
 ```python
-from llm_talk.talk import get_talk_response_api
+from llm_talk import get_talk_response_api
 
 # 简单对话
 result = get_talk_response_api("你好，请介绍一下人工智能")
