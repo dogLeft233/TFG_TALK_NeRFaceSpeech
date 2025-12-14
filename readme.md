@@ -1,181 +1,138 @@
-# 开发日志
-- 先到`develop`分支中开发，测试成功再合并到`main`分支中
-- 尽量不要擅自修改别人写的代码
----
-- 文档文件夹`/doc`,目前使用AI分析了一些项目代码，放在`/doc/AI_Analysis`中
-- `/doc`中加入了个人运行环境构建过程，只能保证跑通`llm_talk`和`metrics`
-- 加了`FID/FVD`评价方法，在`metrics/FID_FVD.py`
+# Official NeRFFaceSpeech Code
 
-# 接口
+## NeRFFaceSpeech: One-shot Audio-driven 3D Talking Head Synthesis via Generative Prior, [CVPR 2024 Workshop on AI for Content Creation (AI4CC)](https://ai4cc.net/)
 
-## llm_talk 模块接口
+[Paper](http://arxiv.org/abs/2405.05749/)  /  [Project Page](https://rlgnswk.github.io/NeRFFaceSpeech_ProjectPage/)
 
-### 核心功能
-`llm_talk` 模块实现了完整的对话功能：用户输入 → LLM回答 → TTS音频生成
 
-### 主要接口
+## Setting
 
-#### 1. Talk 对话接口
-```python
-from llm_talk import get_talk_response_api
+We have confirmed that the code runs under the following conditions.
 
-# 完整对话功能
-result = get_talk_response_api(
-    user_input="用户问题",
-    language_id='zh',           # TTS语言ID
-    combine_audio=True,         # 是否合并音频
-    release_tts_model=False,    # 是否在完成后释放TTS模型
-    split_sentences=True        # 是否分句处理
-)
+Python 3.7.16 // CUDA 11.7 //GPU 3090
+
+```.bash
+git clone https://github.com/rlgnswk/NeRFFaceSpeech_Code.git
+cd NeRFFaceSpeech_Code/
+conda env create -f environment.yml
+conda activate nerffacespeech
 ```
 
-**返回格式：**
-```json
-{
-    "success": true,
-    "data": {
-        "user_input": "用户问题",
-        "llm_answer": "LLM回答",
-        "sentences": ["句子1", "句子2"],
-        "audio_results": [...],
-        "combined_audio": {
-            "combined_audio_data": "WAV二进制数据",
-            "combined_base64_data": "Base64编码音频",
-            "total_duration": 5.2,
-            "sample_rate": 22050
-        },
-        "processing_info": {
-            "total_sentences": 2,
-            "successful_audio": 2,
-            "failed_audio": 0,
-            "split_sentences_enabled": true,
-            "tts_model_released": false
-        }
-    },
-    "error": null
-}
+#### Please install Nvdiffrast inside the Deep3DFaceRecon_pytorch folder.
+
+```.bash
+cd Deep3DFaceRecon_pytorch
+git clone https://github.com/NVlabs/nvdiffrast
+cd nvdiffrast
+pip install .
 ```
 
-#### 2. LLM 大语言模型接口
-```python
-from llm_talk import get_llm_response_api
+## Download 
 
-# LLM问答
-result = get_llm_response_api("用户问题")
+[Download Link](https://drive.google.com/drive/folders/1W3TGSh5ufmT3T1XPwU7LRB_y4bcbmm9i?usp=sharing)
+
+```.bash
+mkdir pretrained_networks
 ```
 
-**返回格式：**
-```json
-{
-    "success": true,
-    "data": {
-        "answer": "LLM回答内容",
-        "question": "用户问题"
-    },
-    "error": null
-}
+
+Download SadTalker_V0.0.2_256.safetensors
+https://github.com/OpenTalker/SadTalker/releases to NeRFFaceSpeech_Code\pretrained_networks\sad_talker_pretrained
+
+Download
+https://huggingface.co/wsj1995/sadTalker/blob/af80749f8c9af3702fbd0272df14ff086986a1de/BFM09_model_info.mat to NeRFFaceSpeech_Code\pretrained_networks\BFM_for_3DMM-Fitting-Pytorch\BFM
+
+@Thanks nitinmukesh's reports
+
+### Place Pretrained Weights at pretrained_networks/
+
+## Command (Generated from Latent Space)
+
+```.bash
+
+python StyleNeRF/main_NeRFFaceSpeech_audio_driven_from_z.py   \
+    --outdir=out_test_z --trunc=0.7 \
+        --network=pretrained_networks/ffhq_1024.pkl \
+            --test_data="test_data/test_audio/AdamSchiff_0.wav" \
+                --seeds=6;        
+
 ```
 
-#### 3. TTS 语音合成接口
-```python
-from llm_talk import get_tts_response_api, manage_tts_model
+## Command (Generated from Real Image)
 
-# 文本转语音
-result = get_tts_response_api(
-    text="要转换的文本",
-    language_id='zh',
-    exaggeration=0.5,
-    cfg_weight=0.7,
-    temperature=0.3
-)
+The inversion process for real image takes some time.
 
-# TTS模型管理
-model_status = manage_tts_model('status')      # 查看状态
-model_unload = manage_tts_model('unload')      # 释放模型
-model_reload = manage_tts_model('reload')      # 重新加载
+```.bash
+
+python StyleNeRF/main_NeRFFaceSpeech_audio_driven_from_image.py   \
+    --outdir=out_test_real --trunc=0.7 \
+        --network=pretrained_networks/ffhq_1024.pkl \
+            --test_data="test_data/test_audio/AdamSchiff_0.wav" \
+                --test_img="test_data/test_img/32.png";       
+
 ```
 
-**TTS返回格式：**
-```json
-{
-    "success": true,
-    "data": {
-        "wav_data": "WAV二进制数据",
-        "base64_data": "Base64编码音频",
-        "sample_rate": 22050,
-        "duration": 3.5,
-        "text": "原始文本",
-        "audio_info": {
-            "sample_rate": 22050,
-            "duration": 3.5,
-            "channels": 1,
-            "format": "WAV"
-        }
-    },
-    "error": null
-}
+## Command (Pose Varying)
+
+The first command is for head pose varying only.
+
+The second command is for head pose and exp varing by video-frames 
+(at that time, audio input is only for the initial frame.)
+
+The video frames should be pose-predictable.
+
+```.bash
+
+python StyleNeRF/main_NeRFFaceSpeech_audio_driven_w_given_poses.py   \
+    --outdir=out_test_given_pose --trunc=0.7 \
+        --network=pretrained_networks/ffhq_1024.pkl \
+            --test_data="test_data/test_audio/AdamSchiff_0.wav" \
+                --test_img="test_data/test_img/AustinScott0_0_cropped.jpg"\
+                    --motion_guide_img_folder="driving_frames";     
+
+
+python StyleNeRF/main_NeRFFaceSpeech_video_driven.py   \
+    --outdir=out_test_video_driven --trunc=0.7 \
+        --network=pretrained_networks/ffhq_1024.pkl \
+            --test_data="test_data/test_audio/AdamSchiff_0.wav" \
+                --test_img="test_data/test_img/DougJones_0_cropped.jpg"\
+                    --motion_guide_img_folder="driving_frames";
 ```
 
-### 工具函数
+## Custom Data for Use
 
-#### 1. 音频保存
-```python
-from llm_talk import save_wav_to_file
+### If you want to use new audio and image data, you must follow the formats of [StyleNeRF](https://github.com/facebookresearch/StyleNeRF) for image data and [Wav2Lip](https://github.com/Rudrabha/Wav2Lip) or [SadTalker](https://github.com/OpenTalker/SadTalker) for audio data.
 
-# 保存WAV文件
-success = save_wav_to_file(wav_data, "output.wav")
-```
+## Post-processing @ [nitinmukesh](https://github.com/nitinmukesh)
 
-### 使用示例
+There is an applicable post-processing method called [GFPGAN](https://github.com/TencentARC/GFPGAN). It is being applied to other methods as well and can help produce better results. Please refer to the [issue](https://github.com/rlgnswk/NeRFFaceSpeech_Code/issues/5)!
 
-#### 1. 基础使用
-```python
-from llm_talk import get_talk_response_api
+## Caution: Error Accumulation
 
-# 简单对话
-result = get_talk_response_api("你好，请介绍一下人工智能")
-if result['success']:
-    print(f"回答: {result['data']['llm_answer']}")
-    # 播放音频
-    audio_data = result['data']['combined_audio']['combined_base64_data']
-```
+The proposed method may not work well due to accumulated errors such as landmark prediction errors and inversion(reconsturction) errors.
 
-#### 2.高级配置
-```python
-# 不分句处理，完成后释放模型
-result = get_talk_response_api(
-    "请用一句话总结机器学习",
-    split_sentences=False,
-    release_tts_model=True
-)
-```
+## Ethical Use
 
-#### 3.批量处理
-```python
-questions = ["问题1", "问题2", "问题3"]
-for question in questions:
-    result = get_talk_response_api(
-        question,
-        release_tts_model=True  # 每个问题后释放模型节省内存
-    )
-```
+This project is intended for research and educational purposes only. Misuse of technology for deceptive practices is strictly discouraged
 
-### 4.错误处理
-所有接口都返回统一的错误格式：
-```json
-{
-    "success": false,
-    "error": {
-        "code": "ERROR_CODE",
-        "message": "错误描述",
-        "type": "ErrorType"
-    },
-    "data": null
-}
-```
+## Acknowledgement
 
-### 运行测试
-```bash
-# 在项目根目录运行
-python -m llm_talk.talk
+We appreciate [StyleNeRF](https://github.com/facebookresearch/StyleNeRF), [PTI](https://github.com/danielroich/PTI), [Wav2Lip](https://github.com/Rudrabha/Wav2Lip), [SadTalker](https://github.com/OpenTalker/SadTalker), [Deep3Drecon](https://github.com/sicxu/Deep3DFaceRecon_pytorch) and [3DMM-Fitting](https://github.com/ascust/3DMM-Fitting-Pytorch) for sharing their codes and baselines.
+
+## Citation
+
+```bibtex
+@misc{kim2024nerffacespeech,
+    title={NeRFFaceSpeech: One-shot Audio-driven 3D Talking Head Synthesis via Generative Prior}, 
+    author={Gihoon Kim and Kwanggyoon Seo and Sihun Cha and Junyong Noh},
+    year={2024},
+    eprint={2405.05749},
+    archivePrefix={arXiv},
+    primaryClass={cs.CV}}
+            
+@misc{kim2024nerffacespeech,
+    title={NeRFFaceSpeech: One-shot Audio-driven 3D Talking Head Synthesis via Generative Prior},
+    author={Gihoon Kim, Kwanggyoon Seo, Sihun Cha and Junyong Noh},
+    booktitle={IEEE Computer Vision and Pattern Recognition Workshops},
+    year={2024}}
 ```

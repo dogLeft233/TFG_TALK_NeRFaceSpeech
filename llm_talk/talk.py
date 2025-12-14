@@ -1,7 +1,8 @@
 import logging
 import re
-from .llm import get_llm_response_api, LLMError
-from .tts import get_tts_response_api, TTSError, manage_tts_model
+import argparse
+from llm import get_llm_response_api, LLMError
+from tts import get_tts_response_api, TTSError, manage_tts_model
 from typing import List, Dict, Any
 
 # 配置日志
@@ -36,34 +37,32 @@ def split_text_to_sentences(text: str) -> List[str]:
         if not text:
             return []
         
-        # 使用正则表达式分割句子
-        # 支持中文和英文的句号、问号、感叹号
-        sentence_endings = r'[。！？.!?]+'
-        sentences = re.split(sentence_endings, text)
+        # 使用正则表达式查找所有句子（保留分隔符）
+        # 匹配句子内容 + 句子结束标点
+        # text = re.sub(r'[^\u4e00-\u9fa5a-zA-Z0-9\s。，？！]', '', text)
         
-        # 过滤空句子并添加标点符号
-        result = []
-        for i, sentence in enumerate(sentences):
-            sentence = sentence.strip()
-            if sentence:
-                # 如果不是最后一个句子，添加适当的标点符号
-                if i < len(sentences) - 1:
-                    # 根据原文本中的标点符号添加
-                    original_text = text
-                    sentence_end_pos = original_text.find(sentence) + len(sentence)
-                    if sentence_end_pos < len(original_text):
-                        next_char = original_text[sentence_end_pos]
-                        if next_char in '。！？.!?':
-                            sentence += next_char
-                        else:
-                            sentence += '。'  # 默认添加句号
-                result.append(sentence)
+        pattern = r'[^。！？,.!?]+[。！？,.!?]+'
+        sentences = re.findall(pattern, text)
+        
+        # 如果没有匹配到（可能文本末尾没有标点），添加剩余部分
+        matched_text = ''.join(sentences)
+        if len(matched_text) < len(text):
+            remaining = text[len(matched_text):].strip()
+            if remaining:
+                sentences.append(remaining)
+        
+        # 过滤空句子
+        result = [s.strip() for s in sentences if s.strip()]
         
         # 如果没有分割出句子，返回原文本
         if not result:
             result = [text]
         
+        head_len = 10
         logger.info(f"文本分割完成，共 {len(result)} 个句子")
+        for i, sent in enumerate(result):
+            logger.debug(f"第{i + 1}个句子，长度:{len(sent)},前{head_len}个字符:{sent[:head_len]}")
+        
         return result
         
     except Exception as e:
@@ -396,57 +395,62 @@ def get_talk_response_api(user_input: str,
             'data': None
         }
 
+
+
 #---------------------------------------------------------------------
 
 if __name__ == "__main__":
     # 配置日志
-    logging.basicConfig(level=logging.INFO)
-    
-    # 测试用例
-    test_cases = [
-        {"input": "你好，请介绍一下人工智能的发展历史。", "split_sentences": True},
-        {"input": "今天天气怎么样？", "split_sentences": False},
-        {"input": "请用一句话总结机器学习的重要性。", "split_sentences": True}
-    ]
+    logging.basicConfig(level=logging.DEBUG)
+
+    parser = argparse.ArgumentParser(description='输入文字→返回文字→生成音频')
+    parser.add_argument('--input_text', type=str, required=True, help='必填项，输入文本')
+    parser.add_argument('--split_sentences', action='store_true', default=True, help='是否需要分词')
+    parser.add_argument('--audio_prompt_path', type=str, default="", help='参考音色')
+    parser.add_argument('--output_path', type=str, default="talk_output.wav", help='输出文件名')
+    args = parser.parse_args()
     
     print("=== Talk功能测试开始 ===")
+    input_text = args.input_text
+    split_sentences = args.split_sentences
+    audio_prompt_path = args.audio_prompt_path
+    output_path = args.output_path
     
     try:
-        for i, test_case in enumerate(test_cases):
-            print(f"\n--- 测试用例 {i+1} ---")
-            print(f"用户输入: {test_case['input']}")
-            print(f"分句处理: {'是' if test_case['split_sentences'] else '否'}")
+        print(f"用户输入: {input_text}")
+        print(f"分句处理: {'是' if split_sentences else '否'}")
             
-            # 调用Talk API
-            result = get_talk_response_api(
-                test_case['input'], 
-                combine_audio=True, 
-                release_tts_model=True,
-                split_sentences=test_case['split_sentences']
-            )
+        # 调用Talk API
+        result = get_talk_response_api(
+            input_text, 
+            combine_audio=True, 
+            release_tts_model=True,
+            split_sentences=split_sentences,
+            audio_prompt_path=audio_prompt_path
+        )
             
-            if result['success']:
-                data = result['data']
-                print(f"✅ 处理成功")
-                print(f"📝 LLM回答: {data['llm_answer']}")
-                print(f"📊 句子数量: {data['processing_info']['total_sentences']}")
-                print(f"🎵 成功音频: {data['processing_info']['successful_audio']}")
-                print(f"❌ 失败音频: {data['processing_info']['failed_audio']}")
-                print(f"✂️ 分句处理: {'是' if data['processing_info']['split_sentences_enabled'] else '否'}")
-                print(f"🧠 TTS模型释放: {'是' if data['processing_info']['tts_model_released'] else '否'}")
+        if result['success']:
+            data = result['data']
+            print(f"✅ 处理成功")
+            print(f"📝 LLM回答: {data['llm_answer']}")
+            print(f"📊 句子数量: {data['processing_info']['total_sentences']}")
+            print(f"🎵 成功音频: {data['processing_info']['successful_audio']}")
+            print(f"❌ 失败音频: {data['processing_info']['failed_audio']}")
+            print(f"✂️ 分句处理: {'是' if data['processing_info']['split_sentences_enabled'] else '否'}")
+            print(f"🧠 TTS模型释放: {'是' if data['processing_info']['tts_model_released'] else '否'}")
                 
-                if data['combined_audio'] and data['combined_audio']['success']:
-                    print(f"🔗 合并音频时长: {data['combined_audio']['total_duration']:.2f}秒")
+            if data['combined_audio'] and data['combined_audio']['success']:
+                print(f"🔗 合并音频时长: {data['combined_audio']['total_duration']:.2f}秒")
                 
-                # 保存合并音频（如果存在）
-                if data['combined_audio'] and data['combined_audio']['success']:
-                    from llm_talk.tts import save_wav_to_file
-                    filename = f'talk_output_{i+1}.wav'
-                    if save_wav_to_file(data['combined_audio']['combined_audio_data'], filename):
-                        print(f"💾 合并音频已保存到: {filename}")
+            # 保存合并音频（如果存在）
+            if data['combined_audio'] and data['combined_audio']['success']:
+                from tts import save_wav_to_file
+                filename = output_path
+                if save_wav_to_file(data['combined_audio']['combined_audio_data'], filename):
+                    print(f"💾 合并音频已保存到: {filename}")
                 
-            else:
-                print(f"❌ 处理失败: {result['error']['message']}")
+        else:
+            print(f"❌ 处理失败: {result['error']['message']}")
     
     except Exception as e:
         print(f"💥 测试过程中发生异常: {str(e)}")

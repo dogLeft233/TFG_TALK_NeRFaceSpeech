@@ -7,6 +7,7 @@ from chatterbox.mtl_tts import ChatterboxMultilingualTTS
 import soundfile as sf
 import numpy as np
 import webrtcvad
+import re
 import math
 
 # 配置日志
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 TTS_MODEL = None  # 延迟加载
+
 
 CLIP_DB = 1000 #句尾静音裁剪阈值
 
@@ -207,9 +209,9 @@ def convert_text_to_wav_chatterbox(text: str,
                                  language_id: str = 'zh',
                                  audio_prompt_path: Optional[str] = None,
                                  exaggeration: float = 0.5,
-                                 cfg_weight: float = 0.7,
-                                 temperature: float = 0.3,
-                                 repetition_penalty: float = 1.2,
+                                 cfg_weight: float = 0.3,
+                                 temperature: float = 0.7,
+                                 repetition_penalty: float = 1.5,
                                  min_p: float = 0.01,
                                  top_p: float = 0.9
                                  ) -> Dict[str, Any]:
@@ -222,10 +224,10 @@ def convert_text_to_wav_chatterbox(text: str,
         audio_prompt_path: 音频提示文件路径
         exaggeration: 夸张程度
         cfg_weight: CFG权重
-        temperature: 温度参数
-        repetition_penalty: 重复惩罚
+        temperature: 温度参数（建议0.6-0.8，较低的值可以减少随机性和重复）
+        repetition_penalty: 重复惩罚（默认2.0，建议1.5-2.5，值越高越能防止重复token导致生成过早停止）
         min_p: 最小概率
-        top_p: 顶部概率
+        top_p: 顶部概率（建议0.85-0.95）
         sample_rate: 采样率
     
     Returns:
@@ -253,13 +255,29 @@ def convert_text_to_wav_chatterbox(text: str,
         
         if len(text) > 1000:  # 限制文本长度
             raise TTSError("文本长度超过限制（1000字符）", "TEXT_TOO_LONG")
+    
+        # text = re.sub(r'[^\u4e00-\u9fa5a-zA-Z0-9\s]', '', text)
+        # # # text = text.translate(str.maketrans('，。、？！', ',.,?!'))
+        # text = re.sub(r'[，。、？！]', ' ', text)
         
         logger.info(f"开始TTS转换，文本长度: {len(text)}")
+        logger.debug(f"exaggeration:{exaggeration}")
+        logger.debug(f"cfg_weight:{cfg_weight}")
+        logger.debug(f"temperature:{temperature}")
+        logger.debug(f"repetition_penalty:{repetition_penalty}")
+        logger.debug(f"min_p:{min_p}")
+        logger.debug(f"top_p:{top_p}")
+        logger.debug(f"text:{text}")
         
         # 加载模型
         model = load_tts_model()
         
         # 生成音频
+        # 注意：如果遇到token重复导致生成过早停止的问题，可以尝试：
+        # 1. 增加repetition_penalty（当前默认2.0）
+        # 2. 降低temperature（减少随机性）
+        # 3. 调整top_p参数
+        logger.info("开始生成音频...")
         wav = model.generate(
             text,
             language_id=language_id,
@@ -489,7 +507,9 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     
     # 测试用例
-    test_text = "人工智能发展简史：1956年诞生，历经符号主义、专家系统、神经网络三波浪潮。早期以逻辑推理为核心，80年代专家系统商业化，90年代机器学习兴起。2006年深度学习突破，2016年AlphaGo标志AI觉醒，2022年ChatGPT引爆生成式AI时代。"
+    test_text = "寿限无寿限无ウンコ投げ机一昨日の新ちゃんのパンツ新八の人生バルムンク=フェザリオンアイザック=シュナイダー三分の一の纯情な感情の残った三分の二はさかむけが気になる感情裏切りは仆の名前をしっているようでしらないのを仆はしっている留守スルメめだかかずのここえだめめだかこのめだかはさっきと违う奴だから池乃めだかの方だからラー油ゆうていみやおうきむこうぺぺぺぺぺぺぺぺぺぺぺぺ（おあとがよろしいようでこれにておしまい）ビチグソ丸。"
+    
+    language_id= 'ja'
     
     print("=== TTS测试开始 ===")
     try:
@@ -503,7 +523,7 @@ if __name__ == "__main__":
         
         # 测试2: TTS转换
         print("\n--- 测试2: TTS转换 ---")
-        result = get_tts_response_api(test_text)
+        result = get_tts_response_api(test_text, language_id=language_id, audio_prompt_path="../assets/Aerith.mp3")
         
         if result['success']:
             print(f"✅ TTS转换成功")
