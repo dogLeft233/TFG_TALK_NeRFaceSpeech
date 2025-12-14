@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+pytorch_i3d/models/*
+pytorch_i3d/models/.gitkeep
+
 outputs/*
 !outputs/audio/.gitkeep
 !outputs/video/.gitkeep
