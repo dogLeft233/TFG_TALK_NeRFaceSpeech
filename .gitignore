@@ -16,6 +16,10 @@ StyleNeRF/B*
 
 out*
 
+# Video frames and data folders
+frames/
+driving_frames/
+
 *.pt
 StyleNeRF/*.pt
 3DMM-Fitting-Pytorch/BFM
