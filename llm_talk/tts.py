@@ -207,11 +207,11 @@ def convert_text_to_wav_chatterbox(text: str,
                                  language_id: str = 'zh',
                                  audio_prompt_path: Optional[str] = None,
                                  exaggeration: float = 0.5,
-                                 cfg_weight: float = 0.7,
-                                 temperature: float = 0.3,
-                                 repetition_penalty: float = 1.2,
-                                 min_p: float = 0.01,
-                                 top_p: float = 0.9
+                                 cfg_weight: float = 0.5,
+                                 temperature: float = 0.8,
+                                 repetition_penalty: float = 1.5,
+                                 min_p: float = 0.05,
+                                 top_p: float = 1
                                  ) -> Dict[str, Any]:
     """
     将文本转换为WAV音频数据，返回内存中的音频数据
@@ -255,6 +255,8 @@ def convert_text_to_wav_chatterbox(text: str,
             raise TTSError("文本长度超过限制（1000字符）", "TEXT_TOO_LONG")
         
         logger.info(f"开始TTS转换，文本长度: {len(text)}")
+        logger.info(f"开始TTS转换，文本: {text[:100]}...")
+        logger.info(f"语言：{language_id}")
         
         # 加载模型
         model = load_tts_model()
@@ -486,65 +488,79 @@ def manage_tts_model(action: str) -> Dict[str, Any]:
 
 if __name__ == "__main__":
     # 配置日志
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     
     # 测试用例
-    test_text = "人工智能发展简史：1956年诞生，历经符号主义、专家系统、神经网络三波浪潮。早期以逻辑推理为核心，80年代专家系统商业化，90年代机器学习兴起。2006年深度学习突破，2016年AlphaGo标志AI觉醒，2022年ChatGPT引爆生成式AI时代。"
+    test_text = "人工智能发展简史"
     
-    print("=== TTS测试开始 ===")
-    try:
-        # 测试1: 模型状态检查
-        print("\n--- 测试1: 模型状态检查 ---")
-        status_result = manage_tts_model('status')
-        if status_result['success']:
-            print(f"✅ 模型状态: {status_result['data']}")
-        else:
-            print(f"❌ 状态检查失败: {status_result['error']['message']}")
+    model = ChatterboxMultilingualTTS.from_pretrained('cuda')
+    
+    wav = model.generate(
+        test_text,
+        language_id='zh',
+    )
+    
+    
+    sf.write(
+        './test_d.wav',
+        wav.squeeze().cpu().numpy(),
+        model.sr
+    )
+    
+    # print("=== TTS测试开始 ===")
+    # try:
+    #     # 测试1: 模型状态检查
+    #     print("\n--- 测试1: 模型状态检查 ---")
+    #     status_result = manage_tts_model('status')
+    #     if status_result['success']:
+    #         print(f"✅ 模型状态: {status_result['data']}")
+    #     else:
+    #         print(f"❌ 状态检查失败: {status_result['error']['message']}")
         
-        # 测试2: TTS转换
-        print("\n--- 测试2: TTS转换 ---")
-        result = get_tts_response_api(test_text)
+    #     # 测试2: TTS转换
+    #     print("\n--- 测试2: TTS转换 ---")
+    #     result = get_tts_response_api(test_text)
         
-        if result['success']:
-            print(f"✅ TTS转换成功")
-            print(f"📝 原始文本: {result['data']['text']}")
-            print(f"🎵 音频时长: {result['data']['duration']:.2f}秒")
-            print(f"📊 采样率: {result['data']['sample_rate']}Hz")
-            print(f"📁 音频信息: {result['data']['audio_info']}")
-            print(f"💾 WAV数据大小: {len(result['data']['wav_data'])} bytes")
-            print(f"🔤 Base64数据长度: {len(result['data']['base64_data'])} 字符")
+    #     if result['success']:
+    #         print(f"✅ TTS转换成功")
+    #         print(f"📝 原始文本: {result['data']['text']}")
+    #         print(f"🎵 音频时长: {result['data']['duration']:.2f}秒")
+    #         print(f"📊 采样率: {result['data']['sample_rate']}Hz")
+    #         print(f"📁 音频信息: {result['data']['audio_info']}")
+    #         print(f"💾 WAV数据大小: {len(result['data']['wav_data'])} bytes")
+    #         print(f"🔤 Base64数据长度: {len(result['data']['base64_data'])} 字符")
 
-            save_wav_to_file(result['data']['wav_data'], 'test_output.wav')
-            print("💾 音频已保存到 test_output.wav")
+    #         save_wav_to_file(result['data']['wav_data'], 'test_output.wav')
+    #         print("💾 音频已保存到 test_output.wav")
             
-        else:
-            print(f"❌ TTS转换失败: {result['error']['message']}")
+    #     else:
+    #         print(f"❌ TTS转换失败: {result['error']['message']}")
         
-        # 测试3: 模型释放
-        print("\n--- 测试3: 模型释放 ---")
-        unload_result = manage_tts_model('unload')
-        if unload_result['success']:
-            print(f"✅ {unload_result['message']}")
-        else:
-            print(f"❌ 模型释放失败: {unload_result['error']['message']}")
+    #     # 测试3: 模型释放
+    #     print("\n--- 测试3: 模型释放 ---")
+    #     unload_result = manage_tts_model('unload')
+    #     if unload_result['success']:
+    #         print(f"✅ {unload_result['message']}")
+    #     else:
+    #         print(f"❌ 模型释放失败: {unload_result['error']['message']}")
         
-        # 测试4: 模型重新加载
-        print("\n--- 测试4: 模型重新加载 ---")
-        reload_result = manage_tts_model('reload')
-        if reload_result['success']:
-            print(f"✅ {reload_result['message']}")
-        else:
-            print(f"❌ 模型重新加载失败: {reload_result['error']['message']}")
+    #     # 测试4: 模型重新加载
+    #     print("\n--- 测试4: 模型重新加载 ---")
+    #     reload_result = manage_tts_model('reload')
+    #     if reload_result['success']:
+    #         print(f"✅ {reload_result['message']}")
+    #     else:
+    #         print(f"❌ 模型重新加载失败: {reload_result['error']['message']}")
         
-        # 测试5: 重新检查状态
-        print("\n--- 测试5: 重新检查状态 ---")
-        final_status = manage_tts_model('status')
-        if final_status['success']:
-            print(f"✅ 最终模型状态: {final_status['data']}")
-        else:
-            print(f"❌ 状态检查失败: {final_status['error']['message']}")
+    #     # 测试5: 重新检查状态
+    #     print("\n--- 测试5: 重新检查状态 ---")
+    #     final_status = manage_tts_model('status')
+    #     if final_status['success']:
+    #         print(f"✅ 最终模型状态: {final_status['data']}")
+    #     else:
+    #         print(f"❌ 状态检查失败: {final_status['error']['message']}")
             
-    except Exception as e:
-        print(f"💥 测试过程中发生异常: {str(e)}")
+    # except Exception as e:
+    #     print(f"💥 测试过程中发生异常: {str(e)}")
     
-    print("\n=== TTS测试结束 ===")
+    # print("\n=== TTS测试结束 ===")

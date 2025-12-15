@@ -1,7 +1,9 @@
+import argparse
 import logging
 import re
+import sys
 from .llm import get_llm_response_api, LLMError
-from .tts import get_tts_response_api, TTSError, manage_tts_model
+from .tts import get_tts_response_api, TTSError, manage_tts_model, save_wav_to_file
 from typing import List, Dict, Any
 
 # 配置日志
@@ -264,6 +266,7 @@ def talk_with_audio(user_input: str,
         
         llm_answer = llm_result['data']['answer']
         logger.info(f"LLM回答生成成功，长度: {len(llm_answer)}")
+        logger.info(f"LLM回答生成成功，内容: {llm_answer[:100]}...")
         
         # 步骤2: 分句处理（可选）
         if split_sentences:
@@ -398,33 +401,93 @@ def get_talk_response_api(user_input: str,
 
 #---------------------------------------------------------------------
 
-if __name__ == "__main__":
-    # 配置日志
+def _cli_generate_audio(args: argparse.Namespace) -> int:
+    """
+    命令行入口：先走 LLM 生成回答，再进行 TTS 并保存音频
+    """
     logging.basicConfig(level=logging.INFO)
-    
-    # 测试用例
+
+    result = talk_with_audio(
+        args.input_text,
+        language_id=args.language_id,
+        combine_audio=True,
+        release_tts_model=False,
+        split_sentences=True,
+        audio_prompt_path=args.audio_prompt_path,
+    )
+
+    if not result["success"]:
+        err = result["error"]
+        sys.stderr.write(f"生成失败: {err.get('message', 'unknown error')}\n")
+        return 1
+
+    data = result["data"]
+    # 优先保存合并后的音频，否则保存第一段成功的音频
+    combined = data.get("combined_audio")
+    if combined and combined.get("success"):
+        wav_data = combined["combined_audio_data"]
+    else:
+        successes = [a for a in data["audio_results"] if a["success"]]
+        if not successes:
+            sys.stderr.write("没有可用音频数据可保存\n")
+            return 1
+        wav_data = successes[0]["audio_data"]
+
+    ok = save_wav_to_file(wav_data, args.output_path)
+    if not ok:
+        sys.stderr.write("保存音频文件失败\n")
+        return 1
+
+    print(f"音频已生成: {args.output_path}")
+    return 0
+
+
+def _cli():
+    parser = argparse.ArgumentParser(description="LLM Talk CLI")
+    parser.add_argument("--input_text", required=True, help="要合成的文本")
+    parser.add_argument("--audio_prompt_path", required=False, help="音频提示文件路径")
+    parser.add_argument("--output_path", required=True, help="输出 WAV 文件路径")
+    parser.add_argument("--language_id", default="zh", help="语言ID，默认 zh")
+    parser.add_argument(
+        "--run_tests", action="store_true",
+        help="运行内置测试用例（调试用）"
+    )
+    args = parser.parse_args()
+
+    if args.run_tests:
+        # 原有测试逻辑，可手动开启
+        _run_tests()
+        return
+
+    exit_code = _cli_generate_audio(args)
+    sys.exit(exit_code)
+
+
+def _run_tests():
+    # 保留原有测试逻辑，便于手动验证
+    logging.basicConfig(level=logging.INFO)
     test_cases = [
         {"input": "你好，请介绍一下人工智能的发展历史。", "split_sentences": True},
         {"input": "今天天气怎么样？", "split_sentences": False},
         {"input": "请用一句话总结机器学习的重要性。", "split_sentences": True}
     ]
-    
+
     print("=== Talk功能测试开始 ===")
-    
+
     try:
         for i, test_case in enumerate(test_cases):
             print(f"\n--- 测试用例 {i+1} ---")
             print(f"用户输入: {test_case['input']}")
             print(f"分句处理: {'是' if test_case['split_sentences'] else '否'}")
-            
+
             # 调用Talk API
             result = get_talk_response_api(
-                test_case['input'], 
-                combine_audio=True, 
+                test_case['input'],
+                combine_audio=True,
                 release_tts_model=True,
                 split_sentences=test_case['split_sentences']
             )
-            
+
             if result['success']:
                 data = result['data']
                 print(f"✅ 处理成功")
@@ -434,21 +497,24 @@ if __name__ == "__main__":
                 print(f"❌ 失败音频: {data['processing_info']['failed_audio']}")
                 print(f"✂️ 分句处理: {'是' if data['processing_info']['split_sentences_enabled'] else '否'}")
                 print(f"🧠 TTS模型释放: {'是' if data['processing_info']['tts_model_released'] else '否'}")
-                
+
                 if data['combined_audio'] and data['combined_audio']['success']:
                     print(f"🔗 合并音频时长: {data['combined_audio']['total_duration']:.2f}秒")
-                
+
                 # 保存合并音频（如果存在）
                 if data['combined_audio'] and data['combined_audio']['success']:
-                    from llm_talk.tts import save_wav_to_file
                     filename = f'talk_output_{i+1}.wav'
                     if save_wav_to_file(data['combined_audio']['combined_audio_data'], filename):
                         print(f"💾 合并音频已保存到: {filename}")
-                
+
             else:
                 print(f"❌ 处理失败: {result['error']['message']}")
-    
+
     except Exception as e:
         print(f"💥 测试过程中发生异常: {str(e)}")
-    
+
     print("\n=== Talk功能测试结束 ===")
+
+
+if __name__ == "__main__":
+    _cli()
