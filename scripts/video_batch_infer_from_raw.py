@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import random
 import subprocess
+import os
 from pathlib import Path
 
 import cv2
@@ -163,6 +164,9 @@ def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) 
 
     # 如果存在 nerffacespeech 环境，则优先使用该环境的 python
     python_exe = NERF_ENV_PYTHON if NERF_ENV_PYTHON.exists() else "python"
+    env = os.environ.copy()
+    # 确保 nerffacespeech 环境的 bin 在 PATH 中（包含 ninja 等可执行文件）
+    env["PATH"] = f"{NERF_ENV_PYTHON.parent}:{env.get('PATH', '')}"
 
     # 在 NeRFFaceSpeech 代码根目录下运行，从而让脚本中的相对路径（如 pretrained_networks/seg.pth）生效
     cmd = [
@@ -179,7 +183,7 @@ def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) 
     ]
 
     print(f"[推理] 输出目录: {outdir}")
-    subprocess.run(cmd, check=True, cwd=str(NERF_CODE_DIR))
+    subprocess.run(cmd, check=True, cwd=str(NERF_CODE_DIR), env=env)
 
     if not pred_mp4.exists():
         raise RuntimeError(f"推理完成但未找到输出视频: {pred_mp4}")
