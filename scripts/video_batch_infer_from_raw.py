@@ -35,6 +35,12 @@ from pathlib import Path
 
 import cv2
 
+try:
+    # 人脸检测，用于对齐+裁剪
+    from facenet_pytorch import MTCNN  # type: ignore
+except ImportError:  # pragma: no cover - 运行时环境决定
+    MTCNN = None  # type: ignore
+
 # 项目根目录 = 当前脚本所在目录的上级
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # NeRFFaceSpeech 代码根目录
@@ -123,7 +129,7 @@ def extract_audio(video_path: Path, out_wav: Path) -> None:
 
 
 def extract_first_frame_and_resize(video_path: Path, out_image: Path) -> None:
-    """提取第一帧，并通过等比例缩放 + 上下/左右填充变成 1024x1024。"""
+    """提取第一帧，先做人脸检测/对齐裁剪，再缩放 + 填充到 1024x1024。"""
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
         raise RuntimeError(f"无法打开视频文件: {video_path}")
@@ -134,7 +140,36 @@ def extract_first_frame_and_resize(video_path: Path, out_image: Path) -> None:
     if not ret or frame is None:
         raise RuntimeError(f"无法读取第一帧: {video_path}")
 
-    h, w = frame.shape[:2]
+    orig_h, orig_w = frame.shape[:2]
+
+    # ----------------- 人脸检测 + 以脸为中心裁剪 -----------------
+    face_img = frame
+    if MTCNN is not None:
+        # MTCNN 期望 RGB
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        mtcnn = MTCNN(select_largest=True, device="cuda" if cv2.cuda.getCudaEnabledDeviceCount() > 0 else "cpu")  # type: ignore
+        bboxes, probs = mtcnn.detect(rgb)
+
+        if bboxes is not None and len(bboxes) > 0:
+            # 选最大的人脸
+            x1, y1, x2, y2 = bboxes[0]
+            cx = int((x1 + x2) / 2)
+            cy = int((y1 + y2) / 2)
+            half = int(max(x2 - x1, y2 - y1) / 2 * 1.4)  # 稍微扩大一点窗口
+
+            x1c = max(cx - half, 0)
+            x2c = min(cx + half, orig_w)
+            y1c = max(cy - half, 0)
+            y2c = min(cy + half, orig_h)
+
+            face_img = frame[y1c:y2c, x1c:x2c, :]
+            print(f"[人脸] 检测到人脸并裁剪: ({x1c},{y1c})-({x2c},{y2c})")
+        else:
+            print("[人脸] 未检测到人脸，使用整帧")
+    else:
+        print("[人脸] 未安装 facenet_pytorch，跳过人脸检测，使用整帧")
+
+    h, w = face_img.shape[:2]
     target = 1024
 
     # 等比例缩放，使最长边不超过 target
@@ -143,7 +178,7 @@ def extract_first_frame_and_resize(video_path: Path, out_image: Path) -> None:
         scale = target / float(max(h, w))
         new_w = int(round(w * scale))
         new_h = int(round(h * scale))
-        frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        face_img = cv2.resize(face_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
         h, w = new_h, new_w
 
     # 计算上下/左右填充值，使最终尺寸为 target x target
@@ -153,7 +188,7 @@ def extract_first_frame_and_resize(video_path: Path, out_image: Path) -> None:
     pad_right = target - w - pad_left
 
     frame_padded = cv2.copyMakeBorder(
-        frame,
+        face_img,
         pad_top,
         pad_bottom,
         pad_left,
@@ -168,7 +203,7 @@ def extract_first_frame_and_resize(video_path: Path, out_image: Path) -> None:
 
     print(
         f"[关键帧] {video_path.name} -> {out_image.name} "
-        f"(first frame, padded to 1024x1024, orig={h}x{w})"
+        f"(first frame, face-centered, padded to 1024x1024, orig={orig_h}x{orig_w})"
     )
 
 def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) -> Path:
