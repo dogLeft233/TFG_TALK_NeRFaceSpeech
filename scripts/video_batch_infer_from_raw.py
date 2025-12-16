@@ -195,9 +195,10 @@ def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) 
     env["PATH"] = f"{NERF_ENV_PYTHON.parent}:{env.get('PATH', '')}"
 
     # 在 NeRFFaceSpeech 代码根目录下运行，从而让脚本中的相对路径（如 pretrained_networks/seg.pth）生效
+    # 这里改为调用 video-driven 版本的脚本：main_NeRFFaceSpeech_video_driven.py
     cmd = [
         str(python_exe),
-        "StyleNeRF/main_NeRFFaceSpeech_audio_driven_from_image.py",
+        "StyleNeRF/main_NeRFFaceSpeech_video_driven.py",
         "--network",
         str(network_abs),
         "--outdir",
@@ -206,6 +207,8 @@ def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) 
         str(keyframe_abs),
         "--test_data",
         str(audio_wav_abs),
+        "--motion_guide_img_folder",
+        str(outdir_abs),
     ]
 
     print(f"[推理] 输出目录: {outdir}")
