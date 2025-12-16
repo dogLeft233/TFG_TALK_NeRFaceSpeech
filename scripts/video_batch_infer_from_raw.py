@@ -144,6 +144,7 @@ def extract_first_frame_and_resize(video_path: Path, out_image: Path) -> None:
 
     # ----------------- 人脸检测 + 以脸为中心裁剪 -----------------
     face_img = frame
+    used_face_crop = False
     if MTCNN is not None:
         # MTCNN 期望 RGB
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -163,42 +164,46 @@ def extract_first_frame_and_resize(video_path: Path, out_image: Path) -> None:
             y2c = min(cy + half, orig_h)
 
             face_img = frame[y1c:y2c, x1c:x2c, :]
+            used_face_crop = True
             print(f"[人脸] 检测到人脸并裁剪: ({x1c},{y1c})-({x2c},{y2c})")
         else:
             print("[人脸] 未检测到人脸，使用整帧")
     else:
         print("[人脸] 未安装 facenet_pytorch，跳过人脸检测，使用整帧")
 
-    h, w = face_img.shape[:2]
     target = 1024
 
-    # 等比例缩放，使最长边不超过 target
-    scale = 1.0
-    if max(h, w) > target:
-        scale = target / float(max(h, w))
-        new_w = int(round(w * scale))
-        new_h = int(round(h * scale))
-        face_img = cv2.resize(face_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
-        h, w = new_h, new_w
+    if used_face_crop:
+        # 对人脸裁剪结果直接缩放到 1024x1024，不再填充
+        frame_out = cv2.resize(face_img, (target, target), interpolation=cv2.INTER_CUBIC)
+    else:
+        # 仍使用等比例缩放 + padding 的方式处理整帧
+        h, w = face_img.shape[:2]
+        scale = 1.0
+        if max(h, w) > target:
+            scale = target / float(max(h, w))
+            new_w = int(round(w * scale))
+            new_h = int(round(h * scale))
+            face_img = cv2.resize(face_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            h, w = new_h, new_w
 
-    # 计算上下/左右填充值，使最终尺寸为 target x target
-    pad_top = (target - h) // 2
-    pad_bottom = target - h - pad_top
-    pad_left = (target - w) // 2
-    pad_right = target - w - pad_left
+        pad_top = (target - h) // 2
+        pad_bottom = target - h - pad_top
+        pad_left = (target - w) // 2
+        pad_right = target - w - pad_left
 
-    frame_padded = cv2.copyMakeBorder(
-        face_img,
-        pad_top,
-        pad_bottom,
-        pad_left,
-        pad_right,
-        borderType=cv2.BORDER_CONSTANT,
-        value=[0, 0, 0],  # 黑色填充
-    )
+        frame_out = cv2.copyMakeBorder(
+            face_img,
+            pad_top,
+            pad_bottom,
+            pad_left,
+            pad_right,
+            borderType=cv2.BORDER_CONSTANT,
+            value=[0, 0, 0],  # 黑色填充
+        )
 
     out_image.parent.mkdir(parents=True, exist_ok=True)
-    if not cv2.imwrite(str(out_image), frame_padded):
+    if not cv2.imwrite(str(out_image), frame_out):
         raise RuntimeError(f"保存关键帧失败: {out_image}")
 
     print(
