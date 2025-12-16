@@ -155,6 +155,12 @@ def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) 
     outdir.mkdir(parents=True, exist_ok=True)
     pred_mp4 = outdir / "output_NeRFFaceSpeech.mp4"
 
+    # 统一转为绝对路径，避免切换 cwd 后找不到文件
+    network_abs = network if network.is_absolute() else (PROJECT_ROOT / network).resolve()
+    keyframe_abs = keyframe.resolve()
+    audio_wav_abs = audio_wav.resolve()
+    outdir_abs = outdir.resolve()
+
     # 如果存在 nerffacespeech 环境，则优先使用该环境的 python
     python_exe = NERF_ENV_PYTHON if NERF_ENV_PYTHON.exists() else "python"
 
@@ -163,13 +169,13 @@ def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) 
         str(python_exe),
         "StyleNeRF/main_NeRFFaceSpeech_audio_driven_from_image.py",
         "--network",
-        str(network),
+        str(network_abs),
         "--outdir",
-        str(outdir),
+        str(outdir_abs),
         "--test_img",
-        str(keyframe),
+        str(keyframe_abs),
         "--test_data",
-        str(audio_wav),
+        str(audio_wav_abs),
     ]
 
     print(f"[推理] 输出目录: {outdir}")
