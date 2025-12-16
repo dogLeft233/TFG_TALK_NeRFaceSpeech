@@ -37,6 +37,8 @@ import cv2
 
 # 项目根目录 = 当前脚本所在目录的上级
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# NeRFFaceSpeech 代码根目录
+NERF_CODE_DIR = PROJECT_ROOT / "NeRFFaceSpeech_Code"
 # NeRFFaceSpeech 专用环境的 python 可执行文件
 NERF_ENV_PYTHON = PROJECT_ROOT / "environment" / "nerffacespeech" / "bin" / "python"
 
@@ -156,9 +158,10 @@ def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) 
     # 如果存在 nerffacespeech 环境，则优先使用该环境的 python
     python_exe = NERF_ENV_PYTHON if NERF_ENV_PYTHON.exists() else "python"
 
+    # 在 NeRFFaceSpeech 代码根目录下运行，从而让脚本中的相对路径（如 pretrained_networks/seg.pth）生效
     cmd = [
         str(python_exe),
-        "NeRFFaceSpeech_Code/StyleNeRF/main_NeRFFaceSpeech_audio_driven_from_image.py",
+        "StyleNeRF/main_NeRFFaceSpeech_audio_driven_from_image.py",
         "--network",
         str(network),
         "--outdir",
@@ -170,7 +173,7 @@ def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) 
     ]
 
     print(f"[推理] 输出目录: {outdir}")
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True, cwd=str(NERF_CODE_DIR))
 
     if not pred_mp4.exists():
         raise RuntimeError(f"推理完成但未找到输出视频: {pred_mp4}")
