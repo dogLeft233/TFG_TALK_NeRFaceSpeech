@@ -29,7 +29,6 @@
 from __future__ import annotations
 
 import argparse
-import random
 import subprocess
 import os
 from pathlib import Path
@@ -63,12 +62,6 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         required=True,
         help="批量输出根目录，每个视频一个子目录",
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=0,
-        help="随机种子，用于选择关键帧（默认0）",
     )
     parser.add_argument(
         "--overwrite",
@@ -129,53 +122,26 @@ def extract_audio(video_path: Path, out_wav: Path) -> None:
         raise RuntimeError(f"ffmpeg 提取音频失败: {video_path}") from exc
 
 
-def sample_random_frame(video_path: Path, out_image: Path, rng: random.Random) -> None:
-    """从视频中随机抽取一帧并保存为图像。"""
+def extract_first_frame_and_resize(video_path: Path, out_image: Path) -> None:
+    """提取第一帧并放大到 1024x1024（双三次）。"""
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
         raise RuntimeError(f"无法打开视频文件: {video_path}")
 
-    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    if frame_count <= 0:
-        cap.release()
-        raise RuntimeError(f"视频帧数异常: {video_path}")
-
-    # 随机选一个帧索引 [0, frame_count-1]
-    idx = rng.randint(0, frame_count - 1)
-    cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
     ret, frame = cap.read()
     cap.release()
 
     if not ret or frame is None:
-        raise RuntimeError(f"无法读取随机帧 idx={idx} 来自视频: {video_path}")
+        raise RuntimeError(f"无法读取第一帧: {video_path}")
+
+    # 放大到 1024x1024（双三次插值）
+    frame_resized = cv2.resize(frame, (1024, 1024), interpolation=cv2.INTER_CUBIC)
 
     out_image.parent.mkdir(parents=True, exist_ok=True)
-    # 保存为 PNG，避免压缩损失
-    if not cv2.imwrite(str(out_image), frame):
+    if not cv2.imwrite(str(out_image), frame_resized):
         raise RuntimeError(f"保存关键帧失败: {out_image}")
 
-    print(f"[关键帧] {video_path.name} -> {out_image.name} (idx={idx}, 总帧数={frame_count})")
-
-
-def crop_and_resize_square(image_path: Path, out_path: Path, target_res: int) -> None:
-    """中心裁剪为正方形并缩放到 target_res，用于满足生成器分辨率要求。"""
-    img = cv2.imread(str(image_path))
-    if img is None:
-        raise RuntimeError(f"无法读取关键帧: {image_path}")
-
-    h, w = img.shape[:2]
-    side = min(h, w)
-    y0 = (h - side) // 2
-    x0 = (w - side) // 2
-    img = img[y0 : y0 + side, x0 : x0 + side]
-    if target_res is not None and target_res > 0 and (img.shape[0] != target_res):
-        img = cv2.resize(img, (target_res, target_res), interpolation=cv2.INTER_AREA)
-
-    if not cv2.imwrite(str(out_path), img):
-        raise RuntimeError(f"保存裁剪后的关键帧失败: {out_path}")
-
-    print(f"[关键帧处理] 裁剪为正方形并缩放到 {target_res}x{target_res}: {out_path.name}")
-
+    print(f"[关键帧] {video_path.name} -> {out_image.name} (first frame, resized to 1024x1024)")
 
 def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) -> Path:
     """调用现有 CLI 进行推理，返回生成的视频路径。"""
@@ -195,12 +161,10 @@ def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) 
     env["PATH"] = f"{NERF_ENV_PYTHON.parent}:{env.get('PATH', '')}"
 
     # 在 NeRFFaceSpeech 代码根目录下运行，从而让脚本中的相对路径（如 pretrained_networks/seg.pth）生效
-    # 这里改为调用 video-driven 版本的脚本：main_NeRFFaceSpeech_video_driven.py
-    # 使用仓库自带的 driving_frames 作为 motion guide，而不是当前 outdir
-    motion_guide_dir = (NERF_CODE_DIR / "driving_frames").resolve()
+    # 调用 audio-driven 脚本：main_NeRFFaceSpeech_audio_driven_from_image.py
     cmd = [
         str(python_exe),
-        "StyleNeRF/main_NeRFFaceSpeech_video_driven.py",
+        "StyleNeRF/main_NeRFFaceSpeech_audio_driven_from_image.py",
         "--network",
         str(network_abs),
         "--outdir",
@@ -209,8 +173,6 @@ def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) 
         str(keyframe_abs),
         "--test_data",
         str(audio_wav_abs),
-        "--motion_guide_img_folder",
-        str(motion_guide_dir),
     ]
 
     print(f"[推理] 输出目录: {outdir}")
@@ -223,11 +185,33 @@ def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) 
     return pred_mp4
 
 
+def cleanup_outputs(outdir: Path) -> None:
+    """只保留关键文件，删除其它中间产物。"""
+    keep_names = {
+        "output_NeRFFaceSpeech.mp4",
+        "keyframe.png",
+        "audio.wav",
+    }
+    for item in outdir.iterdir():
+        if item.name in keep_names:
+            continue
+        if item.is_dir():
+            # 递归删除目录
+            import shutil
+            shutil.rmtree(item, ignore_errors=True)
+            print(f"[清理] 删除目录: {item}")
+        else:
+            try:
+                item.unlink()
+                print(f"[清理] 删除文件: {item}")
+            except Exception:
+                pass
+
+
 def process_one_video(
     video_path: Path,
     network: Path,
     out_root: Path,
-    rng: random.Random,
     overwrite: bool = False,
     gen_res: int = 1024,
 ) -> None:
@@ -244,13 +228,15 @@ def process_one_video(
     audio_wav = video_outdir / "audio.wav"
     extract_audio(video_path, audio_wav)
 
-    # 2) 抽取随机关键帧
+    # 2) 提取第一帧作为关键帧并放大到 1024
     keyframe = video_outdir / "keyframe.png"
-    sample_random_frame(video_path, keyframe, rng)
-    crop_and_resize_square(keyframe, keyframe, gen_res)
+    extract_first_frame_and_resize(video_path, keyframe)
 
     # 3) 运行推理
     run_inference(network=network, outdir=video_outdir, keyframe=keyframe, audio_wav=audio_wav)
+
+    # 4) 清理，只保留关键帧、音频和生成视频
+    cleanup_outputs(video_outdir)
 
 
 def main() -> int:
@@ -264,8 +250,6 @@ def main() -> int:
     videos = list_videos(args.video_dir)
     print(f"[信息] 在目录 {args.video_dir} 中找到 {len(videos)} 个视频文件")
 
-    rng = random.Random(args.seed)
-
     for i, v in enumerate(videos):
         print("\n" + "=" * 60)
         print(f"[处理] ({i + 1}/{len(videos)}) {v.name}")
@@ -275,7 +259,6 @@ def main() -> int:
                 video_path=v,
                 network=args.network,
                 out_root=args.outdir,
-                rng=rng,
                 overwrite=args.overwrite,
                 gen_res=args.gen_res,
             )

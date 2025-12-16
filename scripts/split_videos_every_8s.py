@@ -1,0 +1,177 @@
+"""将指定文件夹中的所有 mp4 视频按固定时长切段的小脚本。
+
+功能：
+- 遍历输入目录中的所有 `.mp4` 文件
+- 每隔 N 秒（默认 8 秒）切一段
+- 不足 N 秒的尾巴直接舍弃
+- 将切好的片段保存到输出目录
+
+依赖：
+- 需要系统已安装 `ffmpeg` 和 `ffprobe`
+
+用法示例：
+    python scripts/split_videos_every_8s.py \
+        --input-dir data/geneface_datasets/data/raw/videos \
+        --output-dir data/geneface_datasets/data/raw/videos_split \
+        --segment-sec 8
+
+输出命名示例：
+    输入：May.mp4
+    输出：May_seg000.mp4, May_seg001.mp4, ...
+"""
+
+from __future__ import annotations
+
+import argparse
+import math
+import subprocess
+from pathlib import Path
+from typing import List
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="按固定时长切分目录中的 mp4 视频")
+    parser.add_argument(
+        "--input-dir",
+        type=Path,
+        required=True,
+        help="包含原始 mp4 文件的目录",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        required=True,
+        help="保存切分后 mp4 文件的目录",
+    )
+    parser.add_argument(
+        "--segment-sec",
+        type=int,
+        default=8,
+        help="每段的时长（秒），默认 8 秒",
+    )
+    parser.add_argument(
+        "--min-sec",
+        type=int,
+        default=8,
+        help="最小时长（秒），默认 8 秒；不足该时长的尾段会被舍弃",
+    )
+    return parser.parse_args()
+
+
+def list_mp4_files(input_dir: Path) -> List[Path]:
+    if not input_dir.exists():
+        raise FileNotFoundError(f"input-dir 不存在: {input_dir}")
+    if not input_dir.is_dir():
+        raise NotADirectoryError(f"input-dir 不是目录: {input_dir}")
+
+    files = sorted(input_dir.glob("*.mp4"))
+    if not files:
+        raise FileNotFoundError(f"在目录中未找到任何 mp4 文件: {input_dir}")
+    return files
+
+
+def get_video_duration_sec(video_path: Path) -> float:
+    """使用 ffprobe 获取视频时长（秒）"""
+    cmd = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        str(video_path),
+    ]
+    try:
+        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        return float(out.decode("utf-8").strip())
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(f"ffprobe 获取时长失败: {video_path}\n{exc.output.decode('utf-8', errors='ignore')}") from exc
+    except ValueError as exc:
+        raise RuntimeError(f"无法解析视频时长: {video_path}") from exc
+
+
+def split_video(
+    video_path: Path,
+    output_dir: Path,
+    segment_sec: int,
+    min_sec: int,
+) -> None:
+    duration = get_video_duration_sec(video_path)
+    if duration < min_sec:
+        print(f"[跳过] {video_path.name} 时长 {duration:.2f}s < 最小时长 {min_sec}s")
+        return
+
+    # 计算可切分的段数（舍弃不足 min_sec 的尾巴）
+    num_segments = int(duration // segment_sec)
+    if num_segments == 0:
+        print(f"[跳过] {video_path.name} 无法切出完整 {segment_sec}s 段")
+        return
+
+    print(f"[切分] {video_path.name}: 总时长 {duration:.2f}s, 每段 {segment_sec}s, 段数 {num_segments}")
+
+    stem = video_path.stem  # 去掉扩展名
+    for idx in range(num_segments):
+        start_time = idx * segment_sec
+        # 保证最后一段也至少有 min_sec
+        if duration - start_time < min_sec:
+            print(f"  [跳过尾段] start={start_time:.2f}s 剩余 {duration - start_time:.2f}s < {min_sec}s")
+            break
+
+        out_name = f"{stem}_seg{idx:03d}.mp4"
+        out_path = output_dir / out_name
+
+        # 使用 -ss + -t + -c copy，避免重新编码，速度快
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-ss",
+            f"{start_time}",
+            "-i",
+            str(video_path),
+            "-t",
+            f"{segment_sec}",
+            "-c",
+            "copy",
+            str(out_path),
+        ]
+
+        print(f"  [片段] {out_name} (start={start_time:.2f}s)")
+        try:
+            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError as exc:
+            print(f"  [错误] 切分片段失败: {out_name} -> {exc}")
+
+
+def main() -> int:
+    args = parse_args()
+
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    videos = list_mp4_files(args.input_dir)
+    print(f"[信息] 在目录 {args.input_dir} 中找到 {len(videos)} 个 mp4 文件")
+
+    for i, v in enumerate(videos):
+        print("\n" + "=" * 60)
+        print(f"[处理] ({i + 1}/{len(videos)}) {v.name}")
+        print("=" * 60)
+        try:
+            split_video(
+                video_path=v,
+                output_dir=args.output_dir,
+                segment_sec=args.segment_sec,
+                min_sec=args.min_sec,
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(f"[错误] 处理视频 {v} 时出错: {exc}")
+
+    print("\n" + "=" * 60)
+    print("[完成] 全部视频切分结束")
+    print("=" * 60)
+    print(f"输出目录: {args.output_dir}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+
