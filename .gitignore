@@ -8,6 +8,9 @@ environment/*
 !environment/.gitkeep
 !environment/llm_talk.yaml
 
+data/*
+!data/.gitkeep
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
