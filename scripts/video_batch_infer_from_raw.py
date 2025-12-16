@@ -123,7 +123,7 @@ def extract_audio(video_path: Path, out_wav: Path) -> None:
 
 
 def extract_first_frame_and_resize(video_path: Path, out_image: Path) -> None:
-    """提取第一帧并放大到 1024x1024（双三次）。"""
+    """提取第一帧，并通过等比例缩放 + 上下/左右填充变成 1024x1024。"""
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
         raise RuntimeError(f"无法打开视频文件: {video_path}")
@@ -134,14 +134,42 @@ def extract_first_frame_and_resize(video_path: Path, out_image: Path) -> None:
     if not ret or frame is None:
         raise RuntimeError(f"无法读取第一帧: {video_path}")
 
-    # 放大到 1024x1024（双三次插值）
-    frame_resized = cv2.resize(frame, (1024, 1024), interpolation=cv2.INTER_CUBIC)
+    h, w = frame.shape[:2]
+    target = 1024
+
+    # 等比例缩放，使最长边不超过 target
+    scale = 1.0
+    if max(h, w) > target:
+        scale = target / float(max(h, w))
+        new_w = int(round(w * scale))
+        new_h = int(round(h * scale))
+        frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        h, w = new_h, new_w
+
+    # 计算上下/左右填充值，使最终尺寸为 target x target
+    pad_top = (target - h) // 2
+    pad_bottom = target - h - pad_top
+    pad_left = (target - w) // 2
+    pad_right = target - w - pad_left
+
+    frame_padded = cv2.copyMakeBorder(
+        frame,
+        pad_top,
+        pad_bottom,
+        pad_left,
+        pad_right,
+        borderType=cv2.BORDER_CONSTANT,
+        value=[0, 0, 0],  # 黑色填充
+    )
 
     out_image.parent.mkdir(parents=True, exist_ok=True)
-    if not cv2.imwrite(str(out_image), frame_resized):
+    if not cv2.imwrite(str(out_image), frame_padded):
         raise RuntimeError(f"保存关键帧失败: {out_image}")
 
-    print(f"[关键帧] {video_path.name} -> {out_image.name} (first frame, resized to 1024x1024)")
+    print(
+        f"[关键帧] {video_path.name} -> {out_image.name} "
+        f"(first frame, padded to 1024x1024, orig={h}x{w})"
+    )
 
 def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) -> Path:
     """调用现有 CLI 进行推理，返回生成的视频路径。"""
