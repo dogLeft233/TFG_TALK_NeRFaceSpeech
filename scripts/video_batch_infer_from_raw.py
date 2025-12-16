@@ -35,6 +35,11 @@ from pathlib import Path
 
 import cv2
 
+# 项目根目录 = 当前脚本所在目录的上级
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# NeRFFaceSpeech 专用环境的 python 可执行文件
+NERF_ENV_PYTHON = PROJECT_ROOT / "environment" / "nerffacespeech" / "bin" / "python"
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="从 raw mp4 批量生成 NeRFFaceSpeech 推理结果")
@@ -148,8 +153,11 @@ def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) 
     outdir.mkdir(parents=True, exist_ok=True)
     pred_mp4 = outdir / "output_NeRFFaceSpeech.mp4"
 
+    # 如果存在 nerffacespeech 环境，则优先使用该环境的 python
+    python_exe = NERF_ENV_PYTHON if NERF_ENV_PYTHON.exists() else "python"
+
     cmd = [
-        "python",
+        str(python_exe),
         "NeRFFaceSpeech_Code/StyleNeRF/main_NeRFFaceSpeech_audio_driven_from_image.py",
         "--network",
         str(network),
