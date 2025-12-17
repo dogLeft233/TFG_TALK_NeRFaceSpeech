@@ -12,6 +12,7 @@
         --output-dir data/geneface_datasets/data/raw/videos_cropped \
         --face-ratio 0.6 \
         --detect-interval 30
+        
 """
 
 from __future__ import annotations
@@ -184,7 +185,9 @@ def process_video(
     if not cap.isOpened():
         raise RuntimeError(f"无法打开视频: {video_path}")
     
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    if fps <= 0:
+        fps = 25.0  # 默认帧率
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     orig_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     orig_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -203,10 +206,11 @@ def process_video(
             cap.release()
             return
     
-    # 创建视频写入器
+    # 创建临时视频文件（只有视频，无音频）
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_video = output_path.parent / f".temp_{output_path.name}"
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(str(output_path), fourcc, fps, output_size)
+    out = cv2.VideoWriter(str(temp_video), fourcc, fps, output_size)
     
     # 用于平滑的裁剪中心历史
     crop_centers: deque[Tuple[int, int]] = deque(maxlen=smooth_window * 2)
@@ -279,7 +283,33 @@ def process_video(
         cap.release()
         out.release()
     
-    print(f"[完成] 已保存: {output_path}")
+    # 使用 ffmpeg 合并原始音频和裁剪后的视频
+    print("[音频] 合并原始音频...")
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i", str(temp_video),
+        "-i", str(video_path),
+        "-c:v", "copy",
+        "-c:a", "aac",
+        "-map", "0:v:0",
+        "-map", "1:a:0",
+        "-shortest",
+        str(output_path),
+    ]
+    try:
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # 删除临时文件
+        if temp_video.exists():
+            temp_video.unlink()
+        print(f"[完成] 已保存（含音频）: {output_path}")
+    except subprocess.CalledProcessError as exc:
+        # 如果合并失败，保留临时视频文件
+        print(f"[警告] 音频合并失败，但视频已保存: {temp_video}")
+        print(f"[警告] 错误: {exc}")
+        if temp_video.exists():
+            temp_video.rename(output_path)
+            print(f"[完成] 已保存（无音频）: {output_path}")
 
 
 def main() -> int:
