@@ -80,6 +80,12 @@ def parse_args() -> argparse.Namespace:
         default=1024,
         help="生成器期望的输入分辨率（会将关键帧裁剪为正方形后缩放到此分辨率，默认1024，对应 ffhq_1024）",
     )
+    parser.add_argument(
+        "--face-crop-scale",
+        type=float,
+        default=1.2,
+        help="人脸裁剪时的扩大系数（默认1.2，越小则人脸占比越大，建议范围1.0-1.5）",
+    )
     return parser.parse_args()
 
 
@@ -128,7 +134,7 @@ def extract_audio(video_path: Path, out_wav: Path) -> None:
         raise RuntimeError(f"ffmpeg 提取音频失败: {video_path}") from exc
 
 
-def extract_first_frame_and_resize(video_path: Path, out_image: Path) -> None:
+def extract_first_frame_and_resize(video_path: Path, out_image: Path, face_crop_scale: float = 1.2) -> None:
     """提取第一帧，先做人脸检测/对齐裁剪，再缩放 + 填充到 1024x1024。"""
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
@@ -156,7 +162,7 @@ def extract_first_frame_and_resize(video_path: Path, out_image: Path) -> None:
             x1, y1, x2, y2 = bboxes[0]
             cx = int((x1 + x2) / 2)
             cy = int((y1 + y2) / 2)
-            half = int(max(x2 - x1, y2 - y1) / 2 * 1.4)  # 稍微扩大一点窗口
+            half = int(max(x2 - x1, y2 - y1) / 2 * face_crop_scale)  # 根据参数扩大窗口
 
             x1c = max(cx - half, 0)
             x2c = min(cx + half, orig_w)
@@ -282,6 +288,7 @@ def process_one_video(
     out_root: Path,
     overwrite: bool = False,
     gen_res: int = 1024,
+    face_crop_scale: float = 1.2,
 ) -> None:
     name = video_path.stem  # e.g. May, Macron
     video_outdir = out_root / name
@@ -298,7 +305,7 @@ def process_one_video(
 
     # 2) 提取第一帧作为关键帧并放大到 1024
     keyframe = video_outdir / "keyframe.png"
-    extract_first_frame_and_resize(video_path, keyframe)
+    extract_first_frame_and_resize(video_path, keyframe, face_crop_scale=face_crop_scale)
 
     # 3) 运行推理
     run_inference(network=network, outdir=video_outdir, keyframe=keyframe, audio_wav=audio_wav)
@@ -329,6 +336,7 @@ def main() -> int:
                 out_root=args.outdir,
                 overwrite=args.overwrite,
                 gen_res=args.gen_res,
+                face_crop_scale=args.face_crop_scale,
             )
         except Exception as exc:  # noqa: BLE001
             print(f"[错误] 处理视频 {v} 时出错: {exc}")
