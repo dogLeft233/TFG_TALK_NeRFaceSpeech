@@ -35,12 +35,6 @@ from pathlib import Path
 
 import cv2
 
-try:
-    # 人脸检测，用于对齐+裁剪
-    from facenet_pytorch import MTCNN  # type: ignore
-except ImportError:  # pragma: no cover - 运行时环境决定
-    MTCNN = None  # type: ignore
-
 # 项目根目录 = 当前脚本所在目录的上级
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # NeRFFaceSpeech 代码根目录
@@ -78,13 +72,7 @@ def parse_args() -> argparse.Namespace:
         "--gen-res",
         type=int,
         default=1024,
-        help="生成器期望的输入分辨率（会将关键帧裁剪为正方形后缩放到此分辨率，默认1024，对应 ffhq_1024）",
-    )
-    parser.add_argument(
-        "--face-crop-scale",
-        type=float,
-        default=1.2,
-        help="人脸裁剪时的扩大系数（默认1.2，越小则人脸占比越大，建议范围1.0-1.5）",
+        help="生成器期望的输入分辨率（会将关键帧等比例缩放+填充到此分辨率，默认1024，对应 ffhq_1024）",
     )
     return parser.parse_args()
 
@@ -134,8 +122,8 @@ def extract_audio(video_path: Path, out_wav: Path) -> None:
         raise RuntimeError(f"ffmpeg 提取音频失败: {video_path}") from exc
 
 
-def extract_first_frame_and_resize(video_path: Path, out_image: Path, face_crop_scale: float = 1.2) -> None:
-    """提取第一帧，先做人脸检测/对齐裁剪，再缩放 + 填充到 1024x1024。"""
+def extract_first_frame_and_resize(video_path: Path, out_image: Path, target_size: int = 1024) -> None:
+    """提取第一帧，等比例缩放 + 上下左右填充黑色到 target_size x target_size。"""
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
         raise RuntimeError(f"无法打开视频文件: {video_path}")
@@ -148,65 +136,30 @@ def extract_first_frame_and_resize(video_path: Path, out_image: Path, face_crop_
 
     orig_h, orig_w = frame.shape[:2]
 
-    # ----------------- 人脸检测 + 以脸为中心裁剪 -----------------
-    face_img = frame
-    used_face_crop = False
-    if MTCNN is not None:
-        # MTCNN 期望 RGB
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        mtcnn = MTCNN(select_largest=True, device="cuda" if cv2.cuda.getCudaEnabledDeviceCount() > 0 else "cpu")  # type: ignore
-        bboxes, probs = mtcnn.detect(rgb)
+    # 等比例缩放 + padding 到 target_size x target_size
+    h, w = orig_h, orig_w
+    scale = 1.0
+    if max(h, w) > target_size:
+        scale = target_size / float(max(h, w))
+        new_w = int(round(w * scale))
+        new_h = int(round(h * scale))
+        frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        h, w = new_h, new_w
 
-        if bboxes is not None and len(bboxes) > 0:
-            # 选最大的人脸
-            x1, y1, x2, y2 = bboxes[0]
-            cx = int((x1 + x2) / 2)
-            cy = int((y1 + y2) / 2)
-            half = int(max(x2 - x1, y2 - y1) / 2 * face_crop_scale)  # 根据参数扩大窗口
+    pad_top = (target_size - h) // 2
+    pad_bottom = target_size - h - pad_top
+    pad_left = (target_size - w) // 2
+    pad_right = target_size - w - pad_left
 
-            x1c = max(cx - half, 0)
-            x2c = min(cx + half, orig_w)
-            y1c = max(cy - half, 0)
-            y2c = min(cy + half, orig_h)
-
-            face_img = frame[y1c:y2c, x1c:x2c, :]
-            used_face_crop = True
-            print(f"[人脸] 检测到人脸并裁剪: ({x1c},{y1c})-({x2c},{y2c})")
-        else:
-            print("[人脸] 未检测到人脸，使用整帧")
-    else:
-        print("[人脸] 未安装 facenet_pytorch，跳过人脸检测，使用整帧")
-
-    target = 1024
-
-    if used_face_crop:
-        # 对人脸裁剪结果直接缩放到 1024x1024，不再填充
-        frame_out = cv2.resize(face_img, (target, target), interpolation=cv2.INTER_CUBIC)
-    else:
-        # 仍使用等比例缩放 + padding 的方式处理整帧
-        h, w = face_img.shape[:2]
-        scale = 1.0
-        if max(h, w) > target:
-            scale = target / float(max(h, w))
-            new_w = int(round(w * scale))
-            new_h = int(round(h * scale))
-            face_img = cv2.resize(face_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
-            h, w = new_h, new_w
-
-        pad_top = (target - h) // 2
-        pad_bottom = target - h - pad_top
-        pad_left = (target - w) // 2
-        pad_right = target - w - pad_left
-
-        frame_out = cv2.copyMakeBorder(
-            face_img,
-            pad_top,
-            pad_bottom,
-            pad_left,
-            pad_right,
-            borderType=cv2.BORDER_CONSTANT,
-            value=[0, 0, 0],  # 黑色填充
-        )
+    frame_out = cv2.copyMakeBorder(
+        frame,
+        pad_top,
+        pad_bottom,
+        pad_left,
+        pad_right,
+        borderType=cv2.BORDER_CONSTANT,
+        value=[0, 0, 0],  # 黑色填充
+    )
 
     out_image.parent.mkdir(parents=True, exist_ok=True)
     if not cv2.imwrite(str(out_image), frame_out):
@@ -214,7 +167,7 @@ def extract_first_frame_and_resize(video_path: Path, out_image: Path, face_crop_
 
     print(
         f"[关键帧] {video_path.name} -> {out_image.name} "
-        f"(first frame, face-centered, padded to 1024x1024, orig={orig_h}x{orig_w})"
+        f"(first frame, padded to {target_size}x{target_size}, orig={orig_h}x{orig_w})"
     )
 
 def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) -> Path:
@@ -288,7 +241,6 @@ def process_one_video(
     out_root: Path,
     overwrite: bool = False,
     gen_res: int = 1024,
-    face_crop_scale: float = 1.2,
 ) -> None:
     name = video_path.stem  # e.g. May, Macron
     video_outdir = out_root / name
@@ -303,9 +255,9 @@ def process_one_video(
     audio_wav = video_outdir / "audio.wav"
     extract_audio(video_path, audio_wav)
 
-    # 2) 提取第一帧作为关键帧并放大到 1024
+    # 2) 提取第一帧作为关键帧并处理到 1024x1024
     keyframe = video_outdir / "keyframe.png"
-    extract_first_frame_and_resize(video_path, keyframe, face_crop_scale=face_crop_scale)
+    extract_first_frame_and_resize(video_path, keyframe, target_size=gen_res)
 
     # 3) 运行推理
     run_inference(network=network, outdir=video_outdir, keyframe=keyframe, audio_wav=audio_wav)
@@ -336,7 +288,6 @@ def main() -> int:
                 out_root=args.outdir,
                 overwrite=args.overwrite,
                 gen_res=args.gen_res,
-                face_crop_scale=args.face_crop_scale,
             )
         except Exception as exc:  # noqa: BLE001
             print(f"[错误] 处理视频 {v} 时出错: {exc}")
