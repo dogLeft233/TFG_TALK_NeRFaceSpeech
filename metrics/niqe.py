@@ -102,6 +102,7 @@ def extract_frames_from_video(
 def compute_niqe_from_video(
     video_path: Union[str, Path],
     max_frames: Optional[int] = None,
+    batch_size: int = 16,
 ) -> Tuple[float, List[float]]:
     """从视频文件计算 NIQE。
     
@@ -114,27 +115,37 @@ def compute_niqe_from_video(
     """
     frames = extract_frames_from_video(video_path, max_frames)
 
-    # 尽量在视频级别只创建一次 pyiqa 的 NIQE metric，避免重复构建网络与日志刷屏
+    # 尽量在视频级别只创建一次 pyiqa 的 NIQE metric，避免重复构建网络与日志刷屏；
+    # 如果有 CUDA，则使用 GPU 并按 batch 处理所有帧。
     try:
         import pyiqa
         import torch
 
-        niqe_metric = pyiqa.create_metric('niqe', device='cpu')
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        niqe_metric = pyiqa.create_metric("niqe", device=device)
 
-        niqe_values: List[float] = []
+        # 转为 [N, C, H, W]，按 batch 喂给网络
+        tensors = []
         for img in frames:
             # frames 已经是 RGB，[H, W, 3]
             if len(img.shape) == 2:
                 img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-            img_tensor = (
+            t = (
                 torch.from_numpy(img)
                 .permute(2, 0, 1)
-                .unsqueeze(0)
                 .float()
                 / 255.0
             )
-            score = niqe_metric(img_tensor)
-            niqe_values.append(float(score.item()))
+            tensors.append(t)
+
+        imgs_tensor = torch.stack(tensors, dim=0).to(device)
+
+        niqe_values: List[float] = []
+        for start in range(0, imgs_tensor.size(0), batch_size):
+            end = start + batch_size
+            batch = imgs_tensor[start:end]
+            scores = niqe_metric(batch)  # [B]
+            niqe_values.extend([float(s) for s in scores.detach().cpu().view(-1)])
     except ImportError:
         # 没装 pyiqa 时，退回到单帧版本（内部会走简化实现）
         niqe_values = [calculate_niqe(frame) for frame in frames]
