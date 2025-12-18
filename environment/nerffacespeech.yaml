@@ -1,4 +1,4 @@
-name: /root/autodl-tmp/TFG_TALK_NeRFaceSpeech/environment/nerffacespeech
+name: nerffacespeech
 channels:
   - <unknown>
   - conda-forge
