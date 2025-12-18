@@ -10,6 +10,7 @@ assets/*
 environment/*
 !environment/.gitkeep
 !environment/llm_talk.yaml
+!environment/nerffacespeech.yaml
 
 data/*
 !data/.gitkeep
@@ -19,10 +20,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-NeRFFaceSpeech_Code/out_test_given_pose/*
-NeRFFaceSpeech_Code/out_test_real/*
-NeRFFaceSpeech_Code/out_test_video_driven/*
-NeRFFaceSpeech_Code/out_test_z/*
+NeRFFaceSpeech_Code/out_test_given_pose
+NeRFFaceSpeech_Code/out_test_real
+NeRFFaceSpeech_Code/out_test_video_driven
+NeRFFaceSpeech_Code/out_test_z
 
 NeRFFaceSpeech_Code/frames
 !NeRFFaceSpeech_Code/frames/.gitkeep
