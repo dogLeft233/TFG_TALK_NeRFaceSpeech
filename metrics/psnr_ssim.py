@@ -8,8 +8,6 @@ import numpy as np
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 from skimage.metrics import structural_similarity as ssim_func
-import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def calculate_psnr(img1: np.ndarray, img2: np.ndarray) -> float:
@@ -104,7 +102,6 @@ def compute_psnr_from_videos(
     video1_path: Union[str, Path],
     video2_path: Union[str, Path],
     max_frames: Optional[int] = None,
-    num_workers: Optional[int] = None,
 ) -> Tuple[float, List[float]]:
     """从两个视频文件计算 PSNR。
     
@@ -123,39 +120,15 @@ def compute_psnr_from_videos(
     min_frames = min(len(frames1), len(frames2))
     frames1 = frames1[:min_frames]
     frames2 = frames2[:min_frames]
-    
-    # 默认使用尽量多的 CPU 线程（保守上限 32）
-    if num_workers is None:
-        cpu_cnt = os.cpu_count() or 1
-        num_workers = min(cpu_cnt, 32)
 
-    if num_workers <= 1 or min_frames <= 1:
-        psnr_values = []
-        for frame1, frame2 in zip(frames1, frames2):
-            if frame1.shape != frame2.shape:
-                h, w = min(frame1.shape[0], frame2.shape[0]), min(frame1.shape[1], frame2.shape[1])
-                frame1 = frame1[:h, :w]
-                frame2 = frame2[:h, :w]
-            psnr_values.append(calculate_psnr(frame1, frame2))
-    else:
-        psnr_values: List[float] = [0.0] * min_frames
-
-        def _worker(idx_frame_pair):
-            idx, (f1, f2) = idx_frame_pair
-            if f1.shape != f2.shape:
-                h, w = min(f1.shape[0], f2.shape[0]), min(f1.shape[1], f2.shape[1])
-                f1 = f1[:h, :w]
-                f2 = f2[:h, :w]
-            return idx, calculate_psnr(f1, f2)
-
-        with ThreadPoolExecutor(max_workers=num_workers) as ex:
-            futures = {
-                ex.submit(_worker, (idx, (f1, f2))): idx
-                for idx, (f1, f2) in enumerate(zip(frames1, frames2))
-            }
-            for fut in as_completed(futures):
-                idx, val = fut.result()
-                psnr_values[idx] = float(val)
+    # 串行逐帧计算 PSNR，避免并行带来的额外复杂度
+    psnr_values: List[float] = []
+    for frame1, frame2 in zip(frames1, frames2):
+        if frame1.shape != frame2.shape:
+            h, w = min(frame1.shape[0], frame2.shape[0]), min(frame1.shape[1], frame2.shape[1])
+            frame1 = frame1[:h, :w]
+            frame2 = frame2[:h, :w]
+        psnr_values.append(calculate_psnr(frame1, frame2))
     
     avg_psnr = float(np.mean(psnr_values))
     return avg_psnr, psnr_values
@@ -165,7 +138,6 @@ def compute_ssim_from_videos(
     video1_path: Union[str, Path],
     video2_path: Union[str, Path],
     max_frames: Optional[int] = None,
-    num_workers: Optional[int] = None,
 ) -> Tuple[float, List[float]]:
     """从两个视频文件计算 SSIM。
     
@@ -184,39 +156,15 @@ def compute_ssim_from_videos(
     min_frames = min(len(frames1), len(frames2))
     frames1 = frames1[:min_frames]
     frames2 = frames2[:min_frames]
-    
-    # 默认使用尽量多的 CPU 线程（保守上限 32）
-    if num_workers is None:
-        cpu_cnt = os.cpu_count() or 1
-        num_workers = min(cpu_cnt, 32)
 
-    if num_workers <= 1 or min_frames <= 1:
-        ssim_values = []
-        for frame1, frame2 in zip(frames1, frames2):
-            if frame1.shape != frame2.shape:
-                h, w = min(frame1.shape[0], frame2.shape[0]), min(frame1.shape[1], frame2.shape[1])
-                frame1 = frame1[:h, :w]
-                frame2 = frame2[:h, :w]
-            ssim_values.append(calculate_ssim(frame1, frame2))
-    else:
-        ssim_values: List[float] = [0.0] * min_frames
-
-        def _worker(idx_frame_pair):
-            idx, (f1, f2) = idx_frame_pair
-            if f1.shape != f2.shape:
-                h, w = min(f1.shape[0], f2.shape[0]), min(f1.shape[1], f2.shape[1])
-                f1 = f1[:h, :w]
-                f2 = f2[:h, :w]
-            return idx, calculate_ssim(f1, f2)
-
-        with ThreadPoolExecutor(max_workers=num_workers) as ex:
-            futures = {
-                ex.submit(_worker, (idx, (f1, f2))): idx
-                for idx, (f1, f2) in enumerate(zip(frames1, frames2))
-            }
-            for fut in as_completed(futures):
-                idx, val = fut.result()
-                ssim_values[idx] = float(val)
+    # 串行逐帧计算 SSIM，避免并行带来的额外复杂度
+    ssim_values: List[float] = []
+    for frame1, frame2 in zip(frames1, frames2):
+        if frame1.shape != frame2.shape:
+            h, w = min(frame1.shape[0], frame2.shape[0]), min(frame1.shape[1], frame2.shape[1])
+            frame1 = frame1[:h, :w]
+            frame2 = frame2[:h, :w]
+        ssim_values.append(calculate_ssim(frame1, frame2))
 
     avg_ssim = float(np.mean(ssim_values))
     return avg_ssim, ssim_values

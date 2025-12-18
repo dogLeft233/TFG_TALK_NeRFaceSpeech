@@ -7,8 +7,6 @@ import cv2
 import numpy as np
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
-import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 
 logger = logging.getLogger(__name__)
@@ -104,7 +102,6 @@ def extract_frames_from_video(
 def compute_niqe_from_video(
     video_path: Union[str, Path],
     max_frames: Optional[int] = None,
-    num_workers: Optional[int] = None,
 ) -> Tuple[float, List[float]]:
     """从视频文件计算 NIQE。
     
@@ -117,23 +114,8 @@ def compute_niqe_from_video(
     """
     frames = extract_frames_from_video(video_path, max_frames)
 
-    # 默认使用尽量多的 CPU 线程（保守上限 32）
-    if num_workers is None:
-        cpu_cnt = os.cpu_count() or 1
-        num_workers = min(cpu_cnt, 32)
-
-    if num_workers <= 1 or len(frames) <= 1:
-        niqe_values = [calculate_niqe(frame) for frame in frames]
-    else:
-        niqe_values: List[float] = [0.0] * len(frames)
-        with ThreadPoolExecutor(max_workers=num_workers) as ex:
-            futures = {
-                ex.submit(calculate_niqe, frame): idx
-                for idx, frame in enumerate(frames)
-            }
-            for fut in as_completed(futures):
-                idx = futures[fut]
-                niqe_values[idx] = float(fut.result())
+    # 串行逐帧计算 NIQE，避免并行带来的额外复杂度
+    niqe_values = [calculate_niqe(frame) for frame in frames]
 
     avg_niqe = float(np.mean(niqe_values))
     return avg_niqe, niqe_values
