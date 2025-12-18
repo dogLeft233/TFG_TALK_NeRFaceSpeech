@@ -114,8 +114,30 @@ def compute_niqe_from_video(
     """
     frames = extract_frames_from_video(video_path, max_frames)
 
-    # 串行逐帧计算 NIQE，避免并行带来的额外复杂度
-    niqe_values = [calculate_niqe(frame) for frame in frames]
+    # 尽量在视频级别只创建一次 pyiqa 的 NIQE metric，避免重复构建网络与日志刷屏
+    try:
+        import pyiqa
+        import torch
+
+        niqe_metric = pyiqa.create_metric('niqe', device='cpu')
+
+        niqe_values: List[float] = []
+        for img in frames:
+            # frames 已经是 RGB，[H, W, 3]
+            if len(img.shape) == 2:
+                img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+            img_tensor = (
+                torch.from_numpy(img)
+                .permute(2, 0, 1)
+                .unsqueeze(0)
+                .float()
+                / 255.0
+            )
+            score = niqe_metric(img_tensor)
+            niqe_values.append(float(score.item()))
+    except ImportError:
+        # 没装 pyiqa 时，退回到单帧版本（内部会走简化实现）
+        niqe_values = [calculate_niqe(frame) for frame in frames]
 
     avg_niqe = float(np.mean(niqe_values))
     return avg_niqe, niqe_values
