@@ -1,0 +1,69 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+dist/
+build/
+*.egg
+
+# 环境（可选，如果需要从环境文件构建则保留）
+# environment/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 输出和缓存
+outputs/
+output/
+*.log
+*.tmp
+.cache/
+
+# 数据库（运行时数据）
+database/*.db
+database/videos/
+
+# 模型文件（通过 volume 挂载，不打包到镜像）
+# 注意：这些文件不会被打包到镜像中，需要通过 volume 挂载
+NeRFFaceSpeech_Code/pretrained_networks/*.pkl
+NeRFFaceSpeech_Code/pretrained_networks/*.pth
+NeRFFaceSpeech_Code/pretrained_networks/*.safetensors
+NeRFFaceSpeech_Code/pretrained_networks/*.mat
+NeRFFaceSpeech_Code/pretrained_networks/*.pt
+NeRFFaceSpeech_Code/pretrained_networks/sad_talker_pretrained/
+NeRFFaceSpeech_Code/pretrained_networks/BFM_for_3DMM-Fitting-Pytorch/
+NeRFFaceSpeech_Code/pretrained_networks/Deep3DFaceRecon_pytorch/
+NeRFFaceSpeech_Code/pretrained_networks/BFM/
+NeRFFaceSpeech_Code/pretrained_networks/LipaintNet_pretrained/
+
+# 权重缓存（通过 volume 挂载）
+weights/
+Hugging_Face/
+
+# Docker 文件
+Dockerfile
+docker-compose.yml
+.dockerignore
+DOCKER_README.md
+
+# 文档
+doc/
+*.md
+!README.md
+
+# 其他
+.DS_Store
+Thumbs.db
+

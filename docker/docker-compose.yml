@@ -1,0 +1,51 @@
+services:
+  nerffacespeech:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: nerffacespeech-app
+    image: nerffacespeech:latest
+    ports:
+      - "8000:8000"  # 后端 API
+      - "7860:7860"  # 前端 Web UI
+    volumes:
+      # 挂载模型目录（从主机挂载，模型文件在主机上）
+      # 如果主机上没有模型文件，容器启动时会提示下载
+      - ./NeRFFaceSpeech_Code/pretrained_networks:/app/NeRFFaceSpeech_Code/pretrained_networks:ro
+      
+      # 挂载数据目录
+      - ./data:/app/data:rw
+      
+      # 挂载输出目录（持久化生成的内容）
+      - ./outputs:/app/outputs:rw
+      - ./database:/app/database:rw
+      
+      # 挂载权重缓存目录
+      - ./weights:/app/weights:rw
+      - ./Hugging_Face:/app/Hugging_Face:rw
+      
+      # 挂载资源文件
+      - ./assets:/app/assets:ro
+    environment:
+      - PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+      - TORCH_HOME=/app/weights
+      - HF_ENDPOINT=https://hf-mirror.com
+      - HF_HOME=/app/Hugging_Face
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    networks:
+      - nerffacespeech-network
+
+networks:
+  nerffacespeech-network:
+    driver: bridge
+

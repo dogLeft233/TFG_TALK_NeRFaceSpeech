@@ -168,3 +168,13 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# ==================== Docker 相关 ====================
+# Docker 目录下的运行时数据（如果存在）
+docker/database/
+docker/outputs/
+docker/data/
+docker/weights/
+docker/Hugging_Face/
+docker/*.log
+docker/*.tmp

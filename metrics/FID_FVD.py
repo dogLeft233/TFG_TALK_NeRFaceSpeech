@@ -1,20 +1,13 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torchvision.models import inception_v3
 from torchvision import transforms
 from scipy import linalg
 import numpy as np
 import cv2
-import os
 import logging
 from typing import List, Tuple, Optional, Union
 from pathlib import Path
-import sys
-
-# 添加pytorch-i3d路径
-sys.path.append('pytorch-i3d')
-from pytorch_i3d.pytorch_i3d import InceptionI3d
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -163,182 +156,6 @@ class FIDCalculator:
         return fid_score
 
 
-class FVDCalculator:
-    """FVD计算器"""
-    
-    def __init__(self, device='cuda', batch_size=8, num_frames=16):
-        self.device = device
-        self.batch_size = batch_size
-        self.num_frames = num_frames
-        self.i3d_model = None
-        self._load_i3d_model()
-    
-    def _load_i3d_model(self):
-        """加载I3D模型"""
-        logger.info("加载I3D模型...")
-        try:
-            # 尝试加载预训练模型
-            model_path = 'pytorch-i3d/models/rgb_imagenet.pt'
-            if os.path.exists(model_path):
-                self.i3d_model = InceptionI3d(400, in_channels=3)
-                self.i3d_model.load_state_dict(torch.load(model_path))
-                logger.info(f"从{model_path}加载I3D模型")
-            else:
-                # 如果没有预训练模型，创建随机初始化的模型
-                self.i3d_model = InceptionI3d(400, in_channels=3)
-                logger.warning("未找到预训练I3D模型，使用随机初始化")
-            
-            self.i3d_model.eval()
-            self.i3d_model.to(self.device)
-            logger.info("I3D模型加载完成")
-            
-        except Exception as e:
-            logger.error(f"I3D模型加载失败: {str(e)}")
-            raise
-    
-    def _preprocess_video(self, video_path, frame_size=224):
-        """
-        预处理视频
-        Args:
-            video_path: 视频路径
-            frame_size: 帧大小
-        Returns:
-            video_tensor: [channels, num_frames, height, width]
-        """
-        cap = cv2.VideoCapture(video_path)
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        
-        if total_frames < self.num_frames:
-            logger.warning(f"视频帧数({total_frames})少于所需帧数({self.num_frames})")
-            # 重复最后一帧
-            frames = []
-            for i in range(self.num_frames):
-                frame_idx = min(i, total_frames - 1)
-                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-                ret, frame = cap.read()
-                if ret:
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    frame = cv2.resize(frame, (frame_size, frame_size))
-                    frame = frame.astype(np.float32) / 255.0
-                    frames.append(frame)
-        else:
-            # 均匀采样帧
-            frame_indices = np.linspace(0, total_frames-1, self.num_frames, dtype=int)
-            frames = []
-            for idx in frame_indices:
-                cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-                ret, frame = cap.read()
-                if ret:
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    frame = cv2.resize(frame, (frame_size, frame_size))
-                    frame = frame.astype(np.float32) / 255.0
-                    frames.append(frame)
-        
-        cap.release()
-        
-        if len(frames) == 0:
-            raise ValueError(f"无法从视频{video_path}中提取帧")
-        
-        # 转换为张量 [num_frames, height, width, channels] -> [channels, num_frames, height, width]
-        video_array = np.array(frames)
-        video_tensor = torch.FloatTensor(video_array).permute(3, 0, 1, 2)
-        
-        return video_tensor
-    
-    def extract_video_features(self, videos):
-        """
-        提取视频特征
-        Args:
-            videos: 视频路径列表或张量列表
-        Returns:
-            features: [N, 1024]
-        """
-        all_features = []
-        
-        with torch.no_grad():
-            for i in range(0, len(videos), self.batch_size):
-                batch_videos = videos[i:i+self.batch_size]
-                batch_tensors = []
-                
-                for video in batch_videos:
-                    if isinstance(video, str):
-                        video_tensor = self._preprocess_video(video)
-                    else:
-                        video_tensor = video
-                    batch_tensors.append(video_tensor)
-                
-                if batch_tensors:
-                    batch_tensor = torch.stack(batch_tensors).to(self.device)
-                    # 使用I3D提取特征
-                    features = self.i3d_model.extract_features(batch_tensor)
-                    # 全局平均池化
-                    features = F.adaptive_avg_pool3d(features, (1, 1, 1))
-                    features = features.squeeze(-1).squeeze(-1).squeeze(-1)
-                    all_features.append(features.cpu().numpy())
-        
-        return np.concatenate(all_features, axis=0)
-    
-    def calculate_statistics(self, features):
-        """计算特征的均值和协方差矩阵"""
-        mu = np.mean(features, axis=0)
-        sigma = np.cov(features, rowvar=False)
-        return mu, sigma
-    
-    def calculate_fvd(self, mu1, sigma1, mu2, sigma2, eps=1e-6):
-        """计算FVD分数（使用与FID相同的公式）"""
-        # 计算均值差的平方和
-        diff = mu1 - mu2
-        mean_diff = np.sum(diff ** 2)
-        
-        # 计算协方差矩阵的矩阵平方根
-        covmean, _ = linalg.sqrtm(sigma1.dot(sigma2), disp=False)
-        
-        # 检查数值稳定性
-        if not np.isfinite(covmean).all():
-            offset = np.eye(sigma1.shape[0]) * eps
-            covmean = linalg.sqrtm((sigma1 + offset).dot(sigma2 + offset))
-        
-        # 如果是复数，取实部
-        if np.iscomplexobj(covmean):
-            covmean = covmean.real
-        
-        # 计算FVD
-        trace_covmean = np.trace(covmean)
-        fvd = mean_diff + np.trace(sigma1) + np.trace(sigma2) - 2 * trace_covmean
-        
-        return fvd
-    
-    def compute_fvd(self, real_videos, generated_videos):
-        """
-        计算FVD分数
-        Args:
-            real_videos: 真实视频路径列表
-            generated_videos: 生成视频路径列表
-        Returns:
-            fvd_score: FVD分数
-        """
-        logger.info("开始计算FVD...")
-        
-        # 提取真实视频特征
-        logger.info(f"提取真实视频特征，共{len(real_videos)}个视频...")
-        real_features = self.extract_video_features(real_videos)
-        
-        # 提取生成视频特征
-        logger.info(f"提取生成视频特征，共{len(generated_videos)}个视频...")
-        gen_features = self.extract_video_features(generated_videos)
-        
-        # 计算统计量
-        logger.info("计算统计量...")
-        mu_real, sigma_real = self.calculate_statistics(real_features)
-        mu_gen, sigma_gen = self.calculate_statistics(gen_features)
-        
-        # 计算FVD
-        fvd_score = self.calculate_fvd(mu_real, sigma_real, mu_gen, sigma_gen)
-        
-        logger.info(f"FVD计算完成: {fvd_score:.2f}")
-        return fvd_score
-
-
 def compute_fid(real_images, generated_images, device='cuda', batch_size=50):
     """
     计算FID分数的便捷函数
@@ -354,29 +171,85 @@ def compute_fid(real_images, generated_images, device='cuda', batch_size=50):
     return calculator.compute_fid(real_images, generated_images)
 
 
-def compute_fvd(real_videos, generated_videos, device='cuda', batch_size=8, num_frames=16):
-    """
-    计算FVD分数的便捷函数
+def extract_frames_from_video(video_path, max_frames=None):
+    """从视频中提取所有帧或采样帧。
+    
     Args:
-        real_videos: 真实视频路径列表
-        generated_videos: 生成视频路径列表
-        device: 计算设备
-        batch_size: 批处理大小
-        num_frames: 每个视频采样的帧数
+        video_path: 视频文件路径
+        max_frames: 最大提取帧数，如果为 None 则提取所有帧
+    
     Returns:
-        fvd_score: FVD分数
+        帧列表，每个元素为 RGB 格式的 numpy 数组 [H, W, 3]，值域 [0, 255]
     """
-    calculator = FVDCalculator(device=device, batch_size=batch_size, num_frames=num_frames)
-    return calculator.compute_fvd(real_videos, generated_videos)
+    video_path = Path(video_path)
+    cap = cv2.VideoCapture(str(video_path))
+    if not cap.isOpened():
+        raise RuntimeError(f"无法打开视频: {video_path}")
+    
+    frames = []
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    
+    if max_frames is not None and total_frames > max_frames:
+        # 均匀采样
+        indices = np.linspace(0, total_frames - 1, max_frames, dtype=int)
+        for idx in indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+            ret, frame = cap.read()
+            if ret:
+                frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    else:
+        # 提取所有帧
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    
+    cap.release()
+    return frames
+
+
+def compute_fid_from_videos(
+    video1_path: Union[str, Path],
+    video2_path: Union[str, Path],
+    device: str = 'cuda',
+    batch_size: int = 50,
+    max_frames: Optional[int] = None
+) -> float:
+    """从两个视频文件计算 FID 分数。
+    
+    Args:
+        video1_path: 第一个视频文件路径（MP4）
+        video2_path: 第二个视频文件路径（MP4）
+        device: 计算设备（'cuda' 或 'cpu'）
+        batch_size: 批处理大小
+        max_frames: 最大处理帧数，如果为 None 则处理所有帧
+    
+    Returns:
+        FID 分数，值越小越好
+    """
+    # 提取帧
+    frames1 = extract_frames_from_video(video1_path, max_frames)
+    frames2 = extract_frames_from_video(video2_path, max_frames)
+    
+    # 对齐帧数（取较短的长度）
+    min_frames = min(len(frames1), len(frames2))
+    frames1 = frames1[:min_frames]
+    frames2 = frames2[:min_frames]
+    
+    # 使用 FIDCalculator 计算 FID
+    calculator = FIDCalculator(device=device, batch_size=batch_size)
+    fid_score = calculator.compute_fid(frames1, frames2)
+    
+    return float(fid_score)
 
 
 if __name__ == "__main__":
     # 测试代码
-    print("FID/FVD计算器测试")
+    print("FID计算器测试")
     
     # 创建一些测试数据
     test_images = [np.random.rand(299, 299, 3) for _ in range(10)]
-    test_videos = ["test_video1.mp4", "test_video2.mp4"]  # 需要实际的视频文件
     
     try:
         # 测试FID计算
@@ -384,15 +257,6 @@ if __name__ == "__main__":
         fid_calculator = FIDCalculator(device='cpu', batch_size=5)
         fid_score = fid_calculator.compute_fid(test_images, test_images)
         print(f"FID分数: {fid_score:.2f}")
-        
-        # 测试FVD计算（如果有视频文件）
-        if all(os.path.exists(v) for v in test_videos):
-            print("测试FVD计算...")
-            fvd_calculator = FVDCalculator(device='cpu', batch_size=2, num_frames=8)
-            fvd_score = fvd_calculator.compute_fvd(test_videos, test_videos)
-            print(f"FVD分数: {fvd_score:.2f}")
-        else:
-            print("跳过FVD测试（缺少视频文件）")
             
     except Exception as e:
         print(f"测试失败: {str(e)}")
