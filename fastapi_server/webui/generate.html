@@ -1,0 +1,1476 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>视频生成 - NeRFFaceSpeech</title>
+  <style>
+    :root {
+      --primary: #1e40af; /* 主色调：深蓝色，用于选中状态、强调按钮 */
+      --primary-2: #3b82f6; /* 次要主色：中间蓝色，用于渐变、次要强调 */
+      --bg: #0b1020; /* 页面背景色：深色背景 */
+      --card: rgba(255,255,255,0.06); /* 卡片背景：半透明白色，用于内容卡片 */
+      --border: rgba(255,255,255,0.14); /* 边框颜色：半透明白色边框 */
+      --text: #e5e7eb; /* 主文字颜色：浅灰色文字 */
+      --muted: #9ca3af; /* 次要文字颜色：灰色，用于辅助信息 */
+      --g1: rgba(59,130,246,0.16); /* 渐变1：蓝色渐变点1 */
+      --g2: rgba(14,165,233,0.14); /* 渐变2：青色渐变点2 */
+      --g3: rgba(56,189,248,0.12); /* 渐变3：浅蓝色渐变点3 */
+      --grad1: #0b1220; /* 渐变起始色：深蓝色 */
+      --grad2: #0f172a; /* 渐变结束色：深蓝灰色 */
+      --card-bg: rgba(59,130,246,0.25); /* 卡片背景色：浅蓝色，用于首页卡片和下拉菜单 */
+    }
+    body.theme-tech {
+      --primary: #1e40af; /* 主色调：深蓝色 */
+      --primary-2: #3b82f6; /* 次要主色：中间蓝色 */
+      --bg: #0b1020; /* 页面背景色：深色背景 */
+      --card: rgba(255,255,255,0.06); /* 卡片背景：半透明白色 */
+      --border: rgba(255,255,255,0.14); /* 边框颜色：半透明白色边框 */
+      --text: #e5e7eb; /* 主文字颜色：浅灰色文字 */
+      --muted: #9ca3af; /* 次要文字颜色：灰色 */
+      --g1: rgba(59,130,246,0.16); /* 渐变1：蓝色渐变点1 */
+      --g2: rgba(14,165,233,0.14); /* 渐变2：青色渐变点2 */
+      --g3: rgba(56,189,248,0.12); /* 渐变3：浅蓝色渐变点3 */
+      --grad1: #0b1220; /* 渐变起始色：深蓝色 */
+      --grad2: #0f172a; /* 渐变结束色：深蓝灰色 */
+      --card-bg: rgba(59,130,246,0.25); /* 卡片背景色：浅蓝色 */
+    }
+    body.theme-warm {
+      --primary: #f97316; /* 主色调：橙色，用于选中状态、强调按钮 */
+      --primary-2: #ea580c; /* 次要主色：深橙色，用于渐变、次要强调 */
+      --bg: #fff8f0; /* 页面背景色：浅暖色背景 */
+      --card: rgba(255,255,255,0.9); /* 卡片背景：半透明白色 */
+      --border: rgba(249,115,22,0.2); /* 边框颜色：半透明橙色边框 */
+      --text: #1f2937; /* 主文字颜色：深灰色文字 */
+      --muted: #6b7280; /* 次要文字颜色：灰色 */
+      --g1: rgba(251,191,36,0.15); /* 渐变1：黄色渐变点1 */
+      --g2: rgba(249,115,22,0.12); /* 渐变2：橙色渐变点2 */
+      --g3: rgba(234,88,12,0.1); /* 渐变3：深橙色渐变点3 */
+      --grad1: #fff8f0; /* 渐变起始色：浅暖色 */
+      --grad2: #fff5e6; /* 渐变结束色：浅黄色 */
+      --card-bg: rgba(251,191,36,0.15); /* 卡片背景色：浅黄色 */
+    }
+    body.theme-minimal {
+      --primary: #6b7280; /* 主色调：灰色，用于选中状态、强调按钮 */
+      --primary-2: #4b5563; /* 次要主色：深灰色，用于渐变、次要强调 */
+      --bg: #f5f5f5; /* 页面背景色：浅灰色背景 */
+      --card: #ffffff; /* 卡片背景：白色 */
+      --border: #e5e7eb; /* 边框颜色：浅灰色边框 */
+      --text: #111827; /* 主文字颜色：深色文字 */
+      --muted: #6b7280; /* 次要文字颜色：灰色 */
+      --g1: rgba(107,114,128,0.08); /* 渐变1：灰色渐变点1 */
+      --g2: rgba(75,85,99,0.07); /* 渐变2：深灰色渐变点2 */
+      --g3: rgba(156,163,175,0.06); /* 渐变3：浅灰色渐变点3 */
+      --grad1: #f9fafb; /* 渐变起始色：浅灰色 */
+      --grad2: #f3f4f6; /* 渐变结束色：更浅灰色 */
+      --card-bg: rgba(107,114,128,0.1); /* 卡片背景色：浅灰色 */
+    }
+    * { box-sizing: border-box; }
+    :root {
+      --base-font-size: 14px; /* 基础字号 */
+    }
+    html {
+      font-size: var(--base-font-size);
+    }
+    body {
+      margin: 0;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at 20% 20%, var(--g1), transparent 25%),
+                  radial-gradient(circle at 80% 30%, var(--g2), transparent 25%),
+                  radial-gradient(circle at 50% 80%, var(--g3), transparent 22%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .page { max-width: 1400px; width: 94vw; margin: 0 auto; padding: 20px 24px 40px; min-height: 96vh; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    h1 { margin: 0; font-size: 24px; letter-spacing: 0.4px; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 12px; background: rgba(59,130,246,0.2); color: #c7d2fe; font-size: 12px; border: 1px solid rgba(96,165,250,0.5); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
+    .grid { display: grid; grid-template-columns: 520px 1fr; gap: 18px; align-items: start; }
+    label { font-weight: 700; margin-bottom: 6px; display: block; }
+    input, select, textarea {
+      width: 100%; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+      font-size: 15px; background: rgba(255,255,255,0.04); color: var(--text);
+      outline: none; transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: rgba(96,165,250,0.8);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
+    }
+    textarea { min-height: 130px; resize: vertical; }
+    button.primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      border: 1px solid var(--primary-2);
+      color: #fff; font-weight: 700; border-radius: 12px; padding: 12px 14px; cursor: pointer; width: 100%;
+    }
+    button.secondary {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid var(--border);
+      color: #e5e7eb; font-weight: 600; border-radius: 12px; padding: 12px 14px; cursor: pointer; width: 100%;
+    }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .log-box {
+      background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      min-height: 90px; white-space: pre-wrap; word-break: break-all;
+    }
+    .video-frame {
+      width: 100%; min-height: 720px; max-height: 80vh;
+      background: linear-gradient(180deg, var(--grad1) 0%, var(--grad2) 100%);
+      border-radius: 16px; border: 1px solid #1f2937;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; position: relative;
+    }
+    video { 
+      width: 100%; 
+      height: 100%; 
+      object-fit: contain; 
+      background: #000;
+      display: none;
+    }
+    video:not(.hidden) {
+      display: block !important;
+    }
+    .placeholder {
+      color: #9ca3af; font-size: 16px; text-align: center; padding: 20px;
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    }
+    /* 进度条样式 */
+    .progress-container {
+      margin-top: 12px;
+      margin-bottom: 12px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--primary-2));
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 4px;
+    }
+    .progress-text {
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .step-indicator {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .step-item {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      transition: all 0.3s ease;
+    }
+    .step-item.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .step-item.completed {
+      background: rgba(34,197,94,0.2);
+      color: #4ade80;
+      border-color: rgba(34,197,94,0.4);
+    }
+    /* 视频操作按钮 */
+    .video-controls {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .video-controls button {
+      padding: 8px 16px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    /* 参数显示卡片 */
+    .param-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+    .param-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .param-row:last-child {
+      border-bottom: none;
+    }
+    .param-label {
+      color: var(--muted);
+    }
+    .param-value {
+      color: var(--text);
+      font-weight: 500;
+    }
+    /* 历史记录 */
+    .history-section {
+      margin-top: 24px;
+    }
+    .history-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .history-item {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .history-item:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: var(--primary);
+    }
+    .history-thumbnail {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      object-fit: cover;
+    }
+    .history-info {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    /* 错误提示模态框 */
+    .error-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 3000;
+      align-items: center;
+      justify-content: center;
+    }
+    .error-modal.active {
+      display: flex;
+    }
+    .error-content {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .error-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .error-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #ef4444;
+    }
+    .error-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+    }
+    .error-close:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    .error-details {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--text);
+      margin-top: 12px;
+      display: none;
+    }
+    .error-details.active {
+      display: block;
+    }
+    .error-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    /* Toast 提示 */
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 4000;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: slideIn 0.3s ease;
+    }
+    .toast.success {
+      border-color: #22c55e;
+      background: rgba(34,197,94,0.1);
+    }
+    .toast.error {
+      border-color: #ef4444;
+      background: rgba(239,68,68,0.1);
+    }
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    /* 视频信息 */
+    .video-info {
+      margin-top: 12px;
+      padding: 12px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .row { display: flex; gap: 10px; }
+    .row > * { flex: 1; }
+    .help-btn { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; border-radius: 10px; padding: 8px 10px; cursor: pointer; font-weight: 600; }
+    a { color: #bfdbfe; text-decoration: none; }
+    footer {
+      margin-top: 24px;
+      padding: 12px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    /* 设置按钮 */
+    .settings-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .settings-btn:hover {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    
+    /* 侧边栏遮罩 */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 2000;
+      transition: opacity 0.3s ease;
+    }
+    .sidebar-overlay.active {
+      display: block;
+    }
+    
+    /* 侧边栏 */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      right: -400px;
+      width: 400px;
+      height: 100vh;
+      background: var(--bg);
+      border-left: 1px solid var(--border);
+      z-index: 2001;
+      transition: right 0.3s ease;
+      overflow-y: auto;
+      box-shadow: -4px 0 20px rgba(0, 0, 0, 0.2);
+    }
+    .sidebar.active {
+      right: 0;
+    }
+    .sidebar-content {
+      padding: 24px;
+    }
+    .sidebar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-header h2 {
+      margin: 0;
+      font-size: 20px;
+      color: var(--text);
+    }
+    .sidebar-close {
+      background: none;
+      border: none;
+      font-size: 28px;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 0;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+    .sidebar-close:hover {
+      background: var(--card-bg);
+      color: var(--text);
+    }
+    
+    /* 分页标签 */
+    .sidebar-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-tab {
+      padding: 10px 20px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .sidebar-tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    .sidebar-tab:hover {
+      color: var(--text);
+    }
+    
+    /* 分页内容 */
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* 选项网格 */
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .option-card {
+      padding: 16px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: var(--card-bg);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+    .option-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .option-card.selected {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+    }
+    .option-card.selected .option-name {
+      color: #fff;
+    }
+    .option-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .option-desc {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .option-card.selected .option-desc {
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    /* 字号选择 */
+    .font-size-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .font-size-btn {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--card-bg);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .font-size-btn:hover {
+      border-color: var(--primary);
+    }
+    .font-size-btn.selected {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+    }
+    .font-size-custom {
+      margin-top: 16px;
+    }
+    .font-size-custom input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card-bg);
+      color: var(--text);
+      font-size: 14px;
+    }
+  </style>
+  <script src="settings.js"></script>
+</head>
+<body>
+  <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
+  
+  <!-- 侧边栏遮罩 -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  
+  <!-- 设置侧边栏 -->
+  <div class="sidebar" id="settingsSidebar">
+    <div class="sidebar-content">
+      <div class="sidebar-header">
+        <h2>设置</h2>
+        <button class="sidebar-close" id="sidebarClose">×</button>
+      </div>
+      
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab active" data-tab="theme">主题</button>
+        <button class="sidebar-tab" data-tab="font">字体</button>
+      </div>
+      
+      <!-- 主题设置 -->
+      <div class="tab-content active" id="themeTab">
+        <div class="options-grid">
+          <div class="option-card" data-theme="tech">
+            <div class="option-name">科技风</div>
+            <div class="option-desc">深蓝色科技感</div>
+          </div>
+          <div class="option-card" data-theme="warm">
+            <div class="option-name">温馨风</div>
+            <div class="option-desc">暖色调温馨</div>
+          </div>
+          <div class="option-card" data-theme="minimal">
+            <div class="option-name">简约风</div>
+            <div class="option-desc">灰色简约</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 字体设置 -->
+      <div class="tab-content" id="fontTab">
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; margin-bottom: 8px; color: var(--text); font-weight: 500;">字体样式</label>
+          <div class="options-grid">
+            <div class="option-card" data-font="SimSun">
+              <div class="option-name">宋体</div>
+              <div class="option-desc">SimSun</div>
+            </div>
+            <div class="option-card" data-font="SimHei">
+              <div class="option-name">黑体</div>
+              <div class="option-desc">SimHei</div>
+            </div>
+            <div class="option-card" data-font="Microsoft YaHei">
+              <div class="option-name">微软雅黑</div>
+              <div class="option-desc">Microsoft YaHei</div>
+            </div>
+            <div class="option-card" data-font="Arial">
+              <div class="option-name">Arial</div>
+              <div class="option-desc">Arial</div>
+            </div>
+            <div class="option-card" data-font="Times New Roman">
+              <div class="option-name">Times New Roman</div>
+              <div class="option-desc">Times New Roman</div>
+            </div>
+            <div class="option-card" data-font="Inter">
+              <div class="option-name">Inter</div>
+              <div class="option-desc">Inter（默认）</div>
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <label style="display: block; margin-bottom: 8px; color: var(--text); font-weight: 500;">字号大小</label>
+          <div class="font-size-group">
+            <button class="font-size-btn" data-size="small">小</button>
+            <button class="font-size-btn" data-size="medium">中</button>
+            <button class="font-size-btn" data-size="large">大</button>
+            <button class="font-size-btn" data-size="custom">自定义</button>
+          </div>
+          <div class="font-size-custom" id="customSizeInput" style="display: none;">
+            <input type="number" id="customSizeValue" placeholder="输入字号（px）" min="10" max="24" value="14">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page">
+    <header>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <h1>视频生成</h1>
+        <span class="pill">文本 → LLM+TTS → NeRF 视频</span>
+      </div>
+      <div class="row" style="max-width:480px; align-items:center;">
+        <a href="./index.html" style="text-decoration:none;"><button class="secondary">返回首页</button></a>
+        <button class="help-btn" id="helpBtn">❗ 帮助</button>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="grid">
+        <div>
+          <div class="row">
+            <label style="flex:1;">输入要说的话</label>
+          </div>
+          <textarea id="textInput" placeholder="例如：你好，请简要介绍一下人工智能"></textarea>
+          <div class="row" style="margin-top:10px;">
+            <div>
+              <label>选择角色</label>
+              <select id="characterInput">
+                <option value="ayanami">ayanami</option>
+                <option value="Aerith">Aerith</option>
+              </select>
+            </div>
+            <div>
+              <label>选择模型（pkl）</label>
+              <select id="modelInput"></select>
+            </div>
+          </div>
+          <div class="row" style="margin-top:12px;">
+            <button class="secondary" id="refreshBtn">刷新模型列表</button>
+            <button class="primary" id="runBtn">🚀 开始生成视频</button>
+          </div>
+          <!-- 进度显示 -->
+          <div class="progress-container" id="progressContainer" style="display: none;">
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text">
+              <span id="progressText">准备中...</span>
+              <span id="progressTime">预计剩余时间: --</span>
+            </div>
+            <div class="step-indicator" id="stepIndicator">
+              <div class="step-item" data-step="llm">LLM 生成</div>
+              <div class="step-item" data-step="tts">TTS 音频</div>
+              <div class="step-item" data-step="nerf">NeRF 视频</div>
+            </div>
+          </div>
+          <div style="margin-top:12px;">
+            <label>状态 / 日志</label>
+            <div class="log-box" id="statusBox">就绪</div>
+          </div>
+        </div>
+        <div>
+          <div class="video-frame">
+            <video id="videoOutput" controls preload="metadata" class="hidden" style="display: none;"></video>
+            <div id="videoPlaceholder" class="placeholder">生成后将在此展示视频</div>
+          </div>
+          <!-- 视频操作按钮 -->
+          <div class="video-controls" id="videoControls" style="display: none;">
+            <button class="secondary" id="downloadBtn">⬇️ 下载视频</button>
+            <button class="secondary" id="fullscreenBtn">⛶ 全屏播放</button>
+            <select id="playbackSpeed" style="width: auto; padding: 8px 12px;">
+              <option value="0.5">0.5x</option>
+              <option value="0.75">0.75x</option>
+              <option value="1" selected>1x</option>
+              <option value="1.25">1.25x</option>
+              <option value="1.5">1.5x</option>
+              <option value="2">2x</option>
+            </select>
+          </div>
+          <!-- 视频信息 -->
+          <div class="video-info" id="videoInfo" style="display: none;">
+            <div class="param-row">
+              <span class="param-label">分辨率:</span>
+              <span class="param-value" id="videoResolution">--</span>
+            </div>
+            <div class="param-row">
+              <span class="param-label">时长:</span>
+              <span class="param-value" id="videoDuration">--</span>
+            </div>
+            <div class="param-row">
+              <span class="param-label">文件大小:</span>
+              <span class="param-value" id="videoSize">--</span>
+            </div>
+          </div>
+          <!-- 参数显示卡片 -->
+          <div class="param-card" id="paramCard" style="display: none;">
+            <div class="param-row">
+              <span class="param-label">模型:</span>
+              <span class="param-value" id="paramModel">--</span>
+            </div>
+            <div class="param-row">
+              <span class="param-label">角色:</span>
+              <span class="param-value" id="paramCharacter">--</span>
+            </div>
+            <div class="param-row">
+              <span class="param-label">生成时间:</span>
+              <span class="param-value" id="paramTime">--</span>
+            </div>
+            <div class="param-row">
+              <span class="param-label">文本:</span>
+              <span class="param-value" id="paramText" style="max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">--</span>
+            </div>
+          </div>
+          <!-- 历史记录 -->
+          <div class="history-section">
+            <label>历史记录</label>
+            <div class="history-list" id="historyList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 错误模态框 -->
+  <div class="error-modal" id="errorModal">
+    <div class="error-content">
+      <div class="error-header">
+        <div class="error-title">❌ 生成失败</div>
+        <button class="error-close" id="errorClose">×</button>
+      </div>
+      <div id="errorMessage"></div>
+      <div class="error-details" id="errorDetails"></div>
+      <div style="margin-top: 12px;">
+        <button class="secondary" id="toggleErrorDetails" style="width: auto;">显示详情</button>
+      </div>
+      <div class="error-actions">
+        <button class="secondary" id="errorRetry" style="flex: 1;">重试</button>
+        <button class="primary" id="errorConfirm" style="flex: 1;">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    北京理工大学 · NeRFFaceSpeech 团队
+  </footer>
+
+  <script>
+    const FASTAPI_URL = "http://localhost:8000";
+    const modelsSelect = document.getElementById("modelInput");
+    const statusBox = document.getElementById("statusBox");
+    const video = document.getElementById("videoOutput");
+    const videoPlaceholder = document.getElementById("videoPlaceholder");
+    const runBtn = document.getElementById("runBtn");
+    const refreshBtn = document.getElementById("refreshBtn");
+
+    function setStatus(msg) { statusBox.textContent = msg; }
+    function setLoading(button, loading) {
+      if (loading) {
+        button.disabled = true;
+        button.dataset.origText = button.textContent;
+        button.textContent = "处理中...";
+      } else {
+        button.disabled = false;
+        if (button.dataset.origText) button.textContent = button.dataset.origText;
+      }
+    }
+
+    async function loadModels() {
+      setLoading(refreshBtn, true);
+      try {
+        const res = await fetch(`${FASTAPI_URL}/models`, { method: "GET" });
+        const data = await res.json();
+        
+        // 检查是否是错误响应
+        if (data.success === false || (data.error && !Array.isArray(data))) {
+          const errorMsg = data.error || "未知错误";
+          setStatus(`❌ 模型列表获取失败：${errorMsg}`);
+          modelsSelect.innerHTML = "";
+          const opt = document.createElement("option");
+          opt.value = "";
+          opt.textContent = "模型加载失败";
+          opt.disabled = true;
+          modelsSelect.appendChild(opt);
+          return;
+        }
+        
+        // 正常情况：data 应该是数组
+        if (!Array.isArray(data) || data.length === 0) {
+          setStatus("❌ 模型列表为空，请检查模型目录");
+          modelsSelect.innerHTML = "";
+          const opt = document.createElement("option");
+          opt.value = "";
+          opt.textContent = "模型列表为空";
+          opt.disabled = true;
+          modelsSelect.appendChild(opt);
+          return;
+        }
+        
+        modelsSelect.innerHTML = "";
+        data.forEach(m => {
+          const opt = document.createElement("option");
+          opt.value = m; opt.textContent = m;
+          modelsSelect.appendChild(opt);
+        });
+        setStatus("模型列表已刷新");
+      } catch (e) {
+        setStatus(`❌ 模型列表获取失败：${e.message || e}`);
+        modelsSelect.innerHTML = "";
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "加载失败";
+        opt.disabled = true;
+        modelsSelect.appendChild(opt);
+      } finally {
+        setLoading(refreshBtn, false);
+      }
+    }
+
+    // 进度管理
+    let currentStep = '';
+    let progressInterval = null;
+    let startTime = null;
+    let abortController = null;
+
+    function updateProgress(step, progress) {
+      const progressFill = document.getElementById("progressFill");
+      const progressText = document.getElementById("progressText");
+      const stepIndicator = document.getElementById("stepIndicator");
+      const progressContainer = document.getElementById("progressContainer");
+      
+      progressContainer.style.display = "block";
+      progressFill.style.width = progress + "%";
+      
+      const steps = {
+        'llm': { text: '正在生成LLM回答...', progress: 33 },
+        'tts': { text: '正在生成TTS音频...', progress: 66 },
+        'nerf': { text: '正在生成NeRF视频...', progress: 90 }
+      };
+      
+      if (steps[step]) {
+        progressText.textContent = steps[step].text;
+        currentStep = step;
+      }
+      
+      // 更新步骤指示器
+      stepIndicator.querySelectorAll('.step-item').forEach(item => {
+        const itemStep = item.dataset.step;
+        item.classList.remove('active', 'completed');
+        if (itemStep === step) {
+          item.classList.add('active');
+        } else if (getStepOrder(itemStep) < getStepOrder(step)) {
+          item.classList.add('completed');
+        }
+      });
+      
+      // 更新剩余时间（基于已用时间和进度比例估算）
+      if (startTime) {
+        const elapsed = (Date.now() - startTime) / 1000;
+        // 如果进度大于0，基于当前进度估算总时间
+        if (progress > 0) {
+          const estimatedTotal = elapsed / (progress / 100);
+          const remaining = Math.max(0, estimatedTotal - elapsed);
+          const timeText = remaining > 60 
+            ? `${Math.floor(remaining / 60)}分${Math.floor(remaining % 60)}秒`
+            : `${Math.floor(remaining)}秒`;
+          document.getElementById("progressTime").textContent = `预计剩余时间: ${timeText}`;
+        } else {
+          document.getElementById("progressTime").textContent = `预计剩余时间: 计算中...`;
+        }
+      }
+    }
+    
+    function getStepOrder(step) {
+      const order = { 'llm': 1, 'tts': 2, 'nerf': 3 };
+      return order[step] || 0;
+    }
+    
+    function resetProgress() {
+      document.getElementById("progressContainer").style.display = "none";
+      document.getElementById("progressFill").style.width = "0%";
+      currentStep = '';
+      startTime = null;
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
+    }
+    
+    // 显示错误模态框
+    function showError(message, details = '') {
+      const modal = document.getElementById("errorModal");
+      const messageEl = document.getElementById("errorMessage");
+      const detailsEl = document.getElementById("errorDetails");
+      
+      messageEl.textContent = message;
+      if (details) {
+        detailsEl.textContent = details;
+        document.getElementById("toggleErrorDetails").style.display = "block";
+      } else {
+        document.getElementById("toggleErrorDetails").style.display = "none";
+      }
+      
+      modal.classList.add("active");
+    }
+    
+    // 显示 Toast 提示
+    function showToast(message, type = 'success') {
+      const toast = document.createElement("div");
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.animation = "slideIn 0.3s ease reverse";
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+    
+    // 保存到历史记录
+    function saveToHistory(videoUrl, params) {
+      const history = JSON.parse(localStorage.getItem('videoHistory') || '[]');
+      const historyItem = {
+        id: Date.now().toString(),
+        videoUrl: videoUrl,
+        text: params.text,
+        character: params.character,
+        model: params.model,
+        timestamp: new Date().toISOString(),
+        date: new Date().toLocaleString('zh-CN')
+      };
+      history.unshift(historyItem);
+      // 最多保存20条
+      if (history.length > 20) history.pop();
+      localStorage.setItem('videoHistory', JSON.stringify(history));
+      renderHistory();
+    }
+    
+    // 渲染历史记录
+    function renderHistory() {
+      const history = JSON.parse(localStorage.getItem('videoHistory') || '[]');
+      const historyList = document.getElementById("historyList");
+      historyList.innerHTML = '';
+      
+      history.forEach(item => {
+        const historyItem = document.createElement("div");
+        historyItem.className = "history-item";
+        historyItem.innerHTML = `
+          <video class="history-thumbnail" src="${item.videoUrl}" preload="metadata"></video>
+          <div class="history-info">
+            <div style="margin-bottom: 4px; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.text}</div>
+            <div>${item.character} · ${item.model}</div>
+            <div style="margin-top: 4px; font-size: 11px;">${item.date}</div>
+          </div>
+        `;
+        historyItem.addEventListener('click', () => {
+          loadVideo(item.videoUrl, item);
+        });
+        historyList.appendChild(historyItem);
+      });
+    }
+    
+    // 加载视频
+    function loadVideo(videoUrl, params = null) {
+      const video = document.getElementById("videoOutput");
+      
+      console.log('加载视频:', videoUrl);
+      
+      // 清除之前的源（如果需要）
+      video.pause();
+      video.src = '';
+      video.load();
+      
+      // 设置新的视频源
+      video.src = videoUrl;
+      
+      // 显示视频元素
+      video.classList.remove("hidden");
+      video.style.display = "block";
+      videoPlaceholder.classList.add("hidden");
+      document.getElementById("videoControls").style.display = "flex";
+      document.getElementById("videoInfo").style.display = "block";
+      
+      // 使用一次性事件监听器更新视频信息
+      const updateVideoInfo = () => {
+        if (video.videoWidth && video.videoHeight) {
+          document.getElementById("videoResolution").textContent = 
+            `${video.videoWidth} × ${video.videoHeight}`;
+        }
+        if (video.duration && !isNaN(video.duration) && isFinite(video.duration)) {
+          document.getElementById("videoDuration").textContent = 
+            formatDuration(video.duration);
+        }
+        console.log('视频信息已更新:', {
+          width: video.videoWidth,
+          height: video.videoHeight,
+          duration: video.duration
+        });
+      };
+      
+      // 添加事件监听器（使用 once 避免重复）
+      video.addEventListener('loadedmetadata', updateVideoInfo, { once: true });
+      video.addEventListener('loadeddata', updateVideoInfo, { once: true });
+      video.addEventListener('canplay', () => {
+        console.log('视频可以播放');
+        updateVideoInfo();
+      }, { once: true });
+      
+      // 尝试获取文件大小
+      fetch(videoUrl, { method: 'HEAD' })
+        .then(response => {
+          if (response.ok) {
+            const contentLength = response.headers.get('content-length');
+            if (contentLength) {
+              const sizeMB = (parseInt(contentLength) / 1024 / 1024).toFixed(2);
+              document.getElementById("videoSize").textContent = `${sizeMB} MB`;
+            }
+          }
+        })
+        .catch(() => {
+          document.getElementById("videoSize").textContent = "未知";
+        });
+      
+      // 强制加载视频
+      video.load();
+      
+      // 更新参数显示
+      if (params) {
+        document.getElementById("paramCard").style.display = "block";
+        document.getElementById("paramModel").textContent = params.model;
+        document.getElementById("paramCharacter").textContent = params.character;
+        document.getElementById("paramTime").textContent = params.date || new Date().toLocaleString('zh-CN');
+        document.getElementById("paramText").textContent = params.text;
+      }
+    }
+    
+    function formatDuration(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    async function runPipeline() {
+      const text = document.getElementById("textInput").value.trim();
+      const character = document.getElementById("characterInput").value;
+      const model = modelsSelect.value;
+      if (!text) { 
+        showToast("请输入文本", "error");
+        return; 
+      }
+      if (!model) {
+        showToast("请选择模型", "error");
+        return;
+      }
+      
+      // 检查是否已经取消
+      if (runBtn.dataset.cancelling === "true") {
+        // 如果已经在取消状态，说明用户点击了取消
+        return;
+      }
+      
+      setLoading(runBtn, true);
+      runBtn.innerHTML = "取消生成";
+      runBtn.dataset.cancelling = "true";
+      
+      abortController = new AbortController();
+      startTime = Date.now();
+      
+      // 重置UI
+      video.classList.add("hidden");
+      videoPlaceholder.classList.remove("hidden");
+      document.getElementById("videoControls").style.display = "none";
+      document.getElementById("videoInfo").style.display = "none";
+      document.getElementById("paramCard").style.display = "none";
+      
+      let progressUpdateInterval = null;
+      try {
+        updateProgress('llm', 10);
+        
+        // 启动进度更新定时器（在API调用期间持续更新预计时间）
+        progressUpdateInterval = setInterval(() => {
+          if (startTime) {
+            const elapsed = (Date.now() - startTime) / 1000;
+            const progressFill = document.getElementById("progressFill");
+            const currentProgress = parseFloat(progressFill.style.width) || 0;
+            if (currentProgress > 0) {
+              const estimatedTotal = elapsed / (currentProgress / 100);
+              const remaining = Math.max(0, estimatedTotal - elapsed);
+              const timeText = remaining > 60 
+                ? `${Math.floor(remaining / 60)}分${Math.floor(remaining % 60)}秒`
+                : `${Math.floor(remaining)}秒`;
+              document.getElementById("progressTime").textContent = `预计剩余时间: ${timeText}`;
+            }
+          }
+        }, 1000); // 每秒更新一次
+        
+        const res = await fetch(`${FASTAPI_URL}/generate_video`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, character, model_name: model }),
+          signal: abortController.signal
+        });
+        
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        updateProgress('tts', 40);
+        
+        const data = await res.json();
+        if (!data.success) {
+          clearInterval(progressUpdateInterval);
+          throw new Error(data.error || "生成失败");
+        }
+        
+        updateProgress('nerf', 70);
+        
+        // 清除进度更新定时器
+        clearInterval(progressUpdateInterval);
+        
+        // 处理视频URL（后端已返回正确的URL格式）
+        let videoUrl = data.video_url;
+        if (!videoUrl.startsWith("http")) {
+          videoUrl = `${FASTAPI_URL}${videoUrl}`;
+        }
+        
+        // 显示实际生成时间
+        if (data.generation_time) {
+          const genTime = data.generation_time;
+          const timeText = genTime > 60 
+            ? `${Math.floor(genTime / 60)}分${Math.floor(genTime % 60)}秒`
+            : `${Math.floor(genTime)}秒`;
+          document.getElementById("progressTime").textContent = `实际生成时间: ${timeText}`;
+        }
+        
+        updateProgress('nerf', 100);
+        
+        // 保存参数（包含生成时间）
+        const params = { 
+          text, 
+          character, 
+          model, 
+          date: new Date().toLocaleString('zh-CN'),
+          generation_time: data.generation_time,
+          unique_id: data.unique_id
+        };
+        
+        // 加载视频
+        setTimeout(() => {
+          loadVideo(videoUrl, params);
+          saveToHistory(videoUrl, params);
+          setStatus(`✅ 视频生成成功 (用时: ${data.generation_time ? Math.floor(data.generation_time) + '秒' : '未知'})`);
+          showToast("视频生成成功！", "success");
+          resetProgress();
+        }, 500);
+        
+      } catch (e) {
+        // 清除可能存在的进度更新定时器
+        if (progressUpdateInterval) {
+          clearInterval(progressUpdateInterval);
+        }
+        if (e.name === 'AbortError') {
+          setStatus("❌ 生成已取消");
+          showToast("生成已取消", "error");
+        } else {
+          const errorMsg = e.message || String(e);
+          setStatus("❌ 生成失败：" + errorMsg);
+          showError("生成失败", errorMsg);
+        }
+        resetProgress();
+      } finally {
+        setLoading(runBtn, false);
+        runBtn.innerHTML = "🚀 开始生成视频";
+        runBtn.dataset.cancelling = "false";
+        abortController = null;
+      }
+    }
+
+    function initHelp() {
+      const btn = document.getElementById("helpBtn");
+      btn.addEventListener("click", () => {
+        alert("使用提示：\\n1) 输入文本，选择角色与模型。\\n2) 点击\"开始生成视频\"。\\n3) 生成后视频自动转码 H.264 并在右侧展示。\\n如需返回首页，点击左上角返回按钮。");
+      });
+    }
+    
+    // 初始化视频操作按钮
+    function initVideoControls() {
+      const video = document.getElementById("videoOutput");
+      const downloadBtn = document.getElementById("downloadBtn");
+      const fullscreenBtn = document.getElementById("fullscreenBtn");
+      const playbackSpeed = document.getElementById("playbackSpeed");
+      
+      downloadBtn.addEventListener("click", () => {
+        if (!video.src) {
+          showToast("视频未加载", "error");
+          return;
+        }
+        const a = document.createElement("a");
+        a.href = video.src;
+        a.download = `nerffacespeech_${Date.now()}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast("视频下载已开始", "success");
+      });
+      
+      fullscreenBtn.addEventListener("click", () => {
+        if (video.requestFullscreen) {
+          video.requestFullscreen();
+        } else if (video.webkitRequestFullscreen) {
+          video.webkitRequestFullscreen();
+        } else if (video.mozRequestFullScreen) {
+          video.mozRequestFullScreen();
+        } else if (video.msRequestFullscreen) {
+          video.msRequestFullscreen();
+        }
+      });
+      
+      playbackSpeed.addEventListener("change", (e) => {
+        if (video.src) {
+          video.playbackRate = parseFloat(e.target.value);
+        }
+      });
+      
+      // 添加视频错误处理
+      video.addEventListener('error', (e) => {
+        console.error('视频播放错误:', video.error);
+        if (video.error) {
+          let errorMsg = '视频加载失败';
+          switch(video.error.code) {
+            case video.error.MEDIA_ERR_ABORTED:
+              errorMsg = '视频加载被中止';
+              break;
+            case video.error.MEDIA_ERR_NETWORK:
+              errorMsg = '网络错误，无法加载视频';
+              break;
+            case video.error.MEDIA_ERR_DECODE:
+              errorMsg = '视频解码失败';
+              break;
+            case video.error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+              errorMsg = '视频格式不支持';
+              break;
+          }
+          showError(errorMsg, `错误代码: ${video.error.code}`);
+        }
+      });
+    }
+    
+    // 初始化错误模态框
+    function initErrorModal() {
+      const modal = document.getElementById("errorModal");
+      const closeBtn = document.getElementById("errorClose");
+      const confirmBtn = document.getElementById("errorConfirm");
+      const retryBtn = document.getElementById("errorRetry");
+      const toggleBtn = document.getElementById("toggleErrorDetails");
+      const detailsEl = document.getElementById("errorDetails");
+      
+      closeBtn.addEventListener("click", () => {
+        modal.classList.remove("active");
+      });
+      
+      confirmBtn.addEventListener("click", () => {
+        modal.classList.remove("active");
+      });
+      
+      retryBtn.addEventListener("click", () => {
+        modal.classList.remove("active");
+        runPipeline();
+      });
+      
+      toggleBtn.addEventListener("click", () => {
+        const isActive = detailsEl.classList.contains("active");
+        detailsEl.classList.toggle("active");
+        toggleBtn.textContent = isActive ? "显示详情" : "隐藏详情";
+      });
+      
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) {
+          modal.classList.remove("active");
+        }
+      });
+    }
+    
+    // 取消生成功能
+    function initCancelButton() {
+      runBtn.addEventListener("click", (e) => {
+        // 如果按钮显示"取消生成"，则执行取消操作
+        if (runBtn.dataset.cancelling === "true" && abortController) {
+          e.preventDefault();
+          e.stopPropagation();
+          abortController.abort();
+          resetProgress();
+          setLoading(runBtn, false);
+          runBtn.innerHTML = "🚀 开始生成视频";
+          runBtn.dataset.cancelling = "false";
+          setStatus("❌ 生成已取消");
+          showToast("生成已取消", "error");
+        } else {
+          // 否则执行正常的生成流程
+          runPipeline();
+        }
+      });
+    }
+
+    // 等待DOM加载完成后再初始化设置事件绑定
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 应用设置（从数据库读取）
+      try {
+        await applySettingsOnly();
+        await updateThemeSelection();
+        await updateFontSelection();
+        await updateFontSizeSelection();
+      } catch (error) {
+        console.error('应用设置失败:', error);
+      }
+      
+      // 侧边栏控制
+      const settingsBtn = document.getElementById('settingsBtn');
+      const settingsSidebar = document.getElementById('settingsSidebar');
+      const sidebarOverlay = document.getElementById('sidebarOverlay');
+      const sidebarClose = document.getElementById('sidebarClose');
+      
+      if (!settingsBtn || !settingsSidebar) {
+        console.error('设置按钮或侧边栏元素未找到', {
+          settingsBtn: !!settingsBtn,
+          settingsSidebar: !!settingsSidebar
+        });
+        return;
+      }
+      
+      function openSidebar() {
+        settingsSidebar.classList.add('active');
+        sidebarOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+      
+      function closeSidebar() {
+        settingsSidebar.classList.remove('active');
+        sidebarOverlay.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+      
+      settingsBtn.addEventListener('click', openSidebar);
+      if (sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
+      if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+      
+      // 分页切换
+      document.querySelectorAll('.sidebar-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          const targetTab = tab.dataset.tab;
+          document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+          tab.classList.add('active');
+          const targetContent = document.getElementById(targetTab + 'Tab');
+          if (targetContent) targetContent.classList.add('active');
+        });
+      });
+      
+      // 主题选择
+      document.querySelectorAll('[data-theme]').forEach(card => {
+        card.addEventListener('click', () => {
+          applyTheme(card.dataset.theme);
+        });
+      });
+      
+      // 字体选择
+      document.querySelectorAll('[data-font]').forEach(card => {
+        card.addEventListener('click', () => {
+          applyFont(card.dataset.font);
+        });
+      });
+      
+      // 字号选择
+      document.querySelectorAll('[data-size]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          applyFontSize(btn.dataset.size);
+        });
+      });
+      
+      // 自定义字号输入
+      const customSizeValue = document.getElementById('customSizeValue');
+      if (customSizeValue) {
+        customSizeValue.addEventListener('change', (e) => {
+          if (customSizeValue.value) {
+            applyFontSize('custom');
+          }
+        });
+      }
+    });
+
+    refreshBtn.addEventListener("click", loadModels);
+    initCancelButton(); // 这个函数内部已经处理了 runBtn 的点击事件，包括生成和取消
+    initHelp();
+    initVideoControls();
+    initErrorModal();
+    renderHistory();
+    loadModels();
+  </script>
+</body>
+</html>
+

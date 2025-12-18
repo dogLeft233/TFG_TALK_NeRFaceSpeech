@@ -18,9 +18,44 @@ OUTPUT_VIDEO_DIR = NERF_CODE_DIR / "outputs" / "video"
 OUTPUT_AUDIO_DIR = NERF_CODE_DIR / "outputs" / "audio"
 
 # 模型目录
-MODEL_DIR = NERF_CODE_DIR / "pretrained_networks"
+# 优先使用服务器上的绝对路径
+MODEL_DIR = Path("/root/autodl-tmp/TFG_TALK_NeRFaceSpeech/NeRFFaceSpeech_Code/pretrained_networks")
+# 如果绝对路径不存在，尝试使用相对路径作为后备
+if not MODEL_DIR.exists():
+    relative_model_dir = NERF_CODE_DIR / "pretrained_networks"
+    if relative_model_dir.exists():
+        MODEL_DIR = relative_model_dir
+
+# WebUI 目录（前端静态文件目录）
+WEBUI_DIR = Path(__file__).parent / "webui"
+
+# 数据库目录（在项目根目录下，与fastapi_server平级）
+DATABASE_DIR = PROJECT_ROOT / "database"
+DATABASE_DIR.mkdir(parents=True, exist_ok=True)
+
+# 视频存储目录（在数据库目录下）
+VIDEOS_STORAGE_DIR = DATABASE_DIR / "videos"
+VIDEOS_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+# 训练数据集目录
+# 优先使用服务器上的绝对路径，如果不存在则尝试相对路径
+DATA_DIR = Path("/root/autodl-tmp/TFG_TALK_NeRFaceSpeech/data")
+if not DATA_DIR.exists():
+    # 使用相对路径作为后备
+    DATA_DIR = PROJECT_ROOT / "data"
+
+# 训练数据集默认路径（单张图像数据集目录，用于StyleNeRF训练）
+# 可以根据实际情况修改
+TRAINING_DATASET_DIR = DATA_DIR / "geneface_datasets" / "data" / "raw"
+# 如果默认路径不存在，使用data目录作为后备
+if not TRAINING_DATASET_DIR.exists():
+    TRAINING_DATASET_DIR = DATA_DIR
 
 # ==================== Conda 环境配置 ====================
+
+# API 环境（用于运行 FastAPI 服务器）
+API_CONDA_ENV = PROJECT_ROOT / "environment" / "api"
+API_CONDA_PYTHON = API_CONDA_ENV / "bin" / "python"
 
 # LLM Talk 环境（在 environment 文件夹中）
 LLM_CONDA_ENV = PROJECT_ROOT / "environment" / "llm_talk"
@@ -43,7 +78,7 @@ NERF_SCRIPT = NERF_CODE_DIR / "StyleNeRF" / "main_NeRFFaceSpeech_audio_driven_w_
 # 角色音频提示文件
 CHARACTER_AUDIO_PROMPTS = {
     "ayanami": PROJECT_ROOT / "assets" / "charactors" / "Ayanami" / "绫波丽.wav",
-    "Aerith": PROJECT_ROOT / "assets" / "charactors" / "Aerith" /"Aerith.mp3",
+    "Aerith": PROJECT_ROOT / "assets" / "charactors" / "Aerith" / "Aerith.mp3",
 }
 
 # 角色测试图片
@@ -58,7 +93,9 @@ def ensure_dirs():
     """确保必要的目录存在"""
     OUTPUT_VIDEO_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
-    MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    # 如果 MODEL_DIR 不存在且是相对路径，才创建目录（绝对路径可能不需要创建）
+    if not MODEL_DIR.exists() and not MODEL_DIR.is_absolute():
+        MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 def get_character_audio_prompt(character: str) -> Path:
     """获取角色的音频提示文件路径"""

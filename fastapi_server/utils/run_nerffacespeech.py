@@ -34,6 +34,7 @@ def generate_video(
         return False
 
     env = os.environ.copy()
+    # 与可运行版本一致：使用 PATH 和 PYTHONPATH
     env["PATH"] = f"{NERF_CONDA_ENV / 'bin'}:{env.get('PATH', '')}"
     env["PYTHONPATH"] = str(NERF_WORKDIR)
 
