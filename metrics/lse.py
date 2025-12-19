@@ -51,9 +51,21 @@ def compute_lse_from_video(
     if not syncnet_dir.exists():
         raise FileNotFoundError(f"SyncNet 目录不存在: {syncnet_dir}")
     
-    # 添加 SyncNet 目录到 Python 路径
-    if str(syncnet_dir) not in sys.path:
-        sys.path.insert(0, str(syncnet_dir))
+    # 确定 syncnet_python 目录路径
+    syncnet_python_dir = syncnet_dir / "syncnet_python"
+    if not syncnet_python_dir.exists():
+        # 如果 syncnet_dir 本身就是 syncnet_python 目录
+        if (syncnet_dir / "SyncNetModel.py").exists():
+            syncnet_python_dir = syncnet_dir
+        else:
+            raise FileNotFoundError(
+                f"SyncNet Python 目录不存在: {syncnet_python_dir}\n"
+                f"请检查 SyncNet 目录结构是否正确"
+            )
+    
+    # 添加 syncnet_python 目录到 Python 路径（SyncNetModel 和 SyncNetInstance_calc_scores 都在这里）
+    if str(syncnet_python_dir) not in sys.path:
+        sys.path.insert(0, str(syncnet_python_dir))
     
     # 导入 SyncNet（需要在 syncnet conda 环境中）
     try:
@@ -62,7 +74,8 @@ def compute_lse_from_video(
         raise ImportError(
             f"无法导入 SyncNetInstance。请确保已激活 syncnet conda 环境。\n"
             f"错误: {e}\n"
-            f"提示: 运行 'conda activate syncnet' 后再执行"
+            f"提示: 运行 'conda activate syncnet' 后再执行\n"
+            f"当前 sys.path 中的相关路径: {[p for p in sys.path if 'syncnet' in p.lower()]}"
         )
     
     # 设置模型路径

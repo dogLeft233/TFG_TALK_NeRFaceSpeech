@@ -73,6 +73,13 @@ def parse_args() -> argparse.Namespace:
         help="跳过 LSE-C 和 LSE-D 计算（如果 SyncNet 模型不可用）",
     )
     parser.add_argument(
+        "--metrics",
+        type=str,
+        nargs="+",
+        default=None,
+        help="指定要计算的指标列表，例如：--metrics lse 或 --metrics niqe psnr ssim",
+    )
+    parser.add_argument(
         "--max-frames",
         type=int,
         default=None,
@@ -84,14 +91,26 @@ def parse_args() -> argparse.Namespace:
 
 
 def extract_base_name(video_name: str) -> str:
-    """从视频文件名中提取基础名称。
+    """从视频文件名中提取基础名称（组名称）。
     
-    例如: "May-in_seg000" -> "May"
-          "May-in_seg001" -> "May"
-          "May" -> "May"
+    支持格式：
+    - "May_seg000" -> "May"
+    - "May_seg001" -> "May"
+    - "May" -> "May"
     """
-    if "-in_seg" in video_name:
-        return video_name.split("-in_seg")[0]
+    # 处理 "_seg" 格式（例如 "May_seg000"）
+    if "_seg" in video_name:
+        # 使用简单分割来提取组名称
+        # 例如 "May_seg000" -> "May"
+        parts = video_name.split("_seg")
+        if len(parts) > 1:
+            # 检查分割后的第二部分是否是数字（段编号）
+            try:
+                int(parts[1])  # 尝试转换为整数，如果是数字则说明是段编号
+                return parts[0]
+            except ValueError:
+                # 如果不是数字，说明 "_seg" 是名称的一部分，返回原名称
+                return video_name
     return video_name
 
 
@@ -128,6 +147,7 @@ def evaluate_video_pair(
     batch_size: int,
     max_frames: Optional[int],
     skip_lse: bool = False,
+    metrics: Optional[List[str]] = None,
 ) -> Dict[str, float]:
     """计算一对视频的所有指标。
     
@@ -141,9 +161,14 @@ def evaluate_video_pair(
     logger.info("使用 metrics 模块计算指标...")
     try:
         # 确定要计算的指标
-        metrics_to_compute = ['niqe', 'psnr', 'ssim', 'fid']
-        if not skip_lse:
-            metrics_to_compute.append('lse')
+        if metrics is not None:
+            # 如果用户指定了指标列表，直接使用
+            metrics_to_compute = metrics
+        else:
+            # 否则使用默认逻辑
+            metrics_to_compute = ['niqe', 'psnr', 'ssim', 'fid']
+            if not skip_lse:
+                metrics_to_compute.append('lse')
         
         # 调用统一接口
         metrics_results = compute_all_metrics(
@@ -154,6 +179,12 @@ def evaluate_video_pair(
             device=device,
             fid_batch_size=batch_size,
         )
+        
+        # 调试：输出 metrics_results 中的键（仅当只计算 LSE 时）
+        if metrics_to_compute == ['lse']:
+            logger.info(f"compute_all_metrics 返回的键: {list(metrics_results.keys())}")
+            if 'LSE_error' in metrics_results:
+                logger.warning(f"LSE 计算错误: {metrics_results['LSE_error']}")
         
         # 适配原有的结果键名格式
         # PSNR, SSIM, FID 直接使用
@@ -187,20 +218,42 @@ def evaluate_video_pair(
             results['NIQE_PRED'] = float('nan')
         
         # LSE: 只计算 pred_video 的 LSE（保持原有行为）
-        if not skip_lse:
+        if 'lse' in metrics_to_compute:
+            # 检查是否有 LSE 错误信息
+            if 'LSE_error' in metrics_results:
+                logger.warning(f"LSE 计算错误: {metrics_results['LSE_error']}")
+            
             # 优先使用 compute_all_metrics 返回的 video2 的 LSE
             if 'LSE_C_video2' in metrics_results:
-                results['LSE_C'] = float(metrics_results['LSE_C_video2'])
-                results['LSE_D'] = float(metrics_results['LSE_D_video2'])
+                lse_c_val = metrics_results['LSE_C_video2']
+                lse_d_val = metrics_results['LSE_D_video2']
+                results['LSE_C'] = float(lse_c_val)
+                results['LSE_D'] = float(lse_d_val)
+                if np.isnan(lse_c_val) or np.isnan(lse_d_val):
+                    logger.warning(f"LSE 结果为 NaN，可能计算失败。检查 SyncNet 环境和模型是否可用。")
+                else:
+                    logger.info(f"LSE 计算成功: LSE_C={lse_c_val:.4f}, LSE_D={lse_d_val:.4f}")
+            elif 'LSE_C' in metrics_results:
+                # 如果只有 video1 的 LSE（单视频场景），也使用
+                lse_c_val = metrics_results['LSE_C']
+                lse_d_val = metrics_results['LSE_D']
+                results['LSE_C'] = float(lse_c_val)
+                results['LSE_D'] = float(lse_d_val)
+                if np.isnan(lse_c_val) or np.isnan(lse_d_val):
+                    logger.warning(f"LSE 结果为 NaN，可能计算失败。检查 SyncNet 环境和模型是否可用。")
+                else:
+                    logger.info(f"LSE 计算成功: LSE_C={lse_c_val:.4f}, LSE_D={lse_d_val:.4f}")
             else:
                 # 如果没有，单独计算 pred_video 的 LSE
-                logger.info("单独计算生成视频的 LSE...")
+                logger.info("compute_all_metrics 未返回 LSE 结果，单独计算生成视频的 LSE...")
                 try:
                     lse_c, lse_d = compute_lse_metric(str(pred_video))
                     results['LSE_C'] = float(lse_c)
                     results['LSE_D'] = float(lse_d)
+                    logger.info(f"单独计算 LSE 成功: LSE_C={lse_c:.4f}, LSE_D={lse_d:.4f}")
                 except Exception as e:
-                    logger.warning(f"LSE 计算失败: {e}")
+                    logger.error(f"单独计算 LSE 失败: {e}")
+                    logger.error("请确保：1) 已激活 syncnet conda 环境；2) SyncNet 模型文件存在")
                     results['LSE_C'] = float('nan')
                     results['LSE_D'] = float('nan')
         else:
@@ -242,6 +295,14 @@ def main() -> int:
     
     logger.info(f"找到 {len(matches)} 对匹配的视频")
     
+    # 显示分组信息（用于调试）
+    from collections import Counter
+    base_names = [base_name for _, _, base_name in matches]
+    name_counts = Counter(base_names)
+    logger.info(f"分组统计（共 {len(name_counts)} 个组）:")
+    for base_name, count in sorted(name_counts.items()):
+        logger.info(f"  {base_name}: {count} 个视频")
+    
     # 确定计算设备
     device = args.device if torch.cuda.is_available() else "cpu"
     logger.info(f"使用设备: {device}")
@@ -264,6 +325,7 @@ def main() -> int:
                 batch_size=args.batch_size,
                 max_frames=args.max_frames,
                 skip_lse=args.skip_lse,
+                metrics=args.metrics,
             )
             
             all_results[gt_video.stem] = results

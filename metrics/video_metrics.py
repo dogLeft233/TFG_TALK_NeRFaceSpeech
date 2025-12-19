@@ -284,22 +284,34 @@ if __name__ == "__main__":
         action="store_true",
         help="测试时关闭 LSE（避免对 SyncNet 环境的依赖）",
     )
+    parser.add_argument(
+        "--metrics",
+        type=str,
+        nargs="+",
+        default=None,
+        help="指定要计算的指标列表，例如：--metrics lse 或 --metrics niqe psnr",
+    )
     args = parser.parse_args()
 
     # 自动构建要计算的指标列表
-    metric_list = []
-    if args.video2 is None:
-        # 单视频场景：默认 NIQE + LSE（可关）
-        metric_list.append("niqe")
-        if not args.no_lse:
-            metric_list.append("lse")
+    if args.metrics is not None:
+        # 如果用户指定了 --metrics，直接使用
+        metric_list = args.metrics
     else:
-        # 双视频场景：默认全指标，可按需关闭
-        metric_list.extend(["niqe", "psnr", "ssim"])
-        if not args.no_fid:
-            metric_list.append("fid")
-        if not args.no_lse:
-            metric_list.append("lse")
+        # 否则使用默认逻辑
+        metric_list = []
+        if args.video2 is None:
+            # 单视频场景：默认 NIQE + LSE（可关）
+            metric_list.append("niqe")
+            if not args.no_lse:
+                metric_list.append("lse")
+        else:
+            # 双视频场景：默认全指标，可按需关闭
+            metric_list.extend(["niqe", "psnr", "ssim"])
+            if not args.no_fid:
+                metric_list.append("fid")
+            if not args.no_lse:
+                metric_list.append("lse")
 
     print("=== 视频指标统一接口简单测试 ===")
     print(f"video1: {args.video1}")
