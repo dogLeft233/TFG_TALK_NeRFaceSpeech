@@ -297,33 +297,33 @@ def process_video(
         # 初始化人脸检测器
         predictor = None
         if ffhq_style:
-        if not DLIB_AVAILABLE:
-            raise RuntimeError("FFHQ-style 裁剪需要 dlib 库，请安装: pip install dlib")
-        
-        # 查找关键点模型
-        if landmark_model_path is None:
-            model_path = Path(__file__).parent.parent / "NeRFFaceSpeech_Code" / "pretrained_networks"
-            landmark_model_path = model_path / "shape_predictor_68_face_landmarks.dat"
-        
-        if not landmark_model_path.exists():
-            raise FileNotFoundError(
-                f"未找到 dlib 关键点模型: {landmark_model_path}\n"
-                f"请从 http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2 下载并解压"
-            )
-        
-        predictor = dlib.shape_predictor(str(landmark_model_path))
-        print(f"[FFHQ] 使用关键点模型: {landmark_model_path}")
-    else:
-        if MTCNN_AVAILABLE:
-            device = "cuda" if cv2.cuda.getCudaEnabledDeviceCount() > 0 else "cpu"
-            mtcnn = MTCNN(select_largest=True, device=device)
-            detect_fn = lambda f: detect_face_mtcnn(f, mtcnn)
+            if not DLIB_AVAILABLE:
+                raise RuntimeError("FFHQ-style 裁剪需要 dlib 库，请安装: pip install dlib")
+            
+            # 查找关键点模型
+            if landmark_model_path is None:
+                model_path = Path(__file__).parent.parent / "NeRFFaceSpeech_Code" / "pretrained_networks"
+                landmark_model_path = model_path / "shape_predictor_68_face_landmarks.dat"
+            
+            if not landmark_model_path.exists():
+                raise FileNotFoundError(
+                    f"未找到 dlib 关键点模型: {landmark_model_path}\n"
+                    f"请从 http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2 下载并解压"
+                )
+            
+            predictor = dlib.shape_predictor(str(landmark_model_path))
+            print(f"[FFHQ] 使用关键点模型: {landmark_model_path}")
         else:
-            detect_fn = detect_face_opencv
-            if detect_fn(np.zeros((100, 100, 3), dtype=np.uint8)) is None:
-                print("[错误] 无法使用 OpenCV DNN 检测，请安装 facenet_pytorch")
-                cap.release()
-                return
+            if MTCNN_AVAILABLE:
+                device = "cuda" if cv2.cuda.getCudaEnabledDeviceCount() > 0 else "cpu"
+                mtcnn = MTCNN(select_largest=True, device=device)
+                detect_fn = lambda f: detect_face_mtcnn(f, mtcnn)
+            else:
+                detect_fn = detect_face_opencv
+                if detect_fn(np.zeros((100, 100, 3), dtype=np.uint8)) is None:
+                    print("[错误] 无法使用 OpenCV DNN 检测，请安装 facenet_pytorch")
+                    cap.release()
+                    return
     
     # 创建临时视频文件（只有视频，无音频）
     output_path.parent.mkdir(parents=True, exist_ok=True)
