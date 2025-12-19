@@ -148,6 +148,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="绕过人脸检测和裁剪，只对视频进行 resize（适用于已裁剪好的视频）",
     )
+    parser.add_argument(
+        "--ffhq-alignment",
+        action="store_true",
+        help="使用 FFHQFaceAlignment 进行对齐（从第一帧计算对齐参数，应用到所有帧）",
+    )
     return parser.parse_args()
 
 
@@ -239,6 +244,8 @@ def main() -> int:
             crop_args.extend(["--landmark-model", str(args.landmark_model)])
         if args.resize_only:
             crop_args.append("--resize-only")
+        if args.ffhq_alignment:
+            crop_args.append("--ffhq-alignment")
         
         success = run_step(
             "步骤2: 人脸检测和裁剪",

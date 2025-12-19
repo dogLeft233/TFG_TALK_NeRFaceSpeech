@@ -26,6 +26,7 @@ from typing import Optional, Tuple
 import cv2
 import numpy as np
 from PIL import Image
+import scipy.ndimage
 
 try:
     from facenet_pytorch import MTCNN  # type: ignore
@@ -40,6 +41,22 @@ try:
 except ImportError:
     DLIB_AVAILABLE = False
     print("[警告] 未安装 dlib，无法使用 FFHQ-style 裁剪")
+
+# FFHQFaceAlignment
+FFHQ_ALIGNMENT_AVAILABLE = False
+try:
+    import sys
+    FFHQ_ALIGNMENT_DIR = Path(__file__).parent / "FFHQFaceAlignment"
+    if FFHQ_ALIGNMENT_DIR.exists():
+        sys.path.insert(0, str(FFHQ_ALIGNMENT_DIR))
+        from lib.landmarks_pytorch import LandmarksEstimation
+        import torch
+        import PIL.Image
+        import PIL.ImageFile
+        import scipy.ndimage
+        FFHQ_ALIGNMENT_AVAILABLE = True
+except ImportError:
+    print("[警告] 无法导入 FFHQFaceAlignment，请确保 FFHQFaceAlignment 目录存在且依赖已安装")
 
 
 def parse_args() -> argparse.Namespace:
@@ -103,6 +120,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="绕过人脸检测和裁剪，只对视频进行 resize（适用于已裁剪好的视频）",
     )
+    parser.add_argument(
+        "--ffhq-alignment",
+        action="store_true",
+        help="使用 FFHQFaceAlignment 进行对齐（从第一帧计算对齐参数，应用到所有帧）",
+    )
     return parser.parse_args()
 
 
@@ -165,6 +187,152 @@ def get_landmarks_dlib(frame: np.ndarray, predictor: dlib.shape_predictor) -> Op
     shape = predictor(rgb, d)
     landmarks = np.array([[p.x, p.y] for p in shape.parts()])
     return landmarks
+
+
+def compute_ffhq_alignment_params(
+    image: np.ndarray,
+    landmarks: np.ndarray,
+    transform_size: int = 1024,
+) -> dict:
+    """计算 FFHQ 对齐参数（从 align_crop_image 提取）。
+    
+    返回包含对齐参数的字典，可以用于后续帧的对齐。
+    """
+    lm = landmarks
+    lm_eye_left = lm[36: 42]
+    lm_eye_right = lm[42: 48]
+    lm_mouth_outer = lm[48: 60]
+    
+    # Calculate auxiliary vectors
+    eye_left = np.mean(lm_eye_left, axis=0)
+    eye_right = np.mean(lm_eye_right, axis=0)
+    eye_avg = (eye_left + eye_right) * 0.5
+    eye_to_eye = eye_right - eye_left
+    mouth_left = lm_mouth_outer[0]
+    mouth_right = lm_mouth_outer[6]
+    mouth_avg = (mouth_left + mouth_right) * 0.5
+    eye_to_mouth = mouth_avg - eye_avg
+    
+    # Choose oriented crop rectangle
+    x = eye_to_eye - np.flipud(eye_to_mouth) * [-1, 1]
+    x /= np.hypot(*x)
+    x *= max(np.hypot(*eye_to_eye) * 2.0, np.hypot(*eye_to_mouth) * 1.8)
+    y = np.flipud(x) * [-1, 1]
+    c = eye_avg + eye_to_mouth * 0.1
+    quad = np.stack([c - x - y, c - x + y, c + x + y, c + x - y])
+    qsize = np.hypot(*x) * 2
+    
+    img = Image.fromarray(image)
+    orig_size = img.size
+    
+    # Shrink
+    shrink = int(np.floor(qsize / transform_size * 0.5))
+    if shrink > 1:
+        rsize = (int(np.rint(float(img.size[0]) / shrink)), int(np.rint(float(img.size[1]) / shrink)))
+        quad = quad / shrink
+        qsize = qsize / shrink
+    else:
+        rsize = orig_size
+    
+    # Crop
+    border = max(int(np.rint(qsize * 0.1)), 3)
+    crop = (
+        int(np.floor(min(quad[:, 0]))),
+        int(np.floor(min(quad[:, 1]))),
+        int(np.ceil(max(quad[:, 0]))),
+        int(np.ceil(max(quad[:, 1]))),
+    )
+    crop = (
+        max(crop[0] - border, 0),
+        max(crop[1] - border, 0),
+        min(crop[2] + border, rsize[0]),
+        min(crop[3] + border, rsize[1]),
+    )
+    
+    # 计算 crop 后的 quad
+    quad_after_crop = quad.copy()
+    if crop[2] - crop[0] < rsize[0] or crop[3] - crop[1] < rsize[1]:
+        quad_after_crop -= np.array([crop[0], crop[1]])
+    
+    # Pad
+    pad = (
+        int(np.floor(min(quad_after_crop[:, 0]))),
+        int(np.floor(min(quad_after_crop[:, 1]))),
+        int(np.ceil(max(quad_after_crop[:, 0]))),
+        int(np.ceil(max(quad_after_crop[:, 1]))),
+    )
+    pad = (
+        max(-pad[0] + border, 0),
+        max(-pad[1] + border, 0),
+        max(pad[2] - (crop[2] - crop[0]) + border, 0),
+        max(pad[3] - (crop[3] - crop[1]) + border, 0),
+    )
+    
+    # 最终的 quad（用于 transform）
+    quad_final = quad_after_crop.copy()
+    if max(pad) > border - 4:
+        quad_final += np.array([pad[0], pad[1]])
+    
+    return {
+        'shrink': shrink,
+        'rsize': rsize,
+        'crop': crop,
+        'pad': pad,
+        'quad': quad_final,
+        'transform_size': transform_size,
+        'border': border,
+        'qsize': qsize,
+    }
+
+
+def apply_ffhq_alignment(
+    frame: np.ndarray,
+    alignment_params: dict,
+) -> np.ndarray:
+    """对单帧应用 FFHQ 对齐参数。"""
+    shrink = alignment_params['shrink']
+    rsize = alignment_params['rsize']
+    crop = alignment_params['crop']
+    pad = alignment_params['pad']
+    quad = alignment_params['quad']
+    transform_size = alignment_params['transform_size']
+    border = alignment_params['border']
+    
+    img = Image.fromarray(frame)
+    
+    # Shrink
+    if shrink > 1:
+        img = img.resize(rsize, Image.Resampling.LANCZOS)
+    
+    # Crop
+    if crop[2] - crop[0] < img.size[0] or crop[3] - crop[1] < img.size[1]:
+        img = img.crop(crop)
+    
+    # Pad
+    enable_padding = True
+    if enable_padding and max(pad) > border - 4:
+        img_np = np.array(img, dtype=np.float32)
+        img_np = np.pad(img_np, ((pad[1], pad[3]), (pad[0], pad[2]), (0, 0)), 'reflect')
+        h, w, _ = img_np.shape
+        y, x, _ = np.ogrid[:h, :w, :1]
+        mask = np.maximum(
+            1.0 - np.minimum(np.float32(x) / (pad[0] + 1e-12), np.float32(w - 1 - x) / (pad[2] + 1e-12)),
+            1.0 - np.minimum(np.float32(y) / (pad[1] + 1e-12), np.float32(h - 1 - y) / (pad[3] + 1e-12))
+        )
+        blur = alignment_params['qsize'] * 0.01
+        img_np += (scipy.ndimage.gaussian_filter(img_np, [blur, blur, 0]) - img_np) * np.clip(mask * 3.0 + 1.0, 0.0, 1.0)
+        img_np += (np.median(img_np, axis=(0, 1)) - img_np) * np.clip(mask, 0.0, 1.0)
+        img = Image.fromarray(np.uint8(np.clip(np.rint(img_np), 0, 255)), 'RGB')
+    
+    # Transform
+    img = img.transform(
+        (transform_size, transform_size),
+        Image.Transform.QUAD,
+        (quad + 0.5).flatten(),
+        Image.Resampling.BILINEAR
+    )
+    
+    return np.array(img)
 
 
 def calculate_ffhq_crop_region(
@@ -271,6 +439,7 @@ def process_video(
     ffhq_style: bool = False,
     landmark_model_path: Optional[Path] = None,
     resize_only: bool = False,
+    ffhq_alignment: bool = False,
 ) -> None:
     """处理单个视频文件。"""
     if output_path.exists() and not overwrite:
@@ -293,6 +462,17 @@ def process_video(
     # resize-only 模式：跳过所有人脸检测和裁剪
     if resize_only:
         print("[模式] resize-only: 跳过人脸检测和裁剪，直接 resize")
+    elif ffhq_alignment:
+        # FFHQFaceAlignment 模式
+        if not FFHQ_ALIGNMENT_AVAILABLE:
+            raise RuntimeError(
+                "FFHQFaceAlignment 需要安装依赖。请确保：\n"
+                "1. FFHQFaceAlignment 目录存在\n"
+                "2. 已安装所需依赖（pip install -r FFHQFaceAlignment/requirements.txt）\n"
+                "3. 已下载模型（python FFHQFaceAlignment/download.py）"
+            )
+        print("[模式] FFHQFaceAlignment: 从第一帧计算对齐参数，应用到所有帧")
+        le = LandmarksEstimation(type='2D')
     else:
         # 初始化人脸检测器
         predictor = None
@@ -338,8 +518,32 @@ def process_video(
     frame_idx = 0
     output_w, output_h = output_size
     
+    # FFHQFaceAlignment: 在第一帧检测关键点并计算对齐参数
+    alignment_params = None
+    if ffhq_alignment:
+        ret, first_frame = cap.read()
+        if ret:
+            rgb_frame = cv2.cvtColor(first_frame, cv2.COLOR_BGR2RGB)
+            img_tensor = torch.tensor(np.transpose(rgb_frame, (2, 0, 1))).float()
+            if torch.cuda.is_available():
+                img_tensor = img_tensor.cuda()
+            
+            with torch.no_grad():
+                landmarks, detected_faces = le.detect_landmarks(img_tensor.unsqueeze(0), detected_faces=None)
+            
+            if len(landmarks) > 0:
+                landmarks_np = np.asarray(landmarks[0].detach().cpu().numpy())
+                alignment_params = compute_ffhq_alignment_params(
+                    rgb_frame,
+                    landmarks_np,
+                    transform_size=output_w
+                )
+                print(f"[FFHQAlignment] 在第一帧检测到关键点，对齐参数已计算")
+            else:
+                raise RuntimeError("FFHQFaceAlignment: 第一帧未检测到关键点")
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # 重置到第一帧
     # resize-only 模式：跳过所有人脸检测逻辑
-    if resize_only:
+    elif resize_only:
         pass  # 不需要初始化检测器
     # FFHQ-style: 在第一帧检测关键点并计算对齐参数
     elif ffhq_style and predictor:
@@ -366,6 +570,20 @@ def process_video(
             if resize_only:
                 resized = cv2.resize(frame, output_size, interpolation=cv2.INTER_CUBIC)
                 out.write(resized)
+                if (frame_idx + 1) % 100 == 0:
+                    print(f"  已处理 {frame_idx + 1}/{total_frames} 帧 ({100*(frame_idx+1)/total_frames:.1f}%)")
+                frame_idx += 1
+                continue
+            
+            # FFHQFaceAlignment: 应用对齐参数
+            if ffhq_alignment and alignment_params:
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                aligned_frame = apply_ffhq_alignment(rgb_frame, alignment_params)
+                # 转换为 BGR 并 resize 到输出尺寸（如果需要）
+                if aligned_frame.shape[:2] != output_size[::-1]:
+                    aligned_frame = cv2.resize(aligned_frame, output_size, interpolation=cv2.INTER_CUBIC)
+                aligned_frame_bgr = cv2.cvtColor(aligned_frame, cv2.COLOR_RGB2BGR)
+                out.write(aligned_frame_bgr)
                 if (frame_idx + 1) % 100 == 0:
                     print(f"  已处理 {frame_idx + 1}/{total_frames} 帧 ({100*(frame_idx+1)/total_frames:.1f}%)")
                 frame_idx += 1
@@ -497,6 +715,7 @@ def main() -> int:
                 ffhq_style=args.ffhq_style,
                 landmark_model_path=args.landmark_model,
                 resize_only=args.resize_only,
+                ffhq_alignment=args.ffhq_alignment,
             )
         except Exception as exc:
             print(f"[错误] 处理视频 {video_path} 时出错: {exc}")
