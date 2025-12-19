@@ -94,8 +94,8 @@ FFHQFaceAlignment 使用说明（方案 A）：
     parser.add_argument(
         "--face-ratio",
         type=float,
-        default=0.6,
-        help="人脸占画面的比例（0.0-1.0，默认0.6）",
+        default=0.8,
+        help="人脸占画面的比例（0.0-1.0，默认0.8）",
     )
     parser.add_argument(
         "--detect-interval",

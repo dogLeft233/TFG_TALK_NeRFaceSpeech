@@ -223,6 +223,7 @@ def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) 
     ]
 
     print(f"[推理] 输出目录: {outdir}")
+    print(f"运行{cmd}")
     subprocess.run(cmd, check=True, cwd=str(NERF_CODE_DIR), env=env)
 
     if not pred_mp4.exists():
