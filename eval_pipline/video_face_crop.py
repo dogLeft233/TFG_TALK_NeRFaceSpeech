@@ -98,6 +98,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="dlib 68点关键点模型路径（默认在 pretrained_networks 目录查找）",
     )
+    parser.add_argument(
+        "--resize-only",
+        action="store_true",
+        help="绕过人脸检测和裁剪，只对视频进行 resize（适用于已裁剪好的视频）",
+    )
     return parser.parse_args()
 
 
@@ -265,6 +270,7 @@ def process_video(
     overwrite: bool,
     ffhq_style: bool = False,
     landmark_model_path: Optional[Path] = None,
+    resize_only: bool = False,
 ) -> None:
     """处理单个视频文件。"""
     if output_path.exists() and not overwrite:
@@ -284,9 +290,13 @@ def process_video(
     
     print(f"[处理] {video_path.name}: {orig_w}x{orig_h}, {fps}fps, {total_frames}帧")
     
-    # 初始化人脸检测器
-    predictor = None
-    if ffhq_style:
+    # resize-only 模式：跳过所有人脸检测和裁剪
+    if resize_only:
+        print("[模式] resize-only: 跳过人脸检测和裁剪，直接 resize")
+    else:
+        # 初始化人脸检测器
+        predictor = None
+        if ffhq_style:
         if not DLIB_AVAILABLE:
             raise RuntimeError("FFHQ-style 裁剪需要 dlib 库，请安装: pip install dlib")
         
@@ -328,8 +338,11 @@ def process_video(
     frame_idx = 0
     output_w, output_h = output_size
     
+    # resize-only 模式：跳过所有人脸检测逻辑
+    if resize_only:
+        pass  # 不需要初始化检测器
     # FFHQ-style: 在第一帧检测关键点并计算对齐参数
-    if ffhq_style and predictor:
+    elif ffhq_style and predictor:
         ret, first_frame = cap.read()
         if ret:
             landmarks = get_landmarks_dlib(first_frame, predictor)
@@ -348,6 +361,15 @@ def process_video(
             ret, frame = cap.read()
             if not ret:
                 break
+            
+            # resize-only 模式：直接 resize，不进行任何裁剪
+            if resize_only:
+                resized = cv2.resize(frame, output_size, interpolation=cv2.INTER_CUBIC)
+                out.write(resized)
+                if (frame_idx + 1) % 100 == 0:
+                    print(f"  已处理 {frame_idx + 1}/{total_frames} 帧 ({100*(frame_idx+1)/total_frames:.1f}%)")
+                frame_idx += 1
+                continue
             
             # FFHQ-style: 使用固定的裁剪区域（已在第一帧计算）
             if ffhq_style and current_crop_region:
@@ -474,6 +496,7 @@ def main() -> int:
                 overwrite=args.overwrite,
                 ffhq_style=args.ffhq_style,
                 landmark_model_path=args.landmark_model,
+                resize_only=args.resize_only,
             )
         except Exception as exc:
             print(f"[错误] 处理视频 {video_path} 时出错: {exc}")

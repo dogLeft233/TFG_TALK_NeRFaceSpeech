@@ -143,6 +143,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="dlib 68点关键点模型路径（默认在 pretrained_networks 目录查找）",
     )
+    parser.add_argument(
+        "--resize-only",
+        action="store_true",
+        help="绕过人脸检测和裁剪，只对视频进行 resize（适用于已裁剪好的视频）",
+    )
     return parser.parse_args()
 
 
@@ -232,6 +237,8 @@ def main() -> int:
             crop_args.append("--ffhq-style")
         if args.landmark_model:
             crop_args.extend(["--landmark-model", str(args.landmark_model)])
+        if args.resize_only:
+            crop_args.append("--resize-only")
         
         success = run_step(
             "步骤2: 人脸检测和裁剪",
