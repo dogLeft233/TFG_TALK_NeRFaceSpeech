@@ -81,6 +81,17 @@ FFHQFaceAlignment 使用说明（方案 A）：
         help="视频切分的每段时长（秒），默认 8 秒",
     )
     parser.add_argument(
+        "--max-segments",
+        type=int,
+        default=None,
+        help="每个原始视频最多切分的片段数量上限（默认 None 表示无限制）",
+    )
+    parser.add_argument(
+        "--random-segments",
+        action="store_true",
+        help="当设置了 --max-segments 时，随机选择时段进行切分（而不是从开头顺序切分）",
+    )
+    parser.add_argument(
         "--face-ratio",
         type=float,
         default=0.6,
@@ -229,14 +240,20 @@ def main() -> int:
     
     # 步骤1: 视频切分
     if not args.skip_split:
+        split_args = [
+            "--input-dir", str(args.input_dir),
+            "--output-dir", str(videos_split_dir),
+            "--segment-sec", str(args.segment_sec),
+        ]
+        if args.max_segments is not None:
+            split_args.extend(["--max-segments", str(args.max_segments)])
+        if args.random_segments:
+            split_args.append("--random-segments")
+        
         success = run_step(
             "步骤1: 视频切分（每8秒一段）",
             eval_pipline_dir / "split_videos_every_8s.py",
-            [
-                "--input-dir", str(args.input_dir),
-                "--output-dir", str(videos_split_dir),
-                "--segment-sec", str(args.segment_sec),
-            ]
+            split_args
         )
         if not success:
             logger.error("步骤1失败，终止流程")

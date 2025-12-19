@@ -25,9 +25,10 @@ from __future__ import annotations
 
 import argparse
 import math
+import random
 import subprocess
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,6 +56,17 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=8,
         help="最小时长（秒），默认 8 秒；不足该时长的尾段会被舍弃",
+    )
+    parser.add_argument(
+        "--max-segments",
+        type=int,
+        default=None,
+        help="每个原始视频最多切分的片段数量上限（默认 None 表示无限制）",
+    )
+    parser.add_argument(
+        "--random-segments",
+        action="store_true",
+        help="当设置了 --max-segments 时，随机选择时段进行切分（而不是从开头顺序切分）",
     )
     return parser.parse_args()
 
@@ -97,6 +109,8 @@ def split_video(
     output_dir: Path,
     segment_sec: int,
     min_sec: int,
+    max_segments: Optional[int] = None,
+    random_segments: bool = False,
 ) -> None:
     duration = get_video_duration_sec(video_path)
     stem = video_path.stem  # 去掉扩展名
@@ -150,15 +164,33 @@ def split_video(
             print(f"  [错误] 复制视频失败: {out_name} -> {exc}")
         return
 
-    print(f"[切分] {video_path.name}: 总时长 {duration:.2f}s, 每段 {segment_sec}s, 段数 {num_segments}")
-
+    # 计算所有可能的时段起始时间
+    all_possible_starts = []
     for idx in range(num_segments):
         start_time = idx * segment_sec
         # 保证最后一段也至少有 min_sec
-        if duration - start_time < min_sec:
-            print(f"  [跳过尾段] start={start_time:.2f}s 剩余 {duration - start_time:.2f}s < {min_sec}s")
-            break
+        if duration - start_time >= min_sec:
+            all_possible_starts.append(start_time)
+    
+    # 应用 max_segments 限制
+    if max_segments is not None and max_segments > 0:
+        if random_segments and len(all_possible_starts) > max_segments:
+            # 随机选择时段
+            selected_starts = sorted(random.sample(all_possible_starts, max_segments))
+            print(f"[切分] {video_path.name}: 总时长 {duration:.2f}s, 每段 {segment_sec}s, 可切段数 {len(all_possible_starts)}, 随机选择 {max_segments} 段")
+        else:
+            # 顺序选择前 N 个时段（或全部，如果可切段数 <= max_segments）
+            selected_starts = all_possible_starts[:max_segments]
+            if random_segments and len(all_possible_starts) <= max_segments:
+                print(f"[切分] {video_path.name}: 总时长 {duration:.2f}s, 每段 {segment_sec}s, 可切段数 {len(all_possible_starts)} (无需随机选择，全部使用)")
+            else:
+                print(f"[切分] {video_path.name}: 总时长 {duration:.2f}s, 每段 {segment_sec}s, 可切段数 {len(all_possible_starts)}, 限制后段数 {len(selected_starts)}")
+    else:
+        selected_starts = all_possible_starts
+        print(f"[切分] {video_path.name}: 总时长 {duration:.2f}s, 每段 {segment_sec}s, 段数 {len(selected_starts)}")
 
+    # 切分选中的时段
+    for idx, start_time in enumerate(selected_starts):
         out_name = f"{stem}_seg{idx:03d}.mp4"
         out_path = output_dir / out_name
 
@@ -201,6 +233,8 @@ def main() -> int:
                 output_dir=args.output_dir,
                 segment_sec=args.segment_sec,
                 min_sec=args.min_sec,
+                max_segments=args.max_segments,
+                random_segments=args.random_segments,
             )
         except Exception as exc:  # noqa: BLE001
             print(f"[错误] 处理视频 {v} 时出错: {exc}")
