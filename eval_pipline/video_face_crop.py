@@ -25,6 +25,7 @@ from typing import Optional, Tuple
 
 import cv2
 import numpy as np
+from PIL import Image
 
 try:
     from facenet_pytorch import MTCNN  # type: ignore
@@ -32,6 +33,13 @@ try:
 except ImportError:
     MTCNN_AVAILABLE = False
     print("[警告] 未安装 facenet_pytorch，将尝试使用 OpenCV 的 DNN 人脸检测")
+
+try:
+    import dlib
+    DLIB_AVAILABLE = True
+except ImportError:
+    DLIB_AVAILABLE = False
+    print("[警告] 未安装 dlib，无法使用 FFHQ-style 裁剪")
 
 
 def parse_args() -> argparse.Namespace:
@@ -79,6 +87,17 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="若指定，则覆盖已存在的输出文件",
     )
+    parser.add_argument(
+        "--ffhq-style",
+        action="store_true",
+        help="使用 FFHQ-style 人脸对齐（需要 dlib 和 shape_predictor_68_face_landmarks.dat）",
+    )
+    parser.add_argument(
+        "--landmark-model",
+        type=Path,
+        default=None,
+        help="dlib 68点关键点模型路径（默认在 pretrained_networks 目录查找）",
+    )
     return parser.parse_args()
 
 
@@ -123,6 +142,75 @@ def detect_face_opencv(frame: np.ndarray) -> Optional[Tuple[int, int, int, int]]
             best_conf = confidence
     
     return best_bbox
+
+
+def get_landmarks_dlib(frame: np.ndarray, predictor: dlib.shape_predictor) -> Optional[np.ndarray]:
+    """使用 dlib 获取 68 点人脸关键点。"""
+    detector = dlib.get_frontal_face_detector()
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    dets = detector(rgb, 1)
+    
+    if len(dets) == 0:
+        return None
+    
+    # 选择最大的人脸
+    largest_idx = np.argmax([(d.right() - d.left()) * (d.bottom() - d.top()) for d in dets])
+    d = dets[largest_idx]
+    
+    shape = predictor(rgb, d)
+    landmarks = np.array([[p.x, p.y] for p in shape.parts()])
+    return landmarks
+
+
+def calculate_ffhq_crop_region(
+    landmarks: np.ndarray,
+    frame_h: int,
+    frame_w: int,
+    output_size: int,
+) -> Tuple[int, int, int, int]:
+    """根据 FFHQ 方法计算裁剪区域 (x1, y1, x2, y2)。"""
+    # 提取关键点
+    lm_eye_left = landmarks[36: 42]
+    lm_eye_right = landmarks[42: 48]
+    lm_mouth_outer = landmarks[48: 60]
+    
+    # 计算辅助向量
+    eye_left = np.mean(lm_eye_left, axis=0)
+    eye_right = np.mean(lm_eye_right, axis=0)
+    eye_avg = (eye_left + eye_right) * 0.5
+    eye_to_eye = eye_right - eye_left
+    mouth_left = lm_mouth_outer[0]
+    mouth_right = lm_mouth_outer[6]
+    mouth_avg = (mouth_left + mouth_right) * 0.5
+    eye_to_mouth = mouth_avg - eye_avg
+    
+    # 计算对齐矩形
+    x = eye_to_eye - np.flipud(eye_to_mouth) * [-1, 1]
+    x /= np.hypot(*x)
+    x *= max(np.hypot(*eye_to_eye) * 2.0, np.hypot(*eye_to_mouth) * 1.8)
+    y = np.flipud(x) * [-1, 1]
+    c = eye_avg + eye_to_mouth * 0.1
+    quad = np.stack([c - x - y, c - x + y, c + x + y, c + x - y])
+    qsize = np.hypot(*x) * 2
+    
+    # 计算裁剪区域
+    border = max(int(np.rint(qsize * 0.1)), 3)
+    crop = (
+        int(np.floor(min(quad[:, 0]))) - border,
+        int(np.floor(min(quad[:, 1]))) - border,
+        int(np.ceil(max(quad[:, 0]))) + border,
+        int(np.ceil(max(quad[:, 1]))) + border,
+    )
+    
+    # 确保裁剪区域在图像范围内
+    crop = (
+        max(crop[0], 0),
+        max(crop[1], 0),
+        min(crop[2], frame_w),
+        min(crop[3], frame_h),
+    )
+    
+    return crop
 
 
 def calculate_crop_region(
@@ -175,6 +263,8 @@ def process_video(
     output_size: Tuple[int, int],
     smooth_window: int,
     overwrite: bool,
+    ffhq_style: bool = False,
+    landmark_model_path: Optional[Path] = None,
 ) -> None:
     """处理单个视频文件。"""
     if output_path.exists() and not overwrite:
@@ -195,16 +285,35 @@ def process_video(
     print(f"[处理] {video_path.name}: {orig_w}x{orig_h}, {fps}fps, {total_frames}帧")
     
     # 初始化人脸检测器
-    if MTCNN_AVAILABLE:
-        device = "cuda" if cv2.cuda.getCudaEnabledDeviceCount() > 0 else "cpu"
-        mtcnn = MTCNN(select_largest=True, device=device)
-        detect_fn = lambda f: detect_face_mtcnn(f, mtcnn)
+    predictor = None
+    if ffhq_style:
+        if not DLIB_AVAILABLE:
+            raise RuntimeError("FFHQ-style 裁剪需要 dlib 库，请安装: pip install dlib")
+        
+        # 查找关键点模型
+        if landmark_model_path is None:
+            model_path = Path(__file__).parent.parent / "NeRFFaceSpeech_Code" / "pretrained_networks"
+            landmark_model_path = model_path / "shape_predictor_68_face_landmarks.dat"
+        
+        if not landmark_model_path.exists():
+            raise FileNotFoundError(
+                f"未找到 dlib 关键点模型: {landmark_model_path}\n"
+                f"请从 http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2 下载并解压"
+            )
+        
+        predictor = dlib.shape_predictor(str(landmark_model_path))
+        print(f"[FFHQ] 使用关键点模型: {landmark_model_path}")
     else:
-        detect_fn = detect_face_opencv
-        if detect_fn(np.zeros((100, 100, 3), dtype=np.uint8)) is None:
-            print("[错误] 无法使用 OpenCV DNN 检测，请安装 facenet_pytorch")
-            cap.release()
-            return
+        if MTCNN_AVAILABLE:
+            device = "cuda" if cv2.cuda.getCudaEnabledDeviceCount() > 0 else "cpu"
+            mtcnn = MTCNN(select_largest=True, device=device)
+            detect_fn = lambda f: detect_face_mtcnn(f, mtcnn)
+        else:
+            detect_fn = detect_face_opencv
+            if detect_fn(np.zeros((100, 100, 3), dtype=np.uint8)) is None:
+                print("[错误] 无法使用 OpenCV DNN 检测，请安装 facenet_pytorch")
+                cap.release()
+                return
     
     # 创建临时视频文件（只有视频，无音频）
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -219,14 +328,32 @@ def process_video(
     frame_idx = 0
     output_w, output_h = output_size
     
+    # FFHQ-style: 在第一帧检测关键点并计算对齐参数
+    if ffhq_style and predictor:
+        ret, first_frame = cap.read()
+        if ret:
+            landmarks = get_landmarks_dlib(first_frame, predictor)
+            if landmarks is not None:
+                current_crop_region = calculate_ffhq_crop_region(
+                    landmarks, orig_h, orig_w, output_w
+                )
+                print(f"[FFHQ] 在第一帧检测到关键点，裁剪区域: {current_crop_region}")
+            else:
+                print("[警告] FFHQ: 第一帧未检测到关键点，回退到普通检测")
+                ffhq_style = False
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # 重置到第一帧
+    
     try:
         while True:
             ret, frame = cap.read()
             if not ret:
                 break
             
-            # 每隔 detect_interval 帧检测一次
-            if frame_idx % detect_interval == 0:
+            # FFHQ-style: 使用固定的裁剪区域（已在第一帧计算）
+            if ffhq_style and current_crop_region:
+                pass  # 使用已计算的裁剪区域
+            # 普通模式: 每隔 detect_interval 帧检测一次
+            elif not ffhq_style and frame_idx % detect_interval == 0:
                 bbox = detect_fn(frame)
                 if bbox:
                     crop_region = calculate_crop_region(
@@ -248,8 +375,8 @@ def process_video(
                         min(orig_h, cy + crop_size // 2),
                     )
             
-            # 如果有历史裁剪中心，进行平滑
-            if len(crop_centers) > 1 and current_crop_region:
+            # 如果有历史裁剪中心，进行平滑（仅普通模式）
+            if not ffhq_style and len(crop_centers) > 1 and current_crop_region:
                 smoothed_center = smooth_crop_center(crop_centers, smooth_window)
                 x1, y1, x2, y2 = current_crop_region
                 crop_w = x2 - x1
@@ -345,6 +472,8 @@ def main() -> int:
                 output_size=tuple(args.output_size),
                 smooth_window=args.smooth_window,
                 overwrite=args.overwrite,
+                ffhq_style=args.ffhq_style,
+                landmark_model_path=args.landmark_model,
             )
         except Exception as exc:
             print(f"[错误] 处理视频 {video_path} 时出错: {exc}")

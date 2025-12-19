@@ -132,6 +132,17 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="跳过步骤4（指标计算），只运行前面的步骤",
     )
+    parser.add_argument(
+        "--ffhq-style",
+        action="store_true",
+        help="使用 FFHQ-style 人脸对齐（需要 dlib 和 shape_predictor_68_face_landmarks.dat）",
+    )
+    parser.add_argument(
+        "--landmark-model",
+        type=Path,
+        default=None,
+        help="dlib 68点关键点模型路径（默认在 pretrained_networks 目录查找）",
+    )
     return parser.parse_args()
 
 
@@ -210,16 +221,22 @@ def main() -> int:
     
     # 步骤2: 人脸检测和裁剪
     if not args.skip_crop:
+        crop_args = [
+            "--input-dir", str(videos_split_dir),
+            "--output-dir", str(videos_cropped_dir),
+            "--face-ratio", str(args.face_ratio),
+            "--detect-interval", str(args.detect_interval),
+            "--output-size", str(args.output_size[0]), str(args.output_size[1]),
+        ]
+        if args.ffhq_style:
+            crop_args.append("--ffhq-style")
+        if args.landmark_model:
+            crop_args.extend(["--landmark-model", str(args.landmark_model)])
+        
         success = run_step(
             "步骤2: 人脸检测和裁剪",
             eval_pipline_dir / "video_face_crop.py",
-            [
-                "--input-dir", str(videos_split_dir),
-                "--output-dir", str(videos_cropped_dir),
-                "--face-ratio", str(args.face_ratio),
-                "--detect-interval", str(args.detect_interval),
-                "--output-size", str(args.output_size[0]), str(args.output_size[1]),
-            ]
+            crop_args
         )
         if not success:
             logger.error("步骤2失败，终止流程")
