@@ -3,7 +3,8 @@
 功能：
 - 遍历输入目录中的所有 `.mp4` 文件
 - 每隔 N 秒（默认 8 秒）切一段
-- 不足 N 秒的尾巴直接舍弃
+- 不足 N 秒的视频会完整保留
+- 不足 N 秒的尾段会被舍弃（但至少保留一个片段）
 - 将切好的片段保存到输出目录
 
 依赖：
@@ -98,19 +99,59 @@ def split_video(
     min_sec: int,
 ) -> None:
     duration = get_video_duration_sec(video_path)
-    if duration < min_sec:
-        print(f"[跳过] {video_path.name} 时长 {duration:.2f}s < 最小时长 {min_sec}s")
+    stem = video_path.stem  # 去掉扩展名
+    
+    # 如果视频时长小于 segment_sec，直接复制整个视频
+    if duration < segment_sec:
+        out_name = f"{stem}_seg000.mp4"
+        out_path = output_dir / out_name
+        print(f"[保留] {video_path.name} 时长 {duration:.2f}s < {segment_sec}s，完整保留")
+        
+        # 直接复制整个视频
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(video_path),
+            "-c",
+            "copy",
+            str(out_path),
+        ]
+        
+        print(f"  [片段] {out_name} (完整视频)")
+        try:
+            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError as exc:
+            print(f"  [错误] 复制视频失败: {out_name} -> {exc}")
         return
 
     # 计算可切分的段数（舍弃不足 min_sec 的尾巴）
     num_segments = int(duration // segment_sec)
     if num_segments == 0:
-        print(f"[跳过] {video_path.name} 无法切出完整 {segment_sec}s 段")
+        # 如果无法切出完整段，但视频时长 >= segment_sec，保留整个视频
+        out_name = f"{stem}_seg000.mp4"
+        out_path = output_dir / out_name
+        print(f"[保留] {video_path.name} 时长 {duration:.2f}s，无法切出完整 {segment_sec}s 段，完整保留")
+        
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(video_path),
+            "-c",
+            "copy",
+            str(out_path),
+        ]
+        
+        print(f"  [片段] {out_name} (完整视频)")
+        try:
+            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError as exc:
+            print(f"  [错误] 复制视频失败: {out_name} -> {exc}")
         return
 
     print(f"[切分] {video_path.name}: 总时长 {duration:.2f}s, 每段 {segment_sec}s, 段数 {num_segments}")
 
-    stem = video_path.stem  # 去掉扩展名
     for idx in range(num_segments):
         start_time = idx * segment_sec
         # 保证最后一段也至少有 min_sec
