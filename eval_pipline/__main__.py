@@ -7,11 +7,20 @@
 4. 用推理结果和真值视频计算指标
 
 用法示例：
+    # 基本用法
     python -m eval_pipline \
         --input-dir data/videos \
         --output-dir output/eval \
         --network path/to/network.pkl \
         --device cuda
+    
+    # 使用 FFHQFaceAlignment 对齐（推荐，方案 A）
+    python -m eval_pipline \
+        --input-dir data/videos \
+        --output-dir output/eval \
+        --network path/to/network.pkl \
+        --device cuda \
+        --ffhq-alignment
 """
 
 from __future__ import annotations
@@ -37,6 +46,14 @@ def parse_args() -> argparse.Namespace:
   2. 对划分后的视频进行人脸检测和裁剪，保存到 {output_dir}/videos_cropped/
   3. 将处理完的视频送入模型推理，保存到 {output_dir}/videos_infer/
   4. 用推理结果和真值视频计算指标，保存到 {output_dir}/metrics.json
+
+FFHQFaceAlignment 使用说明（方案 A）：
+  --ffhq-alignment: 使用 FFHQFaceAlignment 进行对齐
+    - 从第一帧计算对齐参数（landmarks + affine matrix）
+    - 对所有帧应用相同的对齐参数（不重新检测）
+    - GT 和 GEN 使用相同的对齐参数，确保在同一坐标系下比较
+    - 需要先安装依赖：pip install -r FFHQFaceAlignment/requirements.txt
+    - 需要下载模型：python FFHQFaceAlignment/download.py
         """
     )
     parser.add_argument(
@@ -282,15 +299,21 @@ def main() -> int:
     
     # 步骤4: 指标计算
     if not args.skip_eval:
-        # 真值视频目录：使用切分后的视频（videos_split_dir）
+        # 真值视频目录：
+        # - 如果使用了 FFHQ 对齐，GT 应该使用对齐后的视频（videos_cropped_dir）
+        #   因为 GEN 视频也是基于对齐后的输入生成的，两者应该在同一坐标系下比较
+        # - 否则使用切分后的原始视频（videos_split_dir）
         # 推理结果目录：使用推理输出（videos_infer_dir）
+        gt_dir = videos_cropped_dir if (args.ffhq_alignment or args.ffhq_style or args.resize_only) else videos_split_dir
         eval_args = [
-            "--gt-dir", str(videos_split_dir),
+            "--gt-dir", str(gt_dir),
             "--pred-dir", str(videos_infer_dir),
             "--output", str(metrics_output),
             "--device", args.device,
             "--batch-size", str(args.batch_size),
         ]
+        if args.ffhq_alignment:
+            logger.info(f"使用 FFHQ 对齐后的 GT 视频目录: {gt_dir}")
         if args.max_frames is not None:
             eval_args.extend(["--max-frames", str(args.max_frames)])
         if args.skip_lse:
