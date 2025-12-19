@@ -123,7 +123,10 @@ def extract_audio(video_path: Path, out_wav: Path) -> None:
 
 
 def extract_first_frame_and_resize(video_path: Path, out_image: Path, target_size: int = 1024) -> None:
-    """提取第一帧，等比例缩放 + 上下左右填充黑色到 target_size x target_size。"""
+    """提取第一帧，等比例缩放 + 上下左右填充黑色到 target_size x target_size。
+    
+    如果视频已经是 target_size x target_size，则直接保存，避免不必要的处理。
+    """
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
         raise RuntimeError(f"无法打开视频文件: {video_path}")
@@ -135,6 +138,17 @@ def extract_first_frame_and_resize(video_path: Path, out_image: Path, target_siz
         raise RuntimeError(f"无法读取第一帧: {video_path}")
 
     orig_h, orig_w = frame.shape[:2]
+
+    # 如果已经是目标尺寸，直接保存，避免不必要的处理
+    if orig_h == target_size and orig_w == target_size:
+        out_image.parent.mkdir(parents=True, exist_ok=True)
+        if not cv2.imwrite(str(out_image), frame):
+            raise RuntimeError(f"保存关键帧失败: {out_image}")
+        print(
+            f"[关键帧] {video_path.name} -> {out_image.name} "
+            f"(first frame, already {target_size}x{target_size}, no resize/padding needed)"
+        )
+        return
 
     # 等比例缩放 + padding 到 target_size x target_size
     h, w = orig_h, orig_w
@@ -151,15 +165,19 @@ def extract_first_frame_and_resize(video_path: Path, out_image: Path, target_siz
     pad_left = (target_size - w) // 2
     pad_right = target_size - w - pad_left
 
-    frame_out = cv2.copyMakeBorder(
-        frame,
-        pad_top,
-        pad_bottom,
-        pad_left,
-        pad_right,
-        borderType=cv2.BORDER_CONSTANT,
-        value=[0, 0, 0],  # 黑色填充
-    )
+    # 如果不需要 padding，直接保存
+    if pad_top == 0 and pad_bottom == 0 and pad_left == 0 and pad_right == 0:
+        frame_out = frame
+    else:
+        frame_out = cv2.copyMakeBorder(
+            frame,
+            pad_top,
+            pad_bottom,
+            pad_left,
+            pad_right,
+            borderType=cv2.BORDER_CONSTANT,
+            value=[0, 0, 0],  # 黑色填充
+        )
 
     out_image.parent.mkdir(parents=True, exist_ok=True)
     if not cv2.imwrite(str(out_image), frame_out):
@@ -200,6 +218,8 @@ def run_inference(network: Path, outdir: Path, keyframe: Path, audio_wav: Path) 
         str(keyframe_abs),
         "--test_data",
         str(audio_wav_abs),
+        "--trunc",
+        str(0.7)
     ]
 
     print(f"[推理] 输出目录: {outdir}")
