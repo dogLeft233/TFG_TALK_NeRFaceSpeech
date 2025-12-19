@@ -102,7 +102,7 @@ def extract_frames_from_video(
 def compute_niqe_from_video(
     video_path: Union[str, Path],
     max_frames: Optional[int] = None,
-    batch_size: int = 16,
+    batch_size: int = 100,
 ) -> Tuple[float, List[float]]:
     """从视频文件计算 NIQE。
     
