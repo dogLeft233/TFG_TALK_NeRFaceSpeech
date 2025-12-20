@@ -18,13 +18,19 @@ OUTPUT_VIDEO_DIR = NERF_CODE_DIR / "outputs" / "video"
 OUTPUT_AUDIO_DIR = NERF_CODE_DIR / "outputs" / "audio"
 
 # 模型目录
-# 优先使用服务器上的绝对路径
-MODEL_DIR = Path("/root/autodl-tmp/TFG_TALK_NeRFaceSpeech/NeRFFaceSpeech_Code/pretrained_networks")
-# 如果绝对路径不存在，尝试使用相对路径作为后备
+# 优先使用相对路径（基于项目根目录）
+relative_model_dir = NERF_CODE_DIR / "pretrained_networks"
+MODEL_DIR = relative_model_dir
+
+# 如果相对路径不存在，尝试使用服务器上的绝对路径（需要权限）
 if not MODEL_DIR.exists():
-    relative_model_dir = NERF_CODE_DIR / "pretrained_networks"
-    if relative_model_dir.exists():
-        MODEL_DIR = relative_model_dir
+    try:
+        absolute_model_dir = Path("/root/autodl-tmp/TFG_TALK_NeRFaceSpeech/NeRFFaceSpeech_Code/pretrained_networks")
+        if absolute_model_dir.exists():
+            MODEL_DIR = absolute_model_dir
+    except (PermissionError, OSError):
+        # 如果没有权限访问绝对路径，继续使用相对路径
+        pass
 
 # WebUI 目录（前端静态文件目录）
 WEBUI_DIR = Path(__file__).parent / "webui"
@@ -46,11 +52,18 @@ TEXTS_STORAGE_DIR = DATABASE_DIR / "texts"
 TEXTS_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 # 训练数据集目录
-# 优先使用服务器上的绝对路径，如果不存在则尝试相对路径
-DATA_DIR = Path("/root/autodl-tmp/TFG_TALK_NeRFaceSpeech/data")
+# 优先使用相对路径（基于项目根目录）
+DATA_DIR = PROJECT_ROOT / "data"
+
+# 如果相对路径不存在，尝试使用服务器上的绝对路径（需要权限）
 if not DATA_DIR.exists():
-    # 使用相对路径作为后备
-    DATA_DIR = PROJECT_ROOT / "data"
+    try:
+        absolute_data_dir = Path("/root/autodl-tmp/TFG_TALK_NeRFaceSpeech/data")
+        if absolute_data_dir.exists():
+            DATA_DIR = absolute_data_dir
+    except (PermissionError, OSError):
+        # 如果没有权限访问绝对路径，继续使用相对路径
+        pass
 
 # 训练数据集默认路径（单张图像数据集目录，用于StyleNeRF训练）
 # 可以根据实际情况修改

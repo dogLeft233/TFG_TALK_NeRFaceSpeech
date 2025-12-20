@@ -11,8 +11,12 @@ from config import (
     NERF_SCRIPT,
     NERF_CODE_DIR as NERF_WORKDIR,
     MODEL_DIR,
+    PROJECT_ROOT,
     get_character_test_image
 )
+
+# 使用缓存版本的脚本（支持缓存机制）
+NERF_SCRIPT_CACHE = NERF_WORKDIR / "StyleNeRF" / "main_NeRFFaceSpeech_audio_driven_w_given_poses_cache.py"
 
 # 使用logging模块添加日志（避免循环导入）
 import logging
@@ -112,15 +116,32 @@ def generate_video(
     else:
         add_log(f"[NeRF] 使用模型缓存目录: {torch_hub_dir}", "info")
 
+    # ---------- 构造缓存目录路径（PTI和3DMM缓存） ----------
+    # 缓存目录：项目根目录/assets/charactor/{角色名}
+    cache_dir = PROJECT_ROOT / "assets" / "charactor" / character
+    cache_dir = cache_dir.resolve()  # 转换为绝对路径
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    add_log(f"[NeRF] 使用缓存目录: {cache_dir}", "info")
+    add_log(f"[NeRF] 缓存目录将存储PTI和3DMM拟合结果，可显著加速后续推理", "info")
+
+    # 使用缓存版本的脚本
+    script_path = NERF_SCRIPT_CACHE if NERF_SCRIPT_CACHE.exists() else NERF_SCRIPT
+    if NERF_SCRIPT_CACHE.exists():
+        add_log(f"[NeRF] 使用缓存版本脚本: {script_path}", "info")
+    else:
+        add_log(f"[NeRF] 警告: 缓存版本脚本不存在，使用默认脚本: {script_path}", "warning")
+        add_log(f"[NeRF] 缓存功能可能不可用", "warning")
+
     cmd = [
         str(NERF_CONDA_PYTHON),
-        str(NERF_SCRIPT),
+        str(script_path),
         f"--outdir={output_path}",
         "--trunc=0.7",
         f"--network={network_path}",
         f"--test_data={audio_path}",
         f"--test_img={test_img}",
-        "--motion_guide_img_folder=frames"
+        "--motion_guide_img_folder=frames",
+        f"--cache_dir={cache_dir}"  # 添加缓存目录参数
     ]
 
     try:
