@@ -161,6 +161,26 @@
       width: auto;
       padding: 8px 16px;
     }
+    .controls select {
+      width: auto;
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+    }
+    .controls select:hover {
+      border-color: var(--primary);
+      background: rgba(255,255,255,0.12);
+    }
+    .controls select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
+    }
     .status-indicator {
       display: inline-block;
       width: 8px;
@@ -502,7 +522,10 @@
 
     <div class="card">
       <div class="controls">
-        <button class="primary" id="refreshBtn">🔄 刷新日志</button>
+        <select id="logFilterSelect">
+          <option value="no-http">不显示HTTP请求日志</option>
+          <option value="all">全部日志</option>
+        </select>
         <button class="secondary" id="clearAllBtn">🗑️ 全部清空</button>
         <button class="secondary" id="clearPartialBtn">📋 部分清空（保留100行）</button>
         <button class="secondary" id="autoScrollBtn">📜 自动滚动: 开启</button>
@@ -530,19 +553,56 @@
   </footer>
 
   <script>
-    const FASTAPI_URL = "http://localhost:8000";
+    // 自动检测服务器地址
+    const FASTAPI_URL = (() => {
+      const currentOrigin = window.location.origin;
+      const currentHostname = window.location.hostname;
+      const currentPort = window.location.port;
+      const currentPath = window.location.pathname;
+      const currentProtocol = window.location.protocol;
+      
+      // 如果当前端口是7860（前端服务器），则使用后端服务器（8000端口）
+      if (currentPort === '7860') {
+        const backendUrl = `${currentProtocol}//${currentHostname}:8000`;
+        console.log('✅ 检测到前端服务器（端口7860），使用后端API服务器:', backendUrl);
+        return backendUrl;
+      }
+      
+      // 如果路径包含 /webui/，说明是挂载在FastAPI下的
+      if (currentPath.includes('/webui/')) {
+        console.log('✅ 检测到FastAPI静态文件服务，使用当前origin:', currentOrigin);
+        return currentOrigin;
+      }
+      
+      // 否则使用当前origin
+      console.log('✅ 使用当前origin作为API服务器:', currentOrigin);
+      return currentOrigin;
+    })();
+    
+    console.log('最终确定的API服务器地址:', FASTAPI_URL);
     let allLogs = []; // 合并后的所有日志
     let autoScroll = true;
     let refreshInterval = null;
+    let logFilter = 'no-http'; // 默认不显示HTTP请求日志
+    const AUTO_REFRESH_INTERVAL = 2000; // 自动刷新间隔（毫秒）
 
     // 获取DOM元素
     const logContentEl = document.getElementById("logContent");
     const logCountEl = document.getElementById("logCount");
     const statusIndicator = document.getElementById("statusIndicator");
-    const refreshBtn = document.getElementById("refreshBtn");
+    const logFilterSelect = document.getElementById("logFilterSelect");
     const clearAllBtn = document.getElementById("clearAllBtn");
     const clearPartialBtn = document.getElementById("clearPartialBtn");
     const autoScrollBtn = document.getElementById("autoScrollBtn");
+
+    /**
+     * 判断是否为HTTP请求日志
+     */
+    function isHttpRequestLog(content) {
+      // 匹配类似 127.0.0.1:53862 - "GET /logs/full?debug=false HTTP/1.1" 200 的格式
+      const httpRequestPattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+\s+-\s+"(GET|POST|PUT|DELETE|OPTIONS|HEAD|PATCH)\s+/;
+      return httpRequestPattern.test(content);
+    }
 
     function renderLogs() {
       // 按时间排序所有日志（timestamp字段）
@@ -552,11 +612,23 @@
         return timeA.localeCompare(timeB);
       });
       
-      // 渲染合并后的日志（完整输出，无长度限制）
-      logContentEl.innerHTML = allLogs.map(log => 
+      // 根据过滤选项过滤日志
+      let filteredLogs = allLogs;
+      if (logFilter === 'no-http') {
+        filteredLogs = allLogs.filter(log => !isHttpRequestLog(log.content));
+      }
+      
+      // 渲染过滤后的日志
+      logContentEl.innerHTML = filteredLogs.map(log => 
         `<div class="log-line ${log.level}">${escapeHtml(log.content)}</div>`
       ).join('');
-      logCountEl.textContent = `${allLogs.length} 行`;
+      
+      // 显示日志数量（显示过滤后的数量，以及总数量）
+      if (logFilter === 'no-http' && filteredLogs.length !== allLogs.length) {
+        logCountEl.textContent = `${filteredLogs.length} 行（共 ${allLogs.length} 行，已过滤 ${allLogs.length - filteredLogs.length} 条HTTP请求日志）`;
+      } else {
+        logCountEl.textContent = `${filteredLogs.length} 行`;
+      }
       
       // 自动滚动到底部
       if (autoScroll) {
@@ -696,7 +768,30 @@
       autoScrollBtn.textContent = `📜 自动滚动: ${autoScroll ? '开启' : '关闭'}`;
     }
 
-    refreshBtn.addEventListener('click', fetchLogs);
+    // 日志过滤下拉菜单事件
+    logFilterSelect.addEventListener('change', (e) => {
+      logFilter = e.target.value;
+      renderLogs(); // 重新渲染日志
+    });
+    
+    // 启动自动刷新
+    function startAutoRefresh() {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+      refreshInterval = setInterval(() => {
+        fetchLogs();
+      }, AUTO_REFRESH_INTERVAL);
+    }
+    
+    // 停止自动刷新
+    function stopAutoRefresh() {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+      }
+    }
+    
     clearAllBtn.addEventListener('click', clearAllLogs);
     clearPartialBtn.addEventListener('click', clearPartialLogs);
     autoScrollBtn.addEventListener('click', toggleAutoScroll);
@@ -788,8 +883,19 @@
       
     });
 
-    // 初始加载日志
+    // 初始加载日志并启动自动刷新
     fetchLogs();
+    startAutoRefresh();
+    
+    // 页面可见性改变时暂停/恢复自动刷新
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        stopAutoRefresh();
+      } else {
+        startAutoRefresh();
+        fetchLogs(); // 页面可见时立即刷新一次
+      }
+    });
   </script>
 </body>
 </html>

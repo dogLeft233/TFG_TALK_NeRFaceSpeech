@@ -69,43 +69,77 @@ def _call_llm_api_bridge(mode: str, user_input: str, character: str = "ayanami",
     env["PYTHONPATH"] = str(LLM_WORKDIR)
     
     try:
-        # 执行命令并捕获输出
-        result = subprocess.run(
+        # 使用Popen来实时捕获输出（包括错误信息）
+        process = subprocess.Popen(
             cmd,
-            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,  # 将stderr重定向到stdout
+            text=True,
+            encoding='utf-8',
+            errors='replace',  # 使用replace模式处理非UTF-8字节，避免解码错误
+            bufsize=1,
             env=env,
             cwd=str(LLM_WORKDIR),
-            capture_output=True,
-            text=True,
-            encoding='utf-8'
+            universal_newlines=True
         )
+        
+        # 读取所有输出
+        stdout_lines = []
+        stderr_lines = []
+        while True:
+            output = process.stdout.readline()
+            if output == '' and process.poll() is not None:
+                break
+            if output:
+                stdout_lines.append(output)
+        
+        # 等待进程完成
+        return_code = process.wait()
+        full_output = ''.join(stdout_lines)
+        
+        if return_code != 0:
+            # 进程失败，返回错误信息
+            error_msg = full_output[-500:] if len(full_output) > 500 else full_output
+            return {
+                "success": False,
+                "error": f"subprocess 调用失败 (返回码: {return_code}): {error_msg}"
+            }
         
         # 解析 JSON 输出
         try:
-            output = result.stdout.strip()
+            output = full_output.strip()
             # 查找 JSON 部分（可能有一些日志输出）
             json_start = output.find('{')
             json_end = output.rfind('}') + 1
             if json_start >= 0 and json_end > json_start:
                 json_str = output[json_start:json_end]
-                return json.loads(json_str)
+                result = json.loads(json_str)
+                
+                # 递归检查并转换bytes为字符串（防止JSON序列化错误）
+                def ensure_str(obj):
+                    """递归检查并转换bytes为字符串"""
+                    if isinstance(obj, bytes):
+                        return obj.decode('utf-8')
+                    elif isinstance(obj, dict):
+                        return {k: ensure_str(v) for k, v in obj.items()}
+                    elif isinstance(obj, list):
+                        return [ensure_str(item) for item in obj]
+                    else:
+                        return obj
+                
+                result = ensure_str(result)
+                return result
             else:
                 return {
                     "success": False,
-                    "error": f"无法解析输出为 JSON: {output[:200]}"
+                    "error": f"无法解析输出为 JSON: {output[:500]}"
                 }
         except json.JSONDecodeError as e:
             return {
                 "success": False,
-                "error": f"JSON 解析失败: {str(e)}, 输出: {result.stdout[:200]}"
+                "error": f"JSON 解析失败: {str(e)}, 输出: {full_output[:500]}"
             }
             
-    except subprocess.CalledProcessError as e:
-        error_output = e.stderr if e.stderr else e.stdout if hasattr(e, 'stdout') else str(e)
-        return {
-            "success": False,
-            "error": f"subprocess 调用失败: {error_output[:500]}"
-        }
     except Exception as e:
         return {
             "success": False,
@@ -158,7 +192,14 @@ def chat_with_llm(user_input: str, character: str = "ayanami", enable_audio: boo
             # 如果启用了音频且生成成功，添加音频数据
             if enable_audio and data.get('combined_audio') and data['combined_audio'].get('success'):
                 combined_audio = data['combined_audio']
-                response["data"]["audio_base64"] = combined_audio.get('combined_base64_data')
+                audio_base64_data = combined_audio.get('combined_base64_data')
+                # 确保audio_base64_data是字符串，不是bytes
+                if audio_base64_data:
+                    if isinstance(audio_base64_data, bytes):
+                        audio_base64_data = audio_base64_data.decode('utf-8')
+                    elif not isinstance(audio_base64_data, str):
+                        audio_base64_data = str(audio_base64_data)
+                response["data"]["audio_base64"] = audio_base64_data
                 response["data"]["audio_duration"] = combined_audio.get('total_duration', 0)
             
             return response

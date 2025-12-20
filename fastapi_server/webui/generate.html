@@ -117,7 +117,10 @@
       min-height: 90px; white-space: pre-wrap; word-break: break-all;
     }
     .video-frame {
-      width: 100%; min-height: 720px; max-height: 80vh;
+      width: 100%; 
+      aspect-ratio: 1 / 1; /* 固定1:1比例（正方形） */
+      max-width: 1024px; /* 限制最大宽度，匹配模型输出分辨率 */
+      margin: 0 auto; /* 居中显示 */
       background: linear-gradient(180deg, var(--grad1) 0%, var(--grad2) 100%);
       border-radius: 16px; border: 1px solid #1f2937;
       display: flex; align-items: center; justify-content: center;
@@ -126,12 +129,37 @@
     video { 
       width: 100%; 
       height: 100%; 
-      object-fit: contain; 
-      background: #000;
+      object-fit: contain; /* 保持宽高比，适应容器 */
+      background: transparent !important; /* 移除黑色背景，使用透明 */
       display: none;
+      max-width: 100%;
+      max-height: 100%;
+      position: relative;
+      z-index: 10; /* 提高z-index，确保在最上层 */
     }
     video:not(.hidden) {
       display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      z-index: 10 !important; /* 确保视频在poster之上 */
+      position: relative !important;
+      background: transparent !important;
+    }
+    .video-poster {
+      width: 100%;
+      height: 100%;
+      object-fit: contain; /* 保持宽高比，适应容器 */
+      background: transparent;
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      cursor: pointer;
+      z-index: 5; /* poster的z-index应该低于video */
+    }
+    .video-poster:not(.hidden) {
+      display: block !important;
+      z-index: 5 !important;
     }
     .placeholder {
       color: #9ca3af; font-size: 16px; text-align: center; padding: 20px;
@@ -736,10 +764,41 @@
             <label>状态 / 日志</label>
             <div class="log-box" id="statusBox">就绪</div>
           </div>
+          <!-- 视频信息（移到左侧） -->
+          <div class="video-info" id="videoInfo" style="display: none; margin-top: 12px;">
+            <div class="param-row">
+              <span class="param-label">分辨率:</span>
+              <span class="param-value" id="videoResolution">--</span>
+            </div>
+            <div class="param-row">
+              <span class="param-label">时长:</span>
+              <span class="param-value" id="videoDuration">--</span>
+            </div>
+            <div class="param-row">
+              <span class="param-label">文件大小:</span>
+              <span class="param-value" id="videoSize">--</span>
+            </div>
+          </div>
+          <!-- 视频诊断信息（移到左侧） -->
+          <div class="card" id="videoDiagnostics" style="display: none; margin-top: 12px; background: rgba(255,193,7,0.1); border-color: rgba(255,193,7,0.3);">
+            <div style="font-weight: 700; margin-bottom: 8px; color: #ffc107;">🔍 视频诊断信息（帮助排查播放问题）</div>
+            <div id="diagnosticsContent" style="font-size: 12px; font-family: monospace; color: var(--text); line-height: 1.6; max-height: 300px; overflow-y: auto;"></div>
+          </div>
+          <!-- 历史记录按钮 -->
+          <div style="margin-top: 12px;">
+            <label>历史记录</label>
+            <div style="position: relative;">
+              <button class="secondary" id="historyBtn" style="width: 100%;">📋 查看历史记录</button>
+              <div id="historyDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; max-height: 400px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                <div id="historyList" style="padding: 8px;"></div>
+              </div>
+            </div>
+          </div>
         </div>
         <div>
           <div class="video-frame">
             <video id="videoOutput" controls preload="metadata" class="hidden" style="display: none;"></video>
+            <img id="videoPoster" class="video-poster hidden" alt="视频封面" style="display: none;">
             <div id="videoPlaceholder" class="placeholder">生成后将在此展示视频</div>
           </div>
           <!-- 视频操作按钮 -->
@@ -755,44 +814,24 @@
               <option value="2">2x</option>
             </select>
           </div>
-          <!-- 视频信息 -->
-          <div class="video-info" id="videoInfo" style="display: none;">
-            <div class="param-row">
-              <span class="param-label">分辨率:</span>
-              <span class="param-value" id="videoResolution">--</span>
-            </div>
-            <div class="param-row">
-              <span class="param-label">时长:</span>
-              <span class="param-value" id="videoDuration">--</span>
-            </div>
-            <div class="param-row">
-              <span class="param-label">文件大小:</span>
-              <span class="param-value" id="videoSize">--</span>
-            </div>
-          </div>
           <!-- 参数显示卡片 -->
           <div class="param-card" id="paramCard" style="display: none;">
-            <div class="param-row">
+            <div class="param-row" id="paramModelRow">
               <span class="param-label">模型:</span>
               <span class="param-value" id="paramModel">--</span>
             </div>
-            <div class="param-row">
+            <div class="param-row" id="paramCharacterRow">
               <span class="param-label">角色:</span>
               <span class="param-value" id="paramCharacter">--</span>
             </div>
-            <div class="param-row">
+            <div class="param-row" id="paramTimeRow">
               <span class="param-label">生成时间:</span>
               <span class="param-value" id="paramTime">--</span>
             </div>
-            <div class="param-row">
+            <div class="param-row" id="paramTextRow">
               <span class="param-label">文本:</span>
               <span class="param-value" id="paramText" style="max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">--</span>
             </div>
-          </div>
-          <!-- 历史记录 -->
-          <div class="history-section">
-            <label>历史记录</label>
-            <div class="history-list" id="historyList"></div>
           </div>
         </div>
       </div>
@@ -823,13 +862,145 @@
   </footer>
 
   <script>
-    const FASTAPI_URL = "http://localhost:8000";
+    // 自动检测服务器地址（从当前页面的URL获取）
+    // 规则：
+    // 1. 如果当前是前端服务器（端口7860），则使用后端服务器（端口8000）
+    // 2. 如果路径包含 /webui/，说明是挂载在FastAPI下的，使用当前origin
+    // 3. 否则使用当前origin（假设前后端在同一服务器）
+    const FASTAPI_URL = (() => {
+      const currentOrigin = window.location.origin;
+      const currentHostname = window.location.hostname;
+      const currentPort = window.location.port;
+      const currentPath = window.location.pathname;
+      const currentProtocol = window.location.protocol;
+      
+      console.log('=== API服务器地址检测 ===');
+      console.log('当前URL:', window.location.href);
+      console.log('Origin:', currentOrigin);
+      console.log('Hostname:', currentHostname);
+      console.log('Port:', currentPort || '(默认端口)');
+      console.log('Protocol:', currentProtocol);
+      console.log('Path:', currentPath);
+      
+      // 如果当前端口是7860（前端服务器），则使用后端服务器（8000端口）
+      if (currentPort === '7860') {
+        const backendUrl = `${currentProtocol}//${currentHostname}:8000`;
+        console.log('✅ 检测到前端服务器（端口7860），使用后端API服务器:', backendUrl);
+        return backendUrl;
+      }
+      
+      // 如果路径包含 /webui/，说明是挂载在 /webui 下的（FastAPI直接提供静态文件）
+      // 服务器根路径就是 origin
+      if (currentPath.includes('/webui/')) {
+        console.log('✅ 检测到FastAPI静态文件服务，使用当前origin:', currentOrigin);
+        return currentOrigin;
+      }
+      
+      // 如果端口是8000或空（默认端口），假设是FastAPI服务器，直接使用
+      if (currentPort === '8000' || !currentPort) {
+        console.log('✅ 检测到FastAPI服务器（端口8000或默认），使用当前origin:', currentOrigin);
+        return currentOrigin;
+      }
+      
+      // 否则使用当前origin（假设前后端在同一服务器）
+      console.log('⚠️  使用当前origin作为API服务器（未匹配任何规则）:', currentOrigin);
+      return currentOrigin;
+    })();
+    
+    console.log('=== 最终确定的API服务器地址 ===');
+    console.log('FASTAPI_URL:', FASTAPI_URL);
+    console.log('===================================');
+    
     const modelsSelect = document.getElementById("modelInput");
     const statusBox = document.getElementById("statusBox");
     const video = document.getElementById("videoOutput");
     const videoPlaceholder = document.getElementById("videoPlaceholder");
     const runBtn = document.getElementById("runBtn");
     const refreshBtn = document.getElementById("refreshBtn");
+
+    // 辅助函数：获取readyState名称（提前定义，供全局监听器使用）
+    function getReadyStateName(state) {
+      const states = {
+        0: 'HAVE_NOTHING',
+        1: 'HAVE_METADATA',
+        2: 'HAVE_CURRENT_DATA',
+        3: 'HAVE_FUTURE_DATA',
+        4: 'HAVE_ENOUGH_DATA'
+      };
+      return states[state] || `未知(${state})`;
+    }
+    
+    function getNetworkStateName(state) {
+      const states = {
+        0: 'NETWORK_EMPTY',
+        1: 'NETWORK_IDLE',
+        2: 'NETWORK_LOADING',
+        3: 'NETWORK_NO_SOURCE'
+      };
+      return states[state] || `未知(${state})`;
+    }
+
+    // 全局的视频播放事件监听器（无论视频如何加载都会触发）
+    video.addEventListener('play', function onVideoPlay() {
+      console.log('========================================');
+      console.log('▶️ [全局监听器] 用户点击播放按钮 - 视频开始播放 (play事件)');
+      console.log('========================================');
+      
+      // 立即显示诊断信息区域（确保可见）
+      const diagnosticsEl = document.getElementById("videoDiagnostics");
+      if (diagnosticsEl) {
+        diagnosticsEl.style.display = "block";
+        try {
+          diagnosticsEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } catch (e) {
+          // 如果scrollIntoView失败，至少确保显示
+          console.warn('scrollIntoView失败:', e);
+        }
+      }
+      
+      const hasVideo = video.videoWidth > 0 && video.videoHeight > 0;
+      const hasAudio = video.duration > 0;
+      const computedStyle = window.getComputedStyle(video);
+      
+      // 详细的调试信息
+      const debugInfo = {
+        '视频尺寸': `${video.videoWidth} × ${video.videoHeight}` + (hasVideo ? ' ✅' : ' ❌ 没有视频轨道'),
+        '视频时长': `${video.duration.toFixed(2)} 秒` + (hasAudio ? ' ✅' : ' ❌'),
+        '当前播放时间': `${video.currentTime.toFixed(2)} 秒`,
+        '播放速度': `${video.playbackRate}x`,
+        '是否暂停': video.paused ? '是' : '否',
+        '就绪状态': `${video.readyState} (${getReadyStateName(video.readyState)})`,
+        '网络状态': `${video.networkState} (${getNetworkStateName(video.networkState)})`,
+        'CSS显示': computedStyle.display,
+        'CSS可见性': computedStyle.visibility,
+        'CSS透明度': computedStyle.opacity,
+        'CSS背景色': computedStyle.backgroundColor,
+        'CSS z-index': computedStyle.zIndex,
+        '是否有hidden类': video.classList.contains('hidden') ? '是' : '否',
+        '视频源URL': video.src || '未设置'
+      };
+      
+      console.log('播放时视频状态:');
+      for (const [key, value] of Object.entries(debugInfo)) {
+        console.log(`  - ${key}:`, value);
+      }
+      
+      if (!hasVideo && hasAudio) {
+        console.error('⚠️ 警告：检测到只有音频轨道，没有视频画面！');
+        if (typeof showToast === 'function') {
+          showToast('⚠️ 警告：视频只有音频，没有画面', 'warning');
+        }
+      }
+      
+      // 更新诊断信息（如果函数已定义）
+      if (typeof updateDiagnostics === 'function') {
+        updateDiagnostics();
+      } else {
+        console.warn('updateDiagnostics函数尚未定义');
+      }
+      
+      console.log('========================================');
+    }, false); // 使用捕获阶段，确保优先触发
 
     function setStatus(msg) { statusBox.textContent = msg; }
     function setLoading(button, loading) {
@@ -847,13 +1018,27 @@
       setLoading(refreshBtn, true);
       try {
         const res = await fetch(`${FASTAPI_URL}/models`, { method: "GET" });
+        if (!res.ok) {
+          const errorMsg = `模型列表获取失败: HTTP ${res.status}`;
+          setStatus(`❌ ${errorMsg}`);
+          showToast(errorMsg, "error");
+          modelsSelect.innerHTML = "";
+          const opt = document.createElement("option");
+          opt.value = "";
+          opt.textContent = "模型加载失败";
+          opt.disabled = true;
+          modelsSelect.appendChild(opt);
+          return;
+        }
+        
         const data = await res.json();
         
         // 检查是否是错误响应
         if (data.success === false || (data.error && !Array.isArray(data))) {
           const errorMsg = data.error || "未知错误";
           setStatus(`❌ 模型列表获取失败：${errorMsg}`);
-          modelsSelect.innerHTML = "";
+          showToast(errorMsg, "error");
+        modelsSelect.innerHTML = "";
           const opt = document.createElement("option");
           opt.value = "";
           opt.textContent = "模型加载失败";
@@ -899,20 +1084,34 @@
     let progressInterval = null;
     let startTime = null;
     let abortController = null;
+    let currentTaskId = null; // 当前任务ID
+    let taskStatusPollInterval = null; // 任务状态轮询间隔
 
-    function updateProgress(step, progress) {
+    let currentStage = null; // 当前阶段: 'llm', 'tts', 'nerf', 'save'
+    let stageStartTime = null; // 当前阶段的开始时间
+    
+    function updateProgress(step, progress, resetStage = false) {
       const progressFill = document.getElementById("progressFill");
       const progressText = document.getElementById("progressText");
       const stepIndicator = document.getElementById("stepIndicator");
       const progressContainer = document.getElementById("progressContainer");
       
       progressContainer.style.display = "block";
+      
+      // 如果切换阶段，重置进度条
+      if (resetStage || currentStage !== step) {
+        currentStage = step;
+        stageStartTime = Date.now();
+        progressFill.style.width = "0%";
+      } else {
       progressFill.style.width = progress + "%";
+      }
       
       const steps = {
-        'llm': { text: '正在生成LLM回答...', progress: 33 },
-        'tts': { text: '正在生成TTS音频...', progress: 66 },
-        'nerf': { text: '正在生成NeRF视频...', progress: 90 }
+        'llm': { text: '阶段1: LLM + TTS 音频生成', progress: 100 },
+        'tts': { text: '阶段1: LLM + TTS 音频生成', progress: 100 },
+        'nerf': { text: '阶段2: NeRF 视频生成', progress: 100 },
+        'save': { text: '阶段3: 保存视频文件', progress: 100 }
       };
       
       if (steps[step]) {
@@ -931,25 +1130,136 @@
         }
       });
       
-      // 更新剩余时间（基于已用时间和进度比例估算）
-      if (startTime) {
-        const elapsed = (Date.now() - startTime) / 1000;
-        // 如果进度大于0，基于当前进度估算总时间
-        if (progress > 0) {
-          const estimatedTotal = elapsed / (progress / 100);
-          const remaining = Math.max(0, estimatedTotal - elapsed);
-          const timeText = remaining > 60 
-            ? `${Math.floor(remaining / 60)}分${Math.floor(remaining % 60)}秒`
-            : `${Math.floor(remaining)}秒`;
-          document.getElementById("progressTime").textContent = `预计剩余时间: ${timeText}`;
-        } else {
-          document.getElementById("progressTime").textContent = `预计剩余时间: 计算中...`;
+      // 更新剩余时间（基于当前阶段的已用时间）
+      if (stageStartTime) {
+        const elapsed = (Date.now() - stageStartTime) / 1000;
+        // 基于当前阶段的时间估算（简化处理，使用固定估算）
+        const timeText = `${Math.floor(elapsed)}秒`;
+        document.getElementById("progressTime").textContent = `当前阶段用时: ${timeText}`;
+      }
+    }
+    
+    // 通过日志推断当前阶段
+    function detectStageFromLogs(logs) {
+      if (!logs || logs.length === 0) return null;
+      
+      let detectedStage = null;
+      let stage1Complete = false;
+      let stage2Complete = false;
+      
+      // 从最新的日志中推断阶段（从后往前查找最新的阶段标记）
+      for (let i = logs.length - 1; i >= 0; i--) {
+        const logMsg = logs[i].message || logs[i].content || '';
+        const lowerMsg = logMsg.toLowerCase();
+        
+        // 阶段完成标记（优先检查）
+        if (logMsg.includes('阶段1完成') || (logMsg.includes('阶段1') && logMsg.includes('完成'))) {
+          stage1Complete = true;
+          if (!stage2Complete) {
+            detectedStage = 'nerf'; // 阶段1完成，进入阶段2
+            break;
+          }
         }
+        if (logMsg.includes('阶段2完成') || (logMsg.includes('阶段2') && logMsg.includes('完成'))) {
+          stage2Complete = true;
+          detectedStage = 'save'; // 阶段2完成，进入阶段3
+          break;
+        }
+        if (logMsg.includes('阶段3完成') || (logMsg.includes('阶段3') && logMsg.includes('完成'))) {
+          detectedStage = 'save';
+          break;
+        }
+        
+        // 阶段开始标记
+        if (logMsg.includes('阶段1:') || logMsg.includes('阶段1：') || (logMsg.includes('LLM + TTS') && !stage1Complete)) {
+          detectedStage = 'llm';
+          // 不break，继续查找是否有完成标记
+        }
+        if (logMsg.includes('阶段2:') || logMsg.includes('阶段2：') || (logMsg.includes('NeRF') && logMsg.includes('视频生成') && !stage2Complete)) {
+          if (!detectedStage || detectedStage === 'llm') {
+            detectedStage = 'nerf';
+          }
+        }
+        if (logMsg.includes('阶段3:') || logMsg.includes('阶段3：') || logMsg.includes('保存视频')) {
+          detectedStage = 'save';
+        }
+        
+        // 通过内容推断（仅在未找到阶段标记时使用）
+        if (!detectedStage) {
+          if (lowerMsg.includes('调用llm') || lowerMsg.includes('调用大模型') || (lowerMsg.includes('生成回答') && !stage1Complete)) {
+            detectedStage = 'llm';
+          } else if (lowerMsg.includes('tts转换') || (lowerMsg.includes('生成音频') && !stage1Complete)) {
+            detectedStage = 'tts';
+          } else if (lowerMsg.includes('loading networks') || lowerMsg.includes('sampling') || lowerMsg.includes('download') || lowerMsg.includes('fetching')) {
+            detectedStage = 'nerf';
+          }
+        }
+      }
+      
+      return detectedStage || 'llm'; // 默认返回第一阶段
+    }
+    
+    // 轮询日志以更新进度
+    let logPollInterval = null;
+    function startLogPolling() {
+      let lastLogCount = 0;
+      logPollInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`${FASTAPI_URL}/logs/full?debug=false`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.logs) {
+              const logs = data.logs;
+              // 如果有新日志
+              if (logs.length > lastLogCount) {
+                lastLogCount = logs.length;
+                
+                // 检测当前阶段
+                const detectedStage = detectStageFromLogs(logs);
+                if (detectedStage && detectedStage !== currentStage) {
+                  // 阶段切换时重置进度条
+                  if (detectedStage === 'llm' || detectedStage === 'tts') {
+                    updateProgress('llm', 0, true); // 重置到阶段1
+                  } else if (detectedStage === 'nerf') {
+                    updateProgress('nerf', 0, true); // 重置到阶段2
+                  } else if (detectedStage === 'save') {
+                    updateProgress('save', 0, true); // 重置到阶段3
+                  }
+                } else if (detectedStage === currentStage) {
+                  // 同一阶段内，根据时间估算进度（简化处理）
+                  if (stageStartTime) {
+                    const elapsed = (Date.now() - stageStartTime) / 1000;
+                    let estimatedProgress = 0;
+                    if (detectedStage === 'llm' || detectedStage === 'tts') {
+                      // 阶段1预计需要10-30秒
+                      estimatedProgress = Math.min(95, (elapsed / 30) * 100);
+                    } else if (detectedStage === 'nerf') {
+                      // 阶段2预计需要30-120秒
+                      estimatedProgress = Math.min(95, (elapsed / 120) * 100);
+                    } else if (detectedStage === 'save') {
+                      estimatedProgress = 100;
+                    }
+                    updateProgress(detectedStage, estimatedProgress, false);
+                  }
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // 忽略轮询错误
+        }
+      }, 1000); // 每秒轮询一次
+    }
+    
+    function stopLogPolling() {
+      if (logPollInterval) {
+        clearInterval(logPollInterval);
+        logPollInterval = null;
       }
     }
     
     function getStepOrder(step) {
-      const order = { 'llm': 1, 'tts': 2, 'nerf': 3 };
+      const order = { 'llm': 1, 'tts': 1, 'nerf': 2, 'save': 3 };
       return order[step] || 0;
     }
     
@@ -994,93 +1304,764 @@
       }, 3000);
     }
     
-    // 保存到历史记录
-    function saveToHistory(videoUrl, params) {
-      const history = JSON.parse(localStorage.getItem('videoHistory') || '[]');
-      const historyItem = {
-        id: Date.now().toString(),
-        videoUrl: videoUrl,
-        text: params.text,
-        character: params.character,
-        model: params.model,
-        timestamp: new Date().toISOString(),
-        date: new Date().toLocaleString('zh-CN')
-      };
-      history.unshift(historyItem);
-      // 最多保存20条
-      if (history.length > 20) history.pop();
-      localStorage.setItem('videoHistory', JSON.stringify(history));
-      renderHistory();
+    // 从数据库加载历史记录
+    // 从文件路径构造视频URL（从路径中提取文件名）
+    function getVideoUrlFromPath(videoPath) {
+      if (!videoPath) return null;
+      
+      try {
+        // 从路径中提取文件名（例如：从 /root/.../videos/xxx.mp4 提取 xxx.mp4）
+        const pathParts = videoPath.replace(/\\/g, '/').split('/');
+        const fileName = pathParts[pathParts.length - 1];
+        
+        if (fileName && fileName.endsWith('.mp4')) {
+          // 构造URL：/videos/{filename}
+          return `${FASTAPI_URL}/videos/${fileName}`;
+        }
+        
+        // 如果路径格式不对，尝试从unique_id构造（向后兼容）
+        console.warn('无法从路径提取文件名，路径格式:', videoPath);
+        return null;
+      } catch (e) {
+        console.error('构造视频URL失败:', e, '路径:', videoPath);
+        return null;
+      }
     }
     
-    // 渲染历史记录
-    function renderHistory() {
-      const history = JSON.parse(localStorage.getItem('videoHistory') || '[]');
+    // 从文件路径构造音频URL
+    function getAudioUrlFromPath(audioPath) {
+      if (!audioPath) return null;
+      
+      try {
+        const pathParts = audioPath.replace(/\\/g, '/').split('/');
+        const fileName = pathParts[pathParts.length - 1];
+        
+        if (fileName && (fileName.endsWith('.wav') || fileName.endsWith('.mp3'))) {
+          return `${FASTAPI_URL}/audios/${fileName}`;
+        }
+        return null;
+      } catch (e) {
+        console.error('构造音频URL失败:', e);
+        return null;
+      }
+    }
+    
+    // 从文件路径构造文本URL
+    function getTextUrlFromPath(textPath) {
+      if (!textPath) return null;
+      
+      try {
+        const pathParts = textPath.replace(/\\/g, '/').split('/');
+        const fileName = pathParts[pathParts.length - 1];
+        
+        if (fileName && fileName.endsWith('.txt')) {
+          return `${FASTAPI_URL}/texts/${fileName}`;
+        }
+        return null;
+      } catch (e) {
+        console.error('构造文本URL失败:', e);
+        return null;
+      }
+    }
+    
+    async function loadHistory() {
+      try {
+        const response = await fetch(`${FASTAPI_URL}/generation_records?record_type=video&limit=100`);
+        if (!response.ok) {
+          const errorMsg = `加载历史记录失败: HTTP ${response.status}`;
+          console.error(errorMsg);
+          setStatus(`⚠️ ${errorMsg}`);
+          showToast(errorMsg, "error");
+          return;
+        }
+        const data = await response.json();
+        if (!data.success) {
+          const errorMsg = data.error || "加载历史记录失败";
+          console.error(errorMsg);
+          setStatus(`⚠️ ${errorMsg}`);
+          showToast(errorMsg, "error");
+          return;
+        }
+        if (data.data) {
+          renderHistory(data.data);
+        }
+      } catch (e) {
+        const errorMsg = `加载历史记录出错: ${e.message || String(e)}`;
+        console.error(errorMsg, e);
+        setStatus(`⚠️ ${errorMsg}`);
+        showToast(errorMsg, "error");
+      }
+    }
+    
+    // 渲染历史记录（从数据库数据）
+    function renderHistory(records) {
       const historyList = document.getElementById("historyList");
       historyList.innerHTML = '';
       
-      history.forEach(item => {
+      if (!records || records.length === 0) {
+        historyList.innerHTML = '<div style="color: var(--muted); text-align: center; padding: 20px;">暂无历史记录</div>';
+        return;
+      }
+      
+      // 自动显示最新的视频（如果右侧没有视频）
+      if (records.length > 0 && (!video.src || video.classList.contains("hidden"))) {
+        const latestRecord = records[0]; // 第一条是最新的
+        // 从video_path构造URL
+        const videoUrl = getVideoUrlFromPath(latestRecord.video_path);
+        if (videoUrl) {
+          const params = {
+            text: latestRecord.text || '',
+            character: latestRecord.character || '',
+            model: latestRecord.model_name || '',
+            date: latestRecord.created_at || new Date().toLocaleString('zh-CN'),
+            generation_time: latestRecord.generation_time,
+            unique_id: latestRecord.unique_id
+          };
+          loadVideo(videoUrl, params);
+        }
+      }
+      
+      records.forEach((record, index) => {
         const historyItem = document.createElement("div");
         historyItem.className = "history-item";
+        historyItem.style.cssText = "padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.2s;";
+        if (index < records.length - 1) {
+          historyItem.style.borderBottom = "1px solid var(--border)";
+        } else {
+          historyItem.style.borderBottom = "none";
+        }
+        
+        const date = record.created_at ? new Date(record.created_at).toLocaleString('zh-CN') : '未知时间';
+        const genTime = record.generation_time ? `${Math.floor(record.generation_time)}秒` : '';
+        const textPreview = (record.text || '无文本').substring(0, 50) + ((record.text && record.text.length > 50) ? '...' : '');
+        
         historyItem.innerHTML = `
-          <video class="history-thumbnail" src="${item.videoUrl}" preload="metadata"></video>
-          <div class="history-info">
-            <div style="margin-bottom: 4px; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.text}</div>
-            <div>${item.character} · ${item.model}</div>
-            <div style="margin-top: 4px; font-size: 11px;">${item.date}</div>
-          </div>
+          <div style="color: var(--text); font-weight: 500; margin-bottom: 4px;">${textPreview}</div>
+          <div style="font-size: 12px; color: var(--muted);">${date}${genTime ? ` · ${genTime}` : ''}</div>
+          <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">${record.character || ''} · ${record.model_name || '无模型'}</div>
         `;
-        historyItem.addEventListener('click', () => {
-          loadVideo(item.videoUrl, item);
+        
+        historyItem.addEventListener('mouseenter', () => {
+          historyItem.style.background = 'rgba(255,255,255,0.05)';
         });
+        historyItem.addEventListener('mouseleave', () => {
+          historyItem.style.background = 'transparent';
+        });
+        
+        historyItem.addEventListener('click', () => {
+          // 在新窗口打开历史记录详情页
+          if (record.unique_id) {
+            const detailUrl = `${window.location.pathname}?record_id=${record.unique_id}`;
+            window.open(detailUrl, '_blank');
+          }
+          // 关闭下拉菜单
+          const dropdown = document.getElementById("historyDropdown");
+          if (dropdown) {
+            dropdown.style.display = "none";
+          }
+        });
+        
         historyList.appendChild(historyItem);
       });
     }
     
     // 加载视频
-    function loadVideo(videoUrl, params = null) {
+    function loadVideo(videoUrl, params = null, autoPlay = false) {
       const video = document.getElementById("videoOutput");
       
-      console.log('加载视频:', videoUrl);
+      console.log('========================================');
+      console.log('开始加载视频');
+      console.log('视频URL:', videoUrl);
+      console.log('自动播放:', autoPlay);
+      console.log('========================================');
       
       // 清除之前的源（如果需要）
       video.pause();
       video.src = '';
       video.load();
       
-      // 设置新的视频源
+      // 先验证URL是否可访问
+      console.log('步骤1: 检查视频文件是否可访问...');
+      fetch(videoUrl, { method: 'HEAD' })
+        .then(response => {
+          console.log('HTTP HEAD请求结果:');
+          console.log('  - 状态码:', response.status, response.statusText);
+          console.log('  - Content-Type:', response.headers.get('Content-Type'));
+          console.log('  - Content-Length:', response.headers.get('Content-Length'));
+          console.log('  - Accept-Ranges:', response.headers.get('Accept-Ranges'));
+          console.log('  - 所有响应头:', Object.fromEntries(response.headers.entries()));
+          
+          if (!response.ok) {
+            console.error('❌ 视频文件HTTP请求失败:', response.status, response.statusText);
+            showToast(`视频文件无法访问 (HTTP ${response.status})`, 'error');
+            return;
+          }
+          
+          const contentType = response.headers.get('Content-Type');
+          if (contentType && !contentType.includes('video')) {
+            console.warn('⚠️ Content-Type可能不正确:', contentType);
+          }
+          
+          // 如果HEAD请求成功，继续设置视频源
+          console.log('步骤2: 设置视频源并配置事件监听器...');
       video.src = videoUrl;
+          console.log('视频元素src已设置:', video.src);
       
       // 显示视频元素
       video.classList.remove("hidden");
       video.style.display = "block";
+          video.style.visibility = "visible";
+          video.style.zIndex = "10";
+          video.style.opacity = "1";
+          video.style.background = "transparent";
       videoPlaceholder.classList.add("hidden");
       document.getElementById("videoControls").style.display = "flex";
       document.getElementById("videoInfo").style.display = "block";
+          document.getElementById("videoDiagnostics").style.display = "block";
+          
+          // 配置自动播放（需要在设置src后，在事件监听器中访问autoPlay）
+          setupVideoEventListeners(autoPlay);
+          
+          // 初始诊断信息
+          setTimeout(() => updateDiagnostics(), 500);
+        })
+        .catch(err => {
+          console.error('❌ 检查视频文件失败:', err);
+          showToast('无法访问视频文件，请检查网络连接', 'error');
+          console.error('错误详情:', err.message, err.stack);
+          // 即使HEAD请求失败，也尝试设置视频源（可能是CORS问题）
+          console.log('尝试直接设置视频源（忽略HEAD请求失败）...');
+          video.src = videoUrl;
+          video.classList.remove("hidden");
+          video.style.display = "block";
+          video.style.visibility = "visible";
+          video.style.opacity = "1";
+          video.style.zIndex = "10";
+          video.style.position = "relative";
+          video.style.background = "transparent";
+          videoPlaceholder.classList.add("hidden");
+          document.getElementById("videoControls").style.display = "flex";
+          document.getElementById("videoInfo").style.display = "block";
+          document.getElementById("videoDiagnostics").style.display = "block";
+          setupVideoEventListeners(autoPlay);
+          
+          // 初始诊断信息
+          setTimeout(() => updateDiagnostics(), 500);
+        });
+      
+      // 辅助函数：设置视频事件监听器（使用autoPlay参数）
+      function setupVideoEventListeners(shouldAutoPlay) {
+        // 添加事件监听器（使用 once 避免重复）
+        video.addEventListener('loadedmetadata', () => {
+          console.log('视频元数据已加载');
+          updateVideoInfo();
+          checkVideoTracks(); // 延迟检查视频轨道
+          
+          // 尝试跳转到第一帧以生成封面
+          try {
+            video.currentTime = 0.1; // 跳到0.1秒处
+          } catch (e) {
+            console.warn('无法设置currentTime:', e);
+          }
+        }, { once: true });
+        
+        video.addEventListener('loadeddata', () => {
+          console.log('视频数据已加载');
+          updateVideoInfo();
+          
+          // 生成封面
+          generateVideoPoster();
+        }, { once: true });
+        
+        video.addEventListener('seeked', () => {
+          // 当视频跳转到指定位置后，生成封面
+          if (!videoPoster.src || videoPoster.classList.contains("hidden")) {
+            generateVideoPoster();
+          }
+        }, { once: true });
+        
+        // 视频开始播放时隐藏封面 - 每次播放都显示调试信息
+        video.addEventListener('play', () => {
+          console.log('========================================');
+          console.log('▶️ 用户点击播放按钮 - 视频开始播放 (play事件)');
+          console.log('========================================');
+          
+          // 立即显示诊断信息区域（确保可见）
+          const diagnosticsEl = document.getElementById("videoDiagnostics");
+          if (diagnosticsEl) {
+            diagnosticsEl.style.display = "block";
+            diagnosticsEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+          
+          const hasVideo = video.videoWidth > 0 && video.videoHeight > 0;
+          const hasAudio = video.duration > 0;
+          const computedStyle = window.getComputedStyle(video);
+          
+          // 详细的调试信息
+          const debugInfo = {
+            '视频尺寸': `${video.videoWidth} × ${video.videoHeight}` + (hasVideo ? ' ✅' : ' ❌ 没有视频轨道'),
+            '视频时长': `${video.duration.toFixed(2)} 秒` + (hasAudio ? ' ✅' : ' ❌'),
+            '当前播放时间': `${video.currentTime.toFixed(2)} 秒`,
+            '播放速度': `${video.playbackRate}x`,
+            '是否暂停': video.paused ? '是' : '否',
+            '就绪状态': `${video.readyState} (${getReadyStateName(video.readyState)})`,
+            '网络状态': `${video.networkState} (${getNetworkStateName(video.networkState)})`,
+            'CSS显示': computedStyle.display,
+            'CSS可见性': computedStyle.visibility,
+            'CSS透明度': computedStyle.opacity,
+            'CSS背景色': computedStyle.backgroundColor,
+            'CSS z-index': computedStyle.zIndex,
+            '是否有hidden类': video.classList.contains('hidden') ? '是' : '否',
+            '视频源URL': video.src || '未设置'
+          };
+          
+          console.log('播放时视频状态:');
+          for (const [key, value] of Object.entries(debugInfo)) {
+            console.log(`  - ${key}:`, value);
+          }
+          
+          // 如果播放时仍然没有检测到视频轨道，尝试等待一段时间后再次检查
+          // 某些视频编码格式（如某些H.264变体）需要实际播放一段时间后才能正确获取尺寸
+          if (!hasVideo && hasAudio) {
+            console.warn('⚠️ 播放时检测到尺寸为0，等待一段时间后再次检查...');
+            
+            // 等待2秒后再次检查（给视频时间解码和渲染）
+            setTimeout(() => {
+              const hasVideoAfterPlay = video.videoWidth > 0 && video.videoHeight > 0;
+              console.log('播放2秒后再次检查视频尺寸:', {
+                width: video.videoWidth,
+                height: video.videoHeight,
+                readyState: video.readyState
+              });
+              
+              if (hasVideoAfterPlay) {
+                console.log('✅ 播放后检测到视频轨道！');
+                updateDiagnostics();
+                updateVideoInfo();
+              } else {
+                console.error('⚠️ 播放后仍然没有检测到视频轨道');
+                // 只在确实没有视频轨道时才显示警告
+                // 不显示错误，因为视频文件在本地可以播放，可能是浏览器兼容性问题
+                showToast('⚠️ 浏览器可能无法解码该视频格式，但视频文件本身正常（可在本地播放器播放）', 'warning');
+              }
+            }, 2000);
+          }
+          
+          if (!videoPoster.classList.contains("hidden")) {
+            videoPoster.classList.add("hidden");
+            videoPoster.style.display = "none";
+          }
+          
+          // 确保视频元素可见
+          if (video.classList.contains("hidden")) {
+            video.classList.remove("hidden");
+          }
+          video.style.display = "block";
+          video.style.visibility = "visible";
+          video.style.opacity = "1";
+          video.style.zIndex = "10";
+          video.style.position = "relative";
+          video.style.background = "transparent";
+          
+          // 强制更新并显示诊断信息
+          updateDiagnostics();
+          
+          console.log('========================================');
+        });
+        
+        // 视频实际开始播放时（playing事件）
+        video.addEventListener('playing', () => {
+          console.log('▶️ 视频正在播放 (playing事件)');
+          updateDiagnostics();
+        });
+        
+        // 视频暂停时
+        video.addEventListener('pause', () => {
+          console.log('⏸️ 视频已暂停 (pause事件)');
+          updateDiagnostics();
+        });
+        
+        // 视频等待数据时
+        video.addEventListener('waiting', () => {
+          console.log('⏳ 视频正在缓冲 (waiting事件)');
+          updateDiagnostics();
+        });
+        
+        // 视频可以继续播放时
+        video.addEventListener('playing', () => {
+          console.log('▶️ 视频继续播放 (playing事件)');
+        });
+        
+        video.addEventListener('canplay', () => {
+          console.log('========================================');
+          console.log('✅ 视频可以播放 (canplay事件)');
+          console.log('视频尺寸:', video.videoWidth, '×', video.videoHeight);
+          console.log('视频时长:', video.duration, '秒');
+          console.log('视频就绪状态 (readyState):', video.readyState, '(', getReadyStateName(video.readyState), ')');
+          console.log('网络状态 (networkState):', video.networkState, '(', getNetworkStateName(video.networkState), ')');
+          console.log('当前时间:', video.currentTime);
+          console.log('========================================');
+          updateVideoInfo();
+          checkVideoTracks();
+          updateDiagnostics(); // 更新诊断信息
+          
+          // 检查是否有视频轨道
+          if (video.videoWidth === 0 || video.videoHeight === 0) {
+            console.warn('⚠️ 视频尺寸为0，可能没有视频轨道');
+            showToast('⚠️ 警告：检测到视频可能没有画面，只有音频', 'warning');
+          }
+          
+          // 如果设置了自动播放，尝试播放
+          if (shouldAutoPlay) {
+            console.log('========================================');
+            console.log('尝试自动播放视频...');
+            console.log('视频状态:', {
+              src: video.src,
+              videoWidth: video.videoWidth,
+              videoHeight: video.videoHeight,
+              duration: video.duration,
+              readyState: video.readyState,
+              networkState: video.networkState
+            });
+            console.log('========================================');
+            
+            video.play()
+              .then(() => {
+                console.log('✅ 视频自动播放成功');
+                showToast('视频开始播放', 'success');
+                // 强制显示诊断信息
+                document.getElementById("videoDiagnostics").style.display = "block";
+                updateDiagnostics();
+              })
+              .catch(err => {
+                console.error('========================================');
+                console.error('❌ 视频自动播放失败');
+                console.error('错误名称:', err.name);
+                console.error('错误消息:', err.message);
+                console.error('视频状态:', {
+                  src: video.src,
+                  videoWidth: video.videoWidth,
+                  videoHeight: video.videoHeight,
+                  duration: video.duration,
+                  readyState: video.readyState,
+                  networkState: video.networkState,
+                  paused: video.paused
+                });
+                console.error('========================================');
+                showToast(`自动播放失败: ${err.message}`, 'error');
+                // 强制显示诊断信息
+                document.getElementById("videoDiagnostics").style.display = "block";
+                updateDiagnostics();
+              });
+          }
+        }, { once: true });
+        
+        video.addEventListener('canplaythrough', () => {
+          console.log('✅ 视频已加载足够数据可以流畅播放 (canplaythrough事件)');
+          console.log('视频缓冲范围:', Array.from({length: video.buffered.length}, (_, i) => ({
+            start: video.buffered.start(i),
+            end: video.buffered.end(i)
+          })));
+        }, { once: true });
+      }
+      
+      // 生成并显示视频封面
+      function generateVideoPoster() {
+        // 等待视频元数据加载
+        const tryGeneratePoster = () => {
+          if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) { // HAVE_CURRENT_DATA
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+              const ctx = canvas.getContext('2d');
+              
+              // 绘制视频当前帧到canvas
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              
+              // 将canvas转为图片URL
+              const posterUrl = canvas.toDataURL('image/jpeg', 0.85);
+              videoPoster.src = posterUrl;
+              videoPoster.classList.remove("hidden");
+              videoPoster.style.display = "block";
+              
+              // 点击封面时播放视频
+              videoPoster.onclick = () => {
+                videoPoster.classList.add("hidden");
+                videoPoster.style.display = "none";
+                video.play().catch(e => {
+                  console.error('播放失败:', e);
+                  showToast('视频播放失败，请尝试下载视频', 'error');
+                });
+              };
+              
+              console.log('视频封面已生成:', canvas.width, '×', canvas.height);
+              
+              // 立即更新分辨率信息
+              document.getElementById("videoResolution").textContent = 
+                `${video.videoWidth} × ${video.videoHeight}`;
+            } catch (e) {
+              console.error('生成封面失败:', e);
+              // 如果生成封面失败，至少显示视频元素
+            }
+          } else if (video.readyState >= 1) {
+            // 如果元数据已加载但还没有视频数据，再等一会儿
+            setTimeout(tryGeneratePoster, 200);
+          }
+        };
+        
+        // 开始尝试生成封面
+        tryGeneratePoster();
+      }
       
       // 使用一次性事件监听器更新视频信息
       const updateVideoInfo = () => {
-        if (video.videoWidth && video.videoHeight) {
+        // 更新分辨率显示
+        if (video.videoWidth > 0 && video.videoHeight > 0) {
           document.getElementById("videoResolution").textContent = 
             `${video.videoWidth} × ${video.videoHeight}`;
+        } else {
+          // 如果readyState还很低，说明元数据还没加载完成，显示加载中
+          if (video.readyState < 1) {
+            document.getElementById("videoResolution").textContent = '加载中...';
+          } else {
+            // readyState >= 1但尺寸还是0，可能是真的没有视频轨道，但不一定是问题
+            // 可能视频编码格式需要更长时间解码，所以先显示"检测中"
+            document.getElementById("videoResolution").textContent = video.readyState >= 2 ? '检测中...' : '加载中...';
+          }
         }
+        
+        // 更新时长显示
         if (video.duration && !isNaN(video.duration) && isFinite(video.duration)) {
           document.getElementById("videoDuration").textContent = 
             formatDuration(video.duration);
+        } else {
+          document.getElementById("videoDuration").textContent = '--';
         }
+        
         console.log('视频信息已更新:', {
           width: video.videoWidth,
           height: video.videoHeight,
-          duration: video.duration
+          duration: video.duration,
+          readyState: video.readyState
         });
+        
+        // 同时更新诊断信息
+        updateDiagnostics();
       };
       
+      // 视频元数据检查标志，避免重复检查
+      let metadataChecked = false;
+      
+      // 更新诊断信息显示
+      function updateDiagnostics() {
+        const diagnosticsEl = document.getElementById("videoDiagnostics");
+        const diagnosticsContent = document.getElementById("diagnosticsContent");
+        
+        if (!diagnosticsEl || !diagnosticsContent) {
+          console.warn('诊断信息元素不存在');
+          return;
+        }
+        
+        const hasVideo = video.videoWidth > 0 && video.videoHeight > 0;
+        const hasAudio = video.duration > 0;
+        const computedStyle = window.getComputedStyle(video);
+        const info = {
+          '视频URL': video.src || '未设置',
+          '视频尺寸': hasVideo ? `${video.videoWidth} × ${video.videoHeight}` : '0 × 0 (⚠️ 没有视频轨道)',
+          '视频时长': hasAudio ? `${video.duration.toFixed(2)} 秒` : '未知',
+          '就绪状态': `${video.readyState} (${getReadyStateName(video.readyState)})`,
+          '网络状态': `${video.networkState} (${getNetworkStateName(video.networkState)})`,
+          '是否有视频轨道': hasVideo ? '✅ 是' : '❌ 否（只有音频）',
+          '是否有音频轨道': hasAudio ? '✅ 是' : '❌ 否',
+          '当前播放时间': `${video.currentTime.toFixed(2)} 秒`,
+          '是否暂停': video.paused ? '是' : '否',
+          '播放速度': `${video.playbackRate}x`,
+          'CSS显示': computedStyle.display,
+          'CSS可见性': computedStyle.visibility,
+          'CSS透明度': computedStyle.opacity,
+          'CSS背景色': computedStyle.backgroundColor,
+          'CSS z-index': computedStyle.zIndex,
+          '是否有hidden类': video.classList.contains('hidden') ? '是' : '否',
+          '视频元素位置': video.style.position || computedStyle.position
+        };
+        
+        let html = '';
+        for (const [key, value] of Object.entries(info)) {
+          const color = (key.includes('轨道') && value.includes('否')) ? '#ff4444' : 'inherit';
+          html += `<div style="margin: 4px 0;"><strong>${key}:</strong> <span style="color: ${color}">${value}</span></div>`;
+        }
+        
+        diagnosticsContent.innerHTML = html;
+        diagnosticsEl.style.display = 'block';
+        
+        // 如果没有视频轨道但有音频，显示警告
+        if (!hasVideo && hasAudio && video.readyState >= 2) {
+          showToast('⚠️ 警告：视频文件可能只有音频轨道，没有视频画面', 'warning');
+          diagnosticsEl.style.background = 'rgba(255,87,34,0.15)';
+          diagnosticsEl.style.borderColor = 'rgba(255,87,34,0.4)';
+        } else {
+          diagnosticsEl.style.background = 'rgba(255,193,7,0.1)';
+          diagnosticsEl.style.borderColor = 'rgba(255,193,7,0.3)';
+        }
+      }
+      
+      // 检查视频是否有有效的视频轨道
+      function checkVideoTracks() {
+        // 延迟检查，给视频一些时间加载元数据
+        // 使用多次检查，因为某些视频编码格式需要更长时间解码元数据
+        let checkCount = 0;
+        const maxChecks = 10; // 最多检查10次，每次间隔1秒
+        
+        const checkInterval = setInterval(() => {
+          checkCount++;
+          
+          if (metadataChecked && checkCount > 3) {
+            clearInterval(checkInterval);
+            return; // 已经检查过了
+          }
+          
+          // 如果视频已经加载到可以获取尺寸的状态
+          if (video.readyState >= 1) { // HAVE_METADATA
+            const hasVideo = video.videoWidth > 0 && video.videoHeight > 0;
+            const hasAudio = video.duration > 0;
+            
+            const checkInfo = {
+              width: video.videoWidth,
+              height: video.videoHeight,
+              duration: video.duration,
+              readyState: video.readyState,
+              hasVideo: hasVideo,
+              hasAudio: hasAudio
+            };
+            console.log(`视频轨道检查 (第${checkCount}次):`, checkInfo);
+            // 输出到终端（通过console.log，后端会捕获）
+            console.log(`[前端诊断] 视频轨道检查 (第${checkCount}次): ${JSON.stringify(checkInfo)}`);
+            
+            // 更新诊断信息
+            updateDiagnostics();
+            
+            // 如果检测到视频轨道，停止检查
+            if (hasVideo) {
+              console.log('✅ 检测到视频轨道，停止检查');
+              clearInterval(checkInterval);
+              metadataChecked = true;
+              return;
+            }
+            
+            // 只有在多次检查后（至少3次，即3秒后）仍然没有视频轨道且有音频轨道时才警告
+            // 某些视频编码格式（如某些H.264变体）需要更长时间来解码元数据
+            if (!hasVideo && hasAudio && checkCount >= 3 && video.readyState >= 2) {
+              console.warn(`⚠️ 第${checkCount}次检查：仍然没有检测到视频轨道`);
+              
+              // 尝试强制重新加载视频元数据
+              if (checkCount === 3) {
+                console.log('尝试强制重新加载视频元数据...');
+                try {
+                  video.load(); // 重新加载视频
+                } catch (e) {
+                  console.error('重新加载视频失败:', e);
+                }
+              }
+              
+              // 只在最后一次检查时显示警告（不是错误，因为视频文件本身可能正常）
+              if (checkCount >= maxChecks) {
+                console.warn('⚠️ 多次检查后仍然没有检测到视频轨道');
+                // 不显示错误弹窗，只显示警告提示，因为视频文件在本地可以播放
+                // 这通常是浏览器兼容性问题，而不是视频文件本身的问题
+                showToast('⚠️ 浏览器可能无法解码该视频格式，但视频文件本身正常（可在本地播放器播放）', 'warning');
+                clearInterval(checkInterval);
+                metadataChecked = true;
+              }
+            }
+            
+            // 达到最大检查次数后停止
+            if (checkCount >= maxChecks) {
+              clearInterval(checkInterval);
+              metadataChecked = true;
+            }
+          } else if (checkCount >= maxChecks) {
+            // 如果达到最大检查次数仍然没有元数据，停止检查
+            clearInterval(checkInterval);
+            metadataChecked = true;
+          }
+        }, 1000); // 每1秒检查一次
+      }
+      
       // 添加事件监听器（使用 once 避免重复）
-      video.addEventListener('loadedmetadata', updateVideoInfo, { once: true });
-      video.addEventListener('loadeddata', updateVideoInfo, { once: true });
-      video.addEventListener('canplay', () => {
-        console.log('视频可以播放');
+      video.addEventListener('loadedmetadata', () => {
+        console.log('视频元数据已加载');
         updateVideoInfo();
+        checkVideoTracks(); // 延迟检查视频轨道
+        
+        // 尝试跳转到第一帧以生成封面
+        try {
+          video.currentTime = 0.1; // 跳到0.1秒处
+        } catch (e) {
+          console.warn('无法设置currentTime:', e);
+        }
+      }, { once: true });
+      
+      video.addEventListener('loadeddata', () => {
+        console.log('视频数据已加载');
+        updateVideoInfo();
+        
+        // 生成封面
+        generateVideoPoster();
+      }, { once: true });
+      
+      video.addEventListener('seeked', () => {
+        // 当视频跳转到指定位置后，生成封面
+        if (!videoPoster.src || videoPoster.classList.contains("hidden")) {
+          generateVideoPoster();
+        }
+      }, { once: true });
+      
+      // 视频开始播放时隐藏封面
+      video.addEventListener('play', () => {
+        if (!videoPoster.classList.contains("hidden")) {
+          videoPoster.classList.add("hidden");
+          videoPoster.style.display = "none";
+        }
+      });
+      
+      video.addEventListener('canplay', () => {
+        console.log('========================================');
+        console.log('✅ 视频可以播放 (canplay事件)');
+        console.log('视频尺寸:', video.videoWidth, '×', video.videoHeight);
+        console.log('视频时长:', video.duration, '秒');
+        console.log('视频就绪状态 (readyState):', video.readyState, '(4=HAVE_ENOUGH_DATA)');
+        console.log('网络状态 (networkState):', video.networkState);
+        console.log('当前时间:', video.currentTime);
+        console.log('========================================');
+        updateVideoInfo();
+        checkVideoTracks(); // 再次检查（如果之前还没检查）
+        
+        // 如果设置了自动播放，尝试播放
+        if (autoPlay) {
+          console.log('尝试自动播放视频...');
+          video.play()
+            .then(() => {
+              console.log('✅ 视频自动播放成功');
+              showToast('视频开始播放', 'success');
+            })
+            .catch(err => {
+              console.error('❌ 视频自动播放失败:', err);
+              console.error('错误名称:', err.name);
+              console.error('错误消息:', err.message);
+              showToast(`自动播放失败: ${err.message}`, 'error');
+              // 即使自动播放失败，用户仍然可以手动点击播放
+            });
+        }
+      }, { once: true });
+      
+      // 添加 canplaythrough 事件监听（当视频已经加载足够的数据可以流畅播放时）
+      video.addEventListener('canplaythrough', () => {
+        console.log('✅ 视频已加载足够数据可以流畅播放 (canplaythrough事件)');
+        console.log('视频缓冲范围:', Array.from({length: video.buffered.length}, (_, i) => ({
+          start: video.buffered.start(i),
+          end: video.buffered.end(i)
+        })));
       }, { once: true });
       
       // 尝试获取文件大小
@@ -1101,13 +2082,33 @@
       // 强制加载视频
       video.load();
       
-      // 更新参数显示
+      // 更新参数显示（如果是历史记录详情页，只显示生成时间和问题）
       if (params) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const isHistoryDetailPage = urlParams.has('record_id');
+        
         document.getElementById("paramCard").style.display = "block";
-        document.getElementById("paramModel").textContent = params.model;
-        document.getElementById("paramCharacter").textContent = params.character;
+        if (isHistoryDetailPage) {
+          // 历史记录详情页：只显示时间和问题
+          document.getElementById("paramModelRow").style.display = "none"; // 隐藏模型行
+          document.getElementById("paramCharacterRow").style.display = "none"; // 隐藏角色行
+          document.getElementById("paramTimeRow").querySelector(".param-label").textContent = "生成时间:";
         document.getElementById("paramTime").textContent = params.date || new Date().toLocaleString('zh-CN');
-        document.getElementById("paramText").textContent = params.text;
+          document.getElementById("paramTextRow").querySelector(".param-label").textContent = "问题:";
+          document.getElementById("paramText").textContent = params.text || '无问题';
+        } else {
+          // 正常页面：显示完整信息
+          document.getElementById("paramModelRow").style.display = "flex";
+          document.getElementById("paramCharacterRow").style.display = "flex";
+          document.getElementById("paramModelRow").querySelector(".param-label").textContent = "模型:";
+          document.getElementById("paramCharacterRow").querySelector(".param-label").textContent = "角色:";
+          document.getElementById("paramTimeRow").querySelector(".param-label").textContent = "生成时间:";
+          document.getElementById("paramTextRow").querySelector(".param-label").textContent = "文本:";
+          document.getElementById("paramModel").textContent = params.model || '';
+          document.getElementById("paramCharacter").textContent = params.character || '';
+          document.getElementById("paramTime").textContent = params.date || new Date().toLocaleString('zh-CN');
+          document.getElementById("paramText").textContent = params.text || '';
+        }
       }
     }
     
@@ -1115,6 +2116,166 @@
       const mins = Math.floor(seconds / 60);
       const secs = Math.floor(seconds % 60);
       return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    // 禁用/启用输入控件
+    function setInputsDisabled(disabled) {
+      document.getElementById("textInput").disabled = disabled;
+      document.getElementById("characterInput").disabled = disabled;
+      modelsSelect.disabled = disabled;
+      document.getElementById("refreshBtn").disabled = disabled;
+    }
+    
+    // 设置按钮状态：任务运行中显示终止按钮，否则显示开始生成按钮
+    function setRunButtonState(isRunning) {
+      if (isRunning) {
+        runBtn.innerHTML = "❌ 终止任务";
+        runBtn.style.background = "#ef4444";
+        runBtn.style.borderColor = "#ef4444";
+        runBtn.dataset.isRunning = "true";
+      } else {
+        runBtn.innerHTML = "🚀 开始生成视频";
+        runBtn.style.background = "";
+        runBtn.style.borderColor = "";
+        runBtn.dataset.isRunning = "false";
+      }
+    }
+    
+    // 更新任务配置显示
+    function updateTaskConfig(task) {
+      if (task && task.text) {
+        document.getElementById("textInput").value = task.text;
+        document.getElementById("characterInput").value = task.character || "ayanami";
+        if (task.model_name) {
+          modelsSelect.value = task.model_name;
+        }
+      }
+    }
+    
+    // 轮询任务状态
+    async function pollTaskStatus(taskId) {
+      try {
+        const res = await fetch(`${FASTAPI_URL}/generate_video/status/${taskId}`);
+        if (!res.ok) {
+          console.error(`任务状态查询失败: HTTP ${res.status}`);
+          return null;
+        }
+        const data = await res.json();
+        if (data.success && data.data) {
+          return data.data;
+        }
+        return null;
+      } catch (e) {
+        console.error('任务状态查询出错:', e);
+        return null;
+      }
+    }
+    
+    // 开始任务状态轮询
+    function startTaskStatusPolling(taskId) {
+      if (taskStatusPollInterval) {
+        clearInterval(taskStatusPollInterval);
+      }
+      
+      taskStatusPollInterval = setInterval(async () => {
+        const task = await pollTaskStatus(taskId);
+        if (!task) {
+          return; // 任务不存在或查询失败
+        }
+        
+        // 更新任务配置显示（如果任务正在运行）
+        if (task.status === "running" || task.status === "pending") {
+          updateTaskConfig(task);
+        }
+        
+        // 根据任务状态更新UI
+        if (task.status === "completed") {
+          // 任务完成
+          clearInterval(taskStatusPollInterval);
+          taskStatusPollInterval = null;
+          
+          // 停止日志轮询
+          stopLogPolling();
+          
+          // 更新进度
+          updateProgress('save', 100, true);
+          
+          // 显示实际生成时间
+          if (task.generation_time) {
+            const genTime = task.generation_time;
+            const timeText = genTime > 60 
+              ? `${Math.floor(genTime / 60)}分${Math.floor(genTime % 60)}秒`
+              : `${Math.floor(genTime)}秒`;
+            document.getElementById("progressTime").textContent = `总耗时: ${timeText}`;
+          }
+          
+          // 加载最新生成的视频（从video_path构造URL）
+          const videoUrl = getVideoUrlFromPath(task.video_path);
+          if (videoUrl) {
+            const params = {
+              text: task.text,
+              character: task.character,
+              model: task.model_name,
+              date: new Date().toLocaleString('zh-CN'),
+              generation_time: task.generation_time,
+              unique_id: taskId
+            };
+            
+            setTimeout(() => {
+              loadVideo(videoUrl, params, true); // 第三个参数true表示自动播放
+              loadHistory(); // 从数据库重新加载历史记录
+              setStatus(`✅ 视频生成成功 (用时: ${task.generation_time ? Math.floor(task.generation_time) + '秒' : '未知'})`);
+              showToast("视频生成成功，正在自动播放...", "success");
+              resetProgress();
+            }, 500);
+          } else {
+            console.error('无法从路径构造视频URL:', task.video_path);
+            showError('视频加载失败', `无法从路径构造URL: ${task.video_path || '路径为空'}`);
+          }
+          
+          // 恢复输入
+          setInputsDisabled(false);
+          setRunButtonState(false);  // 按钮恢复为开始生成
+          currentTaskId = null;
+          
+        } else if (task.status === "failed") {
+          // 任务失败
+          clearInterval(taskStatusPollInterval);
+          taskStatusPollInterval = null;
+          stopLogPolling();
+          
+          const errorMsg = task.error || "生成失败";
+          setStatus("❌ 生成失败：" + errorMsg);
+          showError("生成失败", errorMsg);
+          resetProgress();
+          
+          // 恢复输入
+          setInputsDisabled(false);
+          setRunButtonState(false);  // 按钮恢复为开始生成
+          currentTaskId = null;
+          
+        } else if (task.status === "cancelled") {
+          // 任务已取消
+          clearInterval(taskStatusPollInterval);
+          taskStatusPollInterval = null;
+          
+          // 停止日志轮询
+          stopLogPolling();
+          
+          // 恢复输入
+          setInputsDisabled(false);
+          setRunButtonState(false);  // 按钮恢复为开始生成
+          currentTaskId = null;
+          
+          setStatus("❌ 任务已终止");
+          showToast("任务已终止", "info");
+          resetProgress();
+          
+        } else if (task.status === "running" || task.status === "pending") {
+          // 任务运行中，继续轮询日志
+          // 日志轮询已经在startLogPolling中处理
+        }
+      }, 2000); // 每2秒轮询一次
     }
     
     async function runPipeline() {
@@ -1130,17 +2291,16 @@
         return;
       }
       
-      // 检查是否已经取消
-      if (runBtn.dataset.cancelling === "true") {
-        // 如果已经在取消状态，说明用户点击了取消
+      // 检查是否已有任务在运行
+      if (currentTaskId && taskStatusPollInterval) {
+        showToast("已有任务正在运行，请等待完成", "warning");
         return;
       }
       
-      setLoading(runBtn, true);
-      runBtn.innerHTML = "取消生成";
-      runBtn.dataset.cancelling = "true";
+      // 禁用输入
+      setInputsDisabled(true);
+      setRunButtonState(true);  // 按钮变为终止任务
       
-      abortController = new AbortController();
       startTime = Date.now();
       
       // 重置UI
@@ -1150,104 +2310,49 @@
       document.getElementById("videoInfo").style.display = "none";
       document.getElementById("paramCard").style.display = "none";
       
-      let progressUpdateInterval = null;
       try {
-        updateProgress('llm', 10);
+        // 初始化进度（阶段1）
+        updateProgress('llm', 0, true);
         
-        // 启动进度更新定时器（在API调用期间持续更新预计时间）
-        progressUpdateInterval = setInterval(() => {
-          if (startTime) {
-            const elapsed = (Date.now() - startTime) / 1000;
-            const progressFill = document.getElementById("progressFill");
-            const currentProgress = parseFloat(progressFill.style.width) || 0;
-            if (currentProgress > 0) {
-              const estimatedTotal = elapsed / (currentProgress / 100);
-              const remaining = Math.max(0, estimatedTotal - elapsed);
-              const timeText = remaining > 60 
-                ? `${Math.floor(remaining / 60)}分${Math.floor(remaining % 60)}秒`
-                : `${Math.floor(remaining)}秒`;
-              document.getElementById("progressTime").textContent = `预计剩余时间: ${timeText}`;
-            }
-          }
-        }, 1000); // 每秒更新一次
+        // 开始轮询日志以更新进度
+        startLogPolling();
         
+        // 提交任务（立即返回）
         const res = await fetch(`${FASTAPI_URL}/generate_video`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, character, model_name: model }),
-          signal: abortController.signal
+          body: JSON.stringify({ text, character, model_name: model })
         });
         
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         
-        updateProgress('tts', 40);
-        
         const data = await res.json();
         if (!data.success) {
-          clearInterval(progressUpdateInterval);
-          throw new Error(data.error || "生成失败");
+          stopLogPolling();
+          throw new Error(data.error || "任务提交失败");
         }
         
-        updateProgress('nerf', 70);
+        // 保存任务ID
+        currentTaskId = data.unique_id;
         
-        // 清除进度更新定时器
-        clearInterval(progressUpdateInterval);
+        // 开始轮询任务状态
+        startTaskStatusPolling(currentTaskId);
         
-        // 处理视频URL（后端已返回正确的URL格式）
-        let videoUrl = data.video_url;
-        if (!videoUrl.startsWith("http")) {
-          videoUrl = `${FASTAPI_URL}${videoUrl}`;
-        }
-        
-        // 显示实际生成时间
-        if (data.generation_time) {
-          const genTime = data.generation_time;
-          const timeText = genTime > 60 
-            ? `${Math.floor(genTime / 60)}分${Math.floor(genTime % 60)}秒`
-            : `${Math.floor(genTime)}秒`;
-          document.getElementById("progressTime").textContent = `实际生成时间: ${timeText}`;
-        }
-        
-        updateProgress('nerf', 100);
-        
-        // 保存参数（包含生成时间）
-        const params = { 
-          text, 
-          character, 
-          model, 
-          date: new Date().toLocaleString('zh-CN'),
-          generation_time: data.generation_time,
-          unique_id: data.unique_id
-        };
-        
-        // 加载视频
-        setTimeout(() => {
-          loadVideo(videoUrl, params);
-          saveToHistory(videoUrl, params);
-          setStatus(`✅ 视频生成成功 (用时: ${data.generation_time ? Math.floor(data.generation_time) + '秒' : '未知'})`);
-          showToast("视频生成成功！", "success");
-          resetProgress();
-        }, 500);
+        setStatus(`📋 任务已提交 (ID: ${currentTaskId.substring(0, 8)}...)`);
+        showToast("任务已提交，正在后台生成中...", "info");
         
       } catch (e) {
-        // 清除可能存在的进度更新定时器
-        if (progressUpdateInterval) {
-          clearInterval(progressUpdateInterval);
-        }
-        if (e.name === 'AbortError') {
-          setStatus("❌ 生成已取消");
-          showToast("生成已取消", "error");
-        } else {
+        // 停止日志轮询
+        stopLogPolling();
           const errorMsg = e.message || String(e);
-          setStatus("❌ 生成失败：" + errorMsg);
-          showError("生成失败", errorMsg);
-        }
+        setStatus("❌ 任务提交失败：" + errorMsg);
+        showError("任务提交失败", errorMsg);
         resetProgress();
-      } finally {
-        setLoading(runBtn, false);
-        runBtn.innerHTML = "🚀 开始生成视频";
-        runBtn.dataset.cancelling = "false";
-        abortController = null;
+        
+          // 恢复输入
+          setInputsDisabled(false);
+          setRunButtonState(false);  // 按钮恢复为开始生成
+          currentTaskId = null;
       }
     }
 
@@ -1299,24 +2404,93 @@
       
       // 添加视频错误处理
       video.addEventListener('error', (e) => {
-        console.error('视频播放错误:', video.error);
+        console.error('========================================');
+        console.error('❌ 视频播放错误 (error事件)');
+        console.error('========================================');
+        console.error('视频URL:', video.src);
+        console.error('视频readyState:', video.readyState, '(', getReadyStateName(video.readyState), ')');
+        console.error('视频networkState:', video.networkState, '(', getNetworkStateName(video.networkState), ')');
+        console.error('视频尺寸:', video.videoWidth, '×', video.videoHeight);
+        console.error('视频时长:', video.duration);
+        
+        // 强制显示诊断信息
+        document.getElementById("videoDiagnostics").style.display = "block";
+        updateDiagnostics();
+        
         if (video.error) {
+          console.error('错误对象:', video.error);
+          console.error('错误代码:', video.error.code);
+          console.error('错误消息:', video.error.message);
+          
           let errorMsg = '视频加载失败';
+          let errorDetails = '';
           switch(video.error.code) {
             case video.error.MEDIA_ERR_ABORTED:
               errorMsg = '视频加载被中止';
+              errorDetails = '用户中止了视频加载，或浏览器取消了请求';
               break;
             case video.error.MEDIA_ERR_NETWORK:
               errorMsg = '网络错误，无法加载视频';
+              errorDetails = `URL: ${video.src}\n请检查网络连接和视频文件是否存在`;
               break;
             case video.error.MEDIA_ERR_DECODE:
               errorMsg = '视频解码失败';
+              errorDetails = '可能是视频文件损坏、编码格式不支持，或浏览器无法解码该格式';
               break;
             case video.error.MEDIA_ERR_SRC_NOT_SUPPORTED:
-              errorMsg = '视频格式不支持';
+              errorMsg = '视频格式不支持或文件不存在';
+              errorDetails = `URL: ${video.src}\n请检查文件是否存在，以及浏览器是否支持该视频格式`;
               break;
+            default:
+              errorMsg = `视频加载失败 (错误代码: ${video.error.code})`;
+              errorDetails = `未知错误代码: ${video.error.code}`;
           }
-          showError(errorMsg, `错误代码: ${video.error.code}`);
+          console.error('错误信息:', errorMsg);
+          console.error('错误详情:', errorDetails);
+          showError(errorMsg, errorDetails);
+          
+          // 再次尝试检查文件
+          if (video.src) {
+            console.log('尝试通过fetch检查视频文件...');
+            fetch(video.src, { method: 'HEAD' })
+              .then(response => {
+                console.log('HEAD请求结果:', response.status, response.statusText);
+                console.log('Content-Type:', response.headers.get('Content-Type'));
+                if (!response.ok) {
+                  console.error('文件无法访问:', response.status, response.statusText);
+                }
+              })
+              .catch(err => {
+                console.error('HEAD请求失败，尝试GET请求:', err);
+                return fetch(video.src, { method: 'GET', headers: { 'Range': 'bytes=0-0' } })
+                  .then(response => {
+                    console.log('GET请求结果:', response.status, response.statusText);
+                    console.log('Content-Type:', response.headers.get('Content-Type'));
+                  })
+                  .catch(err2 => {
+                    console.error('所有检查请求都失败:', err2);
+                  });
+              });
+          }
+        } else {
+          console.error('视频错误对象为空，但触发了error事件');
+          showError('视频加载失败', '错误对象为空，可能是浏览器兼容性问题');
+        }
+        console.error('========================================');
+      });
+      
+      // 监听视频加载过程
+      video.addEventListener('loadstart', () => {
+        console.log('开始加载视频:', video.src);
+      });
+      
+      video.addEventListener('progress', () => {
+        if (video.buffered.length > 0) {
+          const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+          const duration = video.duration;
+          if (duration > 0) {
+            console.log(`视频加载进度: ${(bufferedEnd / duration * 100).toFixed(1)}%`);
+          }
         }
       });
     }
@@ -1356,22 +2530,58 @@
       });
     }
     
-    // 取消生成功能
-    function initCancelButton() {
-      runBtn.addEventListener("click", (e) => {
-        // 如果按钮显示"取消生成"，则执行取消操作
-        if (runBtn.dataset.cancelling === "true" && abortController) {
-          e.preventDefault();
-          e.stopPropagation();
-          abortController.abort();
+    // 终止任务功能
+    async function cancelCurrentTask() {
+      if (!currentTaskId) {
+        showToast("没有正在运行的任务", "warning");
+        return;
+      }
+      
+      if (!confirm("确定要终止当前任务吗？")) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${FASTAPI_URL}/generate_video/cancel/${currentTaskId}`, {
+          method: "POST"
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          // 停止轮询
+          if (taskStatusPollInterval) {
+            clearInterval(taskStatusPollInterval);
+            taskStatusPollInterval = null;
+          }
+          stopLogPolling();
+          
+          // 恢复UI
+          setInputsDisabled(false);
+          setRunButtonState(false);  // 按钮恢复为开始生成
           resetProgress();
-          setLoading(runBtn, false);
-          runBtn.innerHTML = "🚀 开始生成视频";
-          runBtn.dataset.cancelling = "false";
-          setStatus("❌ 生成已取消");
-          showToast("生成已取消", "error");
+          currentTaskId = null;
+          
+          setStatus("❌ 任务已终止");
+          showToast("任务已终止", "info");
         } else {
-          // 否则执行正常的生成流程
+          showToast("终止任务失败: " + (data.error || "未知错误"), "error");
+        }
+      } catch (error) {
+        console.error("终止任务失败:", error);
+        showToast("终止任务失败: " + error.message, "error");
+      }
+    }
+    
+    // 初始化按钮点击逻辑
+    function initCancelButton() {
+      // runBtn根据状态执行不同操作
+      runBtn.addEventListener("click", () => {
+        const isRunning = runBtn.dataset.isRunning === "true";
+        if (isRunning) {
+          // 任务运行中，点击则终止任务
+          cancelCurrentTask();
+        } else {
+          // 任务未运行，点击则开始生成
           runPipeline();
         }
       });
@@ -1464,12 +2674,164 @@
     });
 
     refreshBtn.addEventListener("click", loadModels);
+    // 历史记录按钮和下拉菜单
+    const historyBtn = document.getElementById("historyBtn");
+    const historyDropdown = document.getElementById("historyDropdown");
+    if (historyBtn && historyDropdown) {
+      historyBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        // 切换下拉菜单显示
+        if (historyDropdown.style.display === "none" || !historyDropdown.style.display) {
+          historyDropdown.style.display = "block";
+          // 如果列表为空，加载历史记录
+          const historyList = document.getElementById("historyList");
+          if (!historyList.innerHTML || historyList.innerHTML.trim() === '') {
+            loadHistory();
+          }
+        } else {
+          historyDropdown.style.display = "none";
+        }
+      });
+      
+      // 点击页面其他地方时关闭下拉菜单
+      document.addEventListener("click", (e) => {
+        if (!historyBtn.contains(e.target) && !historyDropdown.contains(e.target)) {
+          historyDropdown.style.display = "none";
+        }
+      });
+    }
     initCancelButton(); // 这个函数内部已经处理了 runBtn 的点击事件，包括生成和取消
     initHelp();
     initVideoControls();
     initErrorModal();
-    renderHistory();
+    // 页面加载时检查是否有正在运行的任务
+    async function checkRunningTasks() {
+      try {
+        // 使用新的API端点检查是否有正在运行的任务
+        const response = await fetch(`${FASTAPI_URL}/generate_video/running`);
+        if (!response.ok) {
+          const errorMsg = `检查运行任务失败: HTTP ${response.status}`;
+          console.error(errorMsg);
+          setStatus(`⚠️ ${errorMsg}`);
+          showToast(errorMsg, "error");
+          return false;
+        }
+        
+        const data = await response.json();
+        if (!data.success) {
+          const errorMsg = data.error || "检查运行任务失败";
+          console.error(errorMsg);
+          setStatus(`⚠️ ${errorMsg}`);
+          showToast(errorMsg, "error");
+          return false;
+        }
+        
+        if (data.data) {
+          const task = data.data;
+          // 有任务正在运行，恢复任务状态
+          currentTaskId = task.unique_id;
+          setInputsDisabled(true);  // 禁用输入
+          setRunButtonState(true);  // 按钮变为终止任务
+          updateTaskConfig(task);  // 恢复任务配置显示
+          updateProgress('llm', 0, true);
+          startLogPolling();  // 开始轮询日志
+          startTaskStatusPolling(currentTaskId);  // 开始轮询任务状态
+          setStatus(`📋 检测到正在运行的任务 (ID: ${currentTaskId.substring(0, 8)}...)`);
+          return true;  // 返回true表示有正在运行的任务
+        }
+        
+        return false;  // 返回false表示没有正在运行的任务
+      } catch (e) {
+        const errorMsg = `检查运行任务出错: ${e.message || String(e)}`;
+        console.error(errorMsg, e);
+        setStatus(`⚠️ ${errorMsg}`);
+        showToast(errorMsg, "error");
+        return false;
+      }
+    }
+    
+    // 检查是否是历史记录详情页
+    const urlParams = new URLSearchParams(window.location.search);
+    const recordId = urlParams.get('record_id');
+    
+    if (recordId) {
+      // 历史记录详情页模式：禁用所有输入，加载指定记录
+      setInputsDisabled(true);
+      runBtn.style.display = "none"; // 隐藏生成按钮
+      
+      // 隐藏历史记录按钮区域（详情页不需要）
+      const historyBtnContainer = document.querySelector('[id="historyBtn"]')?.parentElement?.parentElement;
+      if (historyBtnContainer) {
+        historyBtnContainer.style.display = "none";
+      }
+      
+      // 加载历史记录详情
+      (async () => {
+        try {
+          const response = await fetch(`${FASTAPI_URL}/generation_records/${recordId}`);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          const data = await response.json();
+          if (!data.success || !data.data) {
+            throw new Error(data.error || "记录不存在");
+          }
+          
+          const record = data.data;
+          
+          // 设置配置显示（只读）
+          if (record.text) {
+            document.getElementById("textInput").value = record.text;
+          }
+          if (record.character) {
+            document.getElementById("characterInput").value = record.character;
+          }
+          if (record.model_name) {
+            modelsSelect.value = record.model_name;
+          }
+          
+          // 加载视频（从video_path构造URL）
+          const videoUrl = getVideoUrlFromPath(record.video_path);
+          if (videoUrl) {
+            const date = record.created_at ? new Date(record.created_at).toLocaleString('zh-CN') : new Date().toLocaleString('zh-CN');
+            const params = {
+              text: record.text || '',
+              character: record.character || '',
+              model: record.model_name || '',
+              date: date,
+              generation_time: record.generation_time,
+              unique_id: record.unique_id,
+              audio_url: getAudioUrlFromPath(record.audio_path),
+              text_url: getTextUrlFromPath(record.text_path)
+            };
+            loadVideo(videoUrl, params);
+            setStatus(`📋 历史记录详情 - ${date}`);
+          } else {
+            setStatus("⚠️ 该记录没有视频或视频路径无效");
+            showToast("视频路径无效或不存在", "error");
+          }
+        } catch (error) {
+          const errorMsg = `加载历史记录失败: ${error.message || String(error)}`;
+          console.error(errorMsg, error);
+          setStatus(`❌ ${errorMsg}`);
+          showToast(errorMsg, "error");
+        }
+      })();
+      
+      // 不加载历史记录列表（详情页不需要显示列表）
+    } else {
+      // 正常模式：加载历史记录和模型列表
+      loadHistory(); // 从数据库加载历史记录（会自动显示最新视频）
     loadModels();
+      
+      // 检查是否有正在运行的任务（必须在其他初始化之后）
+      checkRunningTasks().then(hasRunningTask => {
+        if (!hasRunningTask) {
+          // 如果没有正在运行的任务，确保输入是可用的
+          setInputsDisabled(false);
+        }
+      });
+    }
   </script>
 </body>
 </html>

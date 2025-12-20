@@ -3,7 +3,28 @@
  * 所有页面共享此模块来管理设置
  */
 
-const SETTINGS_API_BASE = "http://localhost:8000/api/settings";
+// 自动检测服务器地址（从当前页面的URL获取）
+const SETTINGS_API_BASE = (() => {
+  const currentOrigin = window.location.origin;
+  const currentHostname = window.location.hostname;
+  const currentPort = window.location.port;
+  const currentPath = window.location.pathname;
+  const currentProtocol = window.location.protocol;
+  
+  // 如果当前端口是7860（前端服务器），则使用后端服务器（8000端口）
+  if (currentPort === '7860') {
+    const backendUrl = `${currentProtocol}//${currentHostname}:8000`;
+    return `${backendUrl}/api/settings`;
+  }
+  
+  // 如果路径包含 /webui/，说明是挂载在FastAPI下的
+  if (currentPath.includes('/webui/')) {
+    return `${currentOrigin}/api/settings`;
+  }
+  
+  // 否则使用当前origin
+  return `${currentOrigin}/api/settings`;
+})();
 
 // 默认设置（仅在数据库中没有设置时使用）
 const DEFAULT_SETTINGS = {
@@ -14,24 +35,50 @@ const DEFAULT_SETTINGS = {
 };
 
 /**
- * 从后端获取所有设置
+ * 从后端获取所有设置（数据库未初始化时会抛出错误，阻止网页打开）
  */
 async function fetchSettings() {
     try {
-        const response = await fetch(SETTINGS_API_BASE);
+        // 设置超时，避免前端页面一直加载
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3秒超时
+        
+        const response = await fetch(SETTINGS_API_BASE, {
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        
         if (!response.ok) {
-            console.error(`获取设置失败: HTTP ${response.status}`);
-            return DEFAULT_SETTINGS;
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
+        
         const result = await response.json();
-        if (result.success && result.data) {
-            return result.data;
-        } else {
-            console.warn("API返回格式异常，使用默认设置");
-            return DEFAULT_SETTINGS;
+        
+        // 如果数据库未初始化（success为false），抛出错误
+        if (!result.success) {
+            const errorMsg = result.message || result.error || "数据库未初始化";
+            console.error("❌ 数据库错误:", errorMsg);
+            // 显示错误提示并抛出异常，阻止页面加载
+            alert(`❌ 数据库错误\n\n${errorMsg}\n\n请先运行 start.py 初始化数据库，然后再打开网页。`);
+            throw new Error(errorMsg);
         }
+        
+        if (!result.data) {
+            throw new Error("API返回数据格式错误：缺少data字段");
+        }
+        
+        return result.data;
     } catch (error) {
-        console.error("获取设置失败:", error);
+        // 如果是数据库未初始化错误，阻止页面加载
+        if (error.message && (error.message.includes("数据库未初始化") || 
+                              error.message.includes("数据库文件不存在") ||
+                              error.message.includes("数据库"))) {
+            console.error("❌ 数据库未初始化，阻止页面加载:", error);
+            // 错误已经在上面显示了，这里直接抛出
+            throw error;
+        }
+        // 其他错误（如网络错误），记录日志但返回默认设置（允许页面加载，但功能可能受限）
+        console.warn("⚠️ 获取设置失败（可能是网络问题），使用默认设置:", error);
         return DEFAULT_SETTINGS;
     }
 }

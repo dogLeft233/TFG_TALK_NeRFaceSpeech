@@ -487,6 +487,32 @@
       border-radius: 16px;
       border-bottom-left-radius: 4px;
       max-width: 70px;
+      position: relative;
+    }
+    .typing-indicator-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .cancel-typing-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+    .cancel-typing-btn:hover {
+      background: #ef4444;
+      color: #fff;
+      border-color: #ef4444;
     }
     .typing-dot {
       width: 8px;
@@ -995,26 +1021,98 @@
     let isRecording = false;
     let isMuted = false;
     let character = "ayanami"; // 默认角色
-    let currentChatId = "current"; // 当前对话ID
-    let chatHistory = {}; // 存储所有对话历史 {chatId: {messages: [], title: "", time: ""}}
+    let currentChatId = "current"; // 当前对话ID（前端使用的ID）
+    let currentSessionId = null; // 当前会话ID（后端数据库的session_id）
+    let chatHistory = {}; // 存储所有对话历史 {chatId: {messages: [], title: "", time: "", sessionId: null}}
+    let isWaitingForAudio = false; // 是否正在等待音频返回
+    let abortController = null; // 用于取消正在进行的请求
     
-    // 后端API地址
-    const FASTAPI_URL = "http://localhost:8000";
+    // 后端API地址 - 自动检测服务器地址
+    // 自动检测服务器地址
+    const FASTAPI_URL = (() => {
+      const currentOrigin = window.location.origin;
+      const currentHostname = window.location.hostname;
+      const currentPort = window.location.port;
+      const currentPath = window.location.pathname;
+      const currentProtocol = window.location.protocol;
+      
+      // 如果当前端口是7860（前端服务器），则使用后端服务器（8000端口）
+      if (currentPort === '7860') {
+        const backendUrl = `${currentProtocol}//${currentHostname}:8000`;
+        console.log('✅ 检测到前端服务器（端口7860），使用后端API服务器:', backendUrl);
+        return backendUrl;
+      }
+      
+      // 如果路径包含 /webui/，说明是挂载在FastAPI下的
+      if (currentPath.includes('/webui/')) {
+        console.log('✅ 检测到FastAPI静态文件服务，使用当前origin:', currentOrigin);
+        return currentOrigin;
+      }
+      
+      // 否则使用当前origin
+      console.log('✅ 使用当前origin作为API服务器:', currentOrigin);
+      return currentOrigin;
+    })();
+    
+    console.log('最终确定的API服务器地址:', FASTAPI_URL);
     let isStreaming = false; // 是否正在流式输出
     let streamingMessageId = null; // 正在流式输出的消息ID
     
-    // 初始化对话历史
-    function initChatHistory() {
-      const saved = localStorage.getItem('chat_history');
-      if (saved) {
-        try {
-          chatHistory = JSON.parse(saved);
-          updateHistoryList();
-        } catch (e) {
-          console.error("加载对话历史失败:", e);
-          chatHistory = {};
+    // 从数据库加载对话历史
+    async function loadChatHistoryFromDatabase() {
+      try {
+        const response = await fetch(`${FASTAPI_URL}/chat/sessions?limit=100`);
+        if (!response.ok) {
+          console.error("加载对话历史失败:", response.status);
+          return;
         }
+        const data = await response.json();
+        if (data.success && data.data) {
+          const sessions = data.data;
+          
+          // 将数据库会话转换为前端格式
+          for (const session of sessions) {
+            const sessionId = session.session_id;
+            const frontendChatId = sessionId; // 使用session_id作为前端chatId
+            
+            // 获取该会话的所有消息
+            const messagesResponse = await fetch(`${FASTAPI_URL}/chat/sessions/${sessionId}/messages`);
+            if (messagesResponse.ok) {
+              const messagesData = await messagesResponse.json();
+              if (messagesData.success && messagesData.data && messagesData.data.length > 0) {
+                // 只加载有消息的会话（过滤空会话）
+                const messages = messagesData.data.map(msg => ({
+                  text: msg.text_content || '',
+                  isUser: msg.message_type === 'user',
+                  audioBase64: msg.audio_base64 || null,
+                  audioUrl: msg.audio_url || null,
+                  audioDuration: 0,
+                  messageId: msg.message_id,
+                  status: 'sent',
+                  time: msg.created_at
+                }));
+                
+                chatHistory[frontendChatId] = {
+                  messages: messages,
+                  title: session.title || messages[0]?.text?.substring(0, 20) || '未命名对话',
+                  time: session.created_at,
+                  sessionId: sessionId
+                };
+              }
+            }
+          }
+          
+          updateHistoryList();
+        }
+      } catch (error) {
+        console.error("从数据库加载对话历史失败:", error);
       }
+    }
+    
+    // 初始化对话历史
+    async function initChatHistory() {
+      // 从数据库加载历史记录
+      await loadChatHistoryFromDatabase();
       
       // 初始化当前对话
       if (!chatHistory[currentChatId]) {
@@ -1026,9 +1124,10 @@
       }
     }
     
-    // 保存对话历史
+    // 保存对话历史（不再使用localStorage，记录已通过API保存到数据库）
     function saveChatHistory() {
-      localStorage.setItem('chat_history', JSON.stringify(chatHistory));
+      // 不再使用localStorage，记录已通过API保存到数据库
+      // 这里保留函数是为了兼容现有代码，但不执行任何操作
     }
     
     // 更新对话标题（使用第一条用户消息）
@@ -1044,7 +1143,7 @@
     }
     
     // 添加消息到聊天界面
-    function addMessage(text, isUser, audioBase64 = null, audioDuration = 0, messageId = null, status = 'sent') {
+    function addMessage(text, isUser, audioBase64 = null, audioDuration = 0, messageId = null, status = 'sent', messageData = null) {
       // 如果是第一条消息，清空空状态
       const emptyState = chatMessages.querySelector('.empty-state');
       if (emptyState) {
@@ -1079,14 +1178,22 @@
       messageDiv.appendChild(time);
       
       // 如果是AI回复且有音频，添加音频播放器
-      if (!isUser && audioBase64) {
+      const hasAudio = audioBase64 || (messageData && messageData.audioUrl);
+      if (!isUser && hasAudio) {
         const audioDiv = document.createElement("div");
         audioDiv.className = "message-audio";
         const audio = document.createElement("audio");
         audio.className = "audio-player";
         audio.controls = true;
         audio.volume = isMuted ? 0 : volumeSlider.value / 100;
-        audio.src = `data:audio/wav;base64,${audioBase64}`;
+        
+        // 优先使用URL，如果不存在则使用base64
+        if (messageData && messageData.audioUrl) {
+          audio.src = `${FASTAPI_URL}${messageData.audioUrl}`;
+        } else if (audioBase64) {
+          audio.src = `data:audio/wav;base64,${audioBase64}`;
+        }
+        
         audioDiv.appendChild(audio);
         bubble.appendChild(audioDiv);
         
@@ -1172,18 +1279,37 @@
       }
     }
     
-    // 显示输入指示器
+    // 显示输入指示器（带取消按钮）
     function showTypingIndicator() {
       const indicator = document.createElement("div");
       indicator.className = "message assistant";
       indicator.id = "typingIndicator";
-      indicator.innerHTML = `
-        <div class="typing-indicator">
-          <div class="typing-dot"></div>
-          <div class="typing-dot"></div>
-          <div class="typing-dot"></div>
-        </div>
+      
+      const wrapper = document.createElement("div");
+      wrapper.className = "typing-indicator-wrapper";
+      
+      const typingDiv = document.createElement("div");
+      typingDiv.className = "typing-indicator";
+      typingDiv.innerHTML = `
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
       `;
+      
+      const cancelBtn = document.createElement("button");
+      cancelBtn.className = "cancel-typing-btn";
+      cancelBtn.textContent = "×";
+      cancelBtn.title = "取消回复";
+      cancelBtn.onclick = () => {
+        if (abortController) {
+          abortController.abort();
+        }
+        hideTypingIndicator();
+      };
+      
+      wrapper.appendChild(typingDiv);
+      wrapper.appendChild(cancelBtn);
+      indicator.appendChild(wrapper);
       chatMessages.appendChild(indicator);
       chatMessages.scrollTop = chatMessages.scrollHeight;
     }
@@ -1196,11 +1322,56 @@
       }
     }
     
+    // 检查是否启用了音频（通过音量控制按钮状态或配置）
+    function isAudioEnabled() {
+      // 检查音量控制是否可见且未静音
+      const volumeControl = document.getElementById("volumeControl");
+      return volumeControl && !volumeControl.classList.contains("muted") && volumeSlider.value > 0;
+    }
+    
+    // 简单的toast提示函数
+    function showToast(message, type = 'info') {
+      // 创建一个简单的toast元素
+      const toast = document.createElement('div');
+      toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 12px 24px;
+        background: ${type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        font-size: 14px;
+        font-weight: 500;
+      `;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      // 3秒后自动移除
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(() => {
+          document.body.removeChild(toast);
+        }, 300);
+      }, 3000);
+    }
+    
     // 发送消息
     async function sendMessage(text, retryMessageId = null) {
       if (!text.trim()) return;
       
-      const userMessageId = retryMessageId || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      // 如果正在等待音频返回，禁止发送新消息
+      if (isWaitingForAudio || isStreaming) {
+        showToast("请等待AI回复完成后再发送", "warning");
+        return;
+      }
+      
+      const userMessageId = retryMessageId || `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const enable_audio = isAudioEnabled();
       
       // 添加用户消息（如果是重试，不重复添加）
       if (!retryMessageId) {
@@ -1217,7 +1388,10 @@
       
       // 禁用发送按钮
       sendBtn.disabled = true;
-      sendBtn.textContent = "发送中...";
+      sendBtn.textContent = enable_audio ? "生成中（含音频）..." : "发送中...";
+      
+      // 创建AbortController用于取消请求
+      abortController = new AbortController();
       
       try {
         const response = await fetch(`${FASTAPI_URL}/chat`, {
@@ -1226,8 +1400,10 @@
           body: JSON.stringify({
             text: text,
             character: character,
-            enable_audio: true
-          })
+            enable_audio: enable_audio,
+            session_id: currentSessionId  // 使用当前会话ID
+          }),
+          signal: abortController.signal  // 支持取消请求
         });
         
         if (!response.ok) {
@@ -1241,50 +1417,29 @@
         // 更新用户消息状态为已送达
         updateMessageStatus(userMessageId, 'sent');
         
+        // 更新会话ID（如果API返回了新的会话ID）
+        if (data.data && data.data.session_id) {
+          currentSessionId = data.data.session_id;
+          // 如果当前对话还没有sessionId，更新它
+          if (chatHistory[currentChatId] && !chatHistory[currentChatId].sessionId) {
+            chatHistory[currentChatId].sessionId = currentSessionId;
+          }
+        }
+        
         if (data.success) {
           const answer = data.data.llm_answer || "";
           const audioBase64 = data.data.audio_base64 || null;
+          const audioUrl = data.data.audio_url || null;  // 如果音频已保存为文件
           const audioDuration = data.data.audio_duration || 0;
+          const assistantMessageId = data.data.assistant_message_id || `assistant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           
-          // 流式显示回答（逐字显示）
-          const assistantMessageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          streamingMessageId = assistantMessageId;
-          isStreaming = true;
-          
-          // 先创建空消息
-          addMessage("", false, null, 0, assistantMessageId);
-          
-          // 逐字显示
-          let currentText = "";
-          for (let i = 0; i < answer.length; i++) {
-            currentText += answer[i];
-            updateMessageText(assistantMessageId, currentText, false);
-            await new Promise(resolve => setTimeout(resolve, 20)); // 20ms延迟，模拟打字效果
-          }
-          
-          // 完成流式输出
-          updateMessageText(assistantMessageId, answer, true);
-          isStreaming = false;
-          streamingMessageId = null;
-          
-          // 保存消息到历史记录
-          if (chatHistory[currentChatId]) {
-            const existingMessage = chatHistory[currentChatId].messages.find(m => m.messageId === assistantMessageId);
-            if (!existingMessage) {
-              chatHistory[currentChatId].messages.push({
-                text: answer,
-                isUser: false,
-                audioBase64: null,
-                audioDuration: 0,
-                messageId: assistantMessageId,
-                status: 'sent',
-                time: new Date().toISOString()
-              });
-            }
-          }
-          
-          // 如果有音频，更新消息添加音频
-          if (audioBase64) {
+          if (enable_audio && (audioBase64 || audioUrl)) {
+            // 开启声音时：等待音频生成完毕后再显示文本，并同步播放
+            isWaitingForAudio = true;
+            
+            // 先创建空消息
+            addMessage("", false, null, 0, assistantMessageId);
+            
             const messageDiv = document.querySelector(`[data-message-id="${assistantMessageId}"]`);
             if (messageDiv) {
               const bubble = messageDiv.querySelector('.message-bubble');
@@ -1295,32 +1450,173 @@
                 audio.className = "audio-player";
                 audio.controls = true;
                 audio.volume = isMuted ? 0 : volumeSlider.value / 100;
-                audio.src = `data:audio/wav;base64,${audioBase64}`;
+                
+                // 优先使用URL，如果不存在则使用base64
+                if (audioUrl) {
+                  audio.src = `${FASTAPI_URL}${audioUrl}`;
+                } else if (audioBase64) {
+                  audio.src = `data:audio/wav;base64,${audioBase64}`;
+                }
+                
                 audioDiv.appendChild(audio);
                 bubble.appendChild(audioDiv);
                 
                 currentAudio = audio;
                 
-                // 自动播放（如果未静音）
-                if (!isMuted) {
-                  audio.play().catch(e => console.log("自动播放失败:", e));
+                try {
+                  // 等待音频加载完成
+                  await new Promise((resolve, reject) => {
+                    audio.addEventListener('loadeddata', resolve, { once: true });
+                    audio.addEventListener('error', reject, { once: true });
+                    
+                    // 超时处理（10秒）
+                    setTimeout(() => reject(new Error('音频加载超时')), 10000);
+                  });
+                  
+                  // 音频加载完成后，同步播放和文本显示
+                  streamingMessageId = assistantMessageId;
+                  isStreaming = true;
+                  
+                  // 开始播放音频
+                  if (!isMuted) {
+                    audio.play().catch(e => console.log("自动播放失败:", e));
+                  }
+                  
+                  // 根据音频播放进度同步显示文本
+                  const totalDuration = audio.duration || audioDuration;
+                  const textLength = answer.length;
+                  let displayedLength = 0;
+                  
+                  const updateTextWithAudio = () => {
+                    if (!isStreaming) return; // 如果流式输出已停止，不再更新
+                    
+                    const currentTime = audio.currentTime;
+                    const progress = totalDuration > 0 ? currentTime / totalDuration : 0;
+                    const targetLength = Math.floor(textLength * progress);
+                    
+                    // 逐步显示文本（每次显示一些字符）
+                    if (targetLength > displayedLength) {
+                      const newText = answer.substring(0, targetLength);
+                      updateMessageText(assistantMessageId, newText, false);
+                      displayedLength = targetLength;
+                    }
+                    
+                    // 如果音频播放完成或已显示所有文本
+                    if (audio.ended || displayedLength >= textLength) {
+                      updateMessageText(assistantMessageId, answer, true);
+                      isStreaming = false;
+                      streamingMessageId = null;
+                      isWaitingForAudio = false;
+                      sendBtn.disabled = false;
+                      sendBtn.textContent = "发送";
+                    }
+                  };
+                  
+                  // 监听音频播放进度
+                  audio.addEventListener('timeupdate', updateTextWithAudio);
+                  
+                  // 音频播放结束时显示完整文本
+                  audio.addEventListener('ended', () => {
+                    updateMessageText(assistantMessageId, answer, true);
+                    isStreaming = false;
+                    streamingMessageId = null;
+                    isWaitingForAudio = false;
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = "发送";
+                  }, { once: true });
+                  
+                  // 立即显示一部分文本（第一个字符）
+                  if (answer.length > 0) {
+                    updateMessageText(assistantMessageId, answer[0], false);
+                    displayedLength = 1;
+                  }
+                  
+                  // 更新历史记录中的音频
+                  if (chatHistory[currentChatId]) {
+                    const message = chatHistory[currentChatId].messages.find(m => m.messageId === assistantMessageId);
+                    if (message) {
+                      message.audioBase64 = audioBase64;
+                      message.audioUrl = audioUrl;
+                      message.audioDuration = audioDuration;
+                    }
+                  }
+                } catch (audioError) {
+                  console.error("音频加载失败:", audioError);
+                  // 如果音频加载失败，回退到纯文本显示
+                  isWaitingForAudio = false;
+                  streamingMessageId = assistantMessageId;
+                  isStreaming = true;
+                  
+                  // 逐字显示文本
+                  let currentText = "";
+                  for (let i = 0; i < answer.length; i++) {
+                    if (!isStreaming) break;
+                    currentText += answer[i];
+                    updateMessageText(assistantMessageId, currentText, false);
+                    await new Promise(resolve => setTimeout(resolve, 30));
+                  }
+                  
+                  updateMessageText(assistantMessageId, answer, true);
+                  isStreaming = false;
+                  streamingMessageId = null;
+                  sendBtn.disabled = false;
+                  sendBtn.textContent = "发送";
                 }
               }
             }
+          } else {
+            // 关闭声音时：立即逐字显示文本
+            streamingMessageId = assistantMessageId;
+            isStreaming = true;
             
-            // 更新历史记录中的音频
-            if (chatHistory[currentChatId]) {
-              const message = chatHistory[currentChatId].messages.find(m => m.messageId === assistantMessageId);
-              if (message) {
-                message.audioBase64 = audioBase64;
-                message.audioDuration = audioDuration;
+            // 先创建空消息
+            addMessage("", false, null, 0, assistantMessageId);
+            
+            // 逐字显示
+            let currentText = "";
+            for (let i = 0; i < answer.length; i++) {
+              // 检查是否被取消
+              if (!isStreaming) {
+                break;
               }
+              currentText += answer[i];
+              updateMessageText(assistantMessageId, currentText, false);
+              await new Promise(resolve => setTimeout(resolve, 30)); // 30ms延迟，模拟打字效果
+            }
+            
+            // 完成流式输出
+            updateMessageText(assistantMessageId, answer, true);
+            isStreaming = false;
+            streamingMessageId = null;
+            
+            // 文本显示完成后，可以立即输入下一个问题
+            sendBtn.disabled = false;
+            sendBtn.textContent = "发送";
+            isWaitingForAudio = false;
+          }
+          
+          // 保存消息到历史记录
+          if (chatHistory[currentChatId]) {
+            const existingMessage = chatHistory[currentChatId].messages.find(m => m.messageId === assistantMessageId);
+            if (!existingMessage) {
+              chatHistory[currentChatId].messages.push({
+                text: answer,
+                isUser: false,
+                audioBase64: audioBase64,
+                audioUrl: audioUrl,
+                audioDuration: audioDuration,
+                messageId: assistantMessageId,
+                status: 'sent',
+                time: new Date().toISOString()
+              });
             }
           }
           
-          // 保存历史记录
+          // 保存历史记录（数据库已自动保存，这里不需要额外操作）
           saveChatHistory();
         } else {
+          // 错误处理
+          isWaitingForAudio = false;
           const errorMessage = "❌ 错误: " + (data.error || "未知错误");
           const errorMessageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           const errorDiv = addMessage(errorMessage, false, null, 0, errorMessageId);
@@ -1340,6 +1636,41 @@
         }
       } catch (error) {
         hideTypingIndicator();
+        isWaitingForAudio = false;
+        
+        // 如果是取消请求，不显示错误
+        if (error.name === 'AbortError') {
+          console.log("请求已取消");
+          // 停止流式输出
+          isStreaming = false;
+          const currentStreamingId = streamingMessageId; // 保存当前值
+          streamingMessageId = null;
+          isWaitingForAudio = false;
+          
+          // 移除发送中的用户消息
+          const userMessageDiv = document.querySelector(`[data-message-id="${userMessageId}"]`);
+          if (userMessageDiv) {
+            userMessageDiv.remove();
+          }
+          
+          // 移除正在生成的消息（如果有）
+          if (currentStreamingId) {
+            const streamingDiv = document.querySelector(`[data-message-id="${currentStreamingId}"]`);
+            if (streamingDiv) {
+              streamingDiv.remove();
+            }
+          }
+          
+          // 移除输入指示器
+          hideTypingIndicator();
+          
+          // 恢复发送按钮
+          sendBtn.disabled = false;
+          sendBtn.textContent = "发送";
+          
+          return;
+        }
+        
         const errorMessage = "❌ 网络错误: " + error.message;
         const errorMessageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const errorDiv = addMessage(errorMessage, false, null, 0, errorMessageId);
@@ -1357,8 +1688,12 @@
         // 更新用户消息状态为错误
         updateMessageStatus(userMessageId, 'error');
       } finally {
-        sendBtn.disabled = false;
-        sendBtn.textContent = "发送";
+        // 如果不在等待音频，恢复发送按钮
+        if (!isWaitingForAudio) {
+          sendBtn.disabled = false;
+          sendBtn.textContent = "发送";
+        }
+        abortController = null;
       }
     }
     
@@ -1593,9 +1928,10 @@
       currentItem.addEventListener("click", () => switchChat('current'));
       historyList.appendChild(currentItem);
       
-      // 添加历史对话
+      // 添加历史对话（过滤掉空的会话）
       const sortedChats = Object.entries(chatHistory)
         .filter(([id]) => id !== 'current')
+        .filter(([id, data]) => data.messages && data.messages.length > 0)  // 只显示有消息的会话
         .sort((a, b) => new Date(b[1].time) - new Date(a[1].time));
       
       sortedChats.forEach(([chatId, chatData]) => {
@@ -1655,8 +1991,12 @@
         chatHistory[currentChatId] = {
           messages: [],
           title: chatId === 'current' ? "当前对话" : "新对话",
-          time: new Date().toISOString()
+          time: new Date().toISOString(),
+          sessionId: null
         };
+      } else {
+        // 如果对话存在，恢复会话ID
+        currentSessionId = chatHistory[currentChatId].sessionId || null;
       }
       
       // 清空消息显示区域
@@ -1678,7 +2018,8 @@
             msg.audioBase64,
             msg.audioDuration,
             msg.messageId,
-            msg.status || 'sent'
+            msg.status || 'sent',
+            { audioUrl: msg.audioUrl }
           );
           
           // 如果是错误消息，添加重试按钮
@@ -1764,9 +2105,17 @@
       URL.revokeObjectURL(url);
     });
     
-    // 初始化对话历史
-    initChatHistory();
-    updateHistoryList();
+    // 页面加载时自动加载历史聊天记录
+    initChatHistory().then(() => {
+      updateHistoryList();
+    });
+    
+    // 页面卸载时取消正在进行的请求（只有真正关闭标签页时才取消）
+    window.addEventListener('beforeunload', () => {
+      if (abortController) {
+        abortController.abort();
+      }
+    });
     
     // 初始化
     initHelp();

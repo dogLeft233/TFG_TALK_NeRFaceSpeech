@@ -750,7 +750,34 @@
       }
     });
     // ==================== 训练功能 ====================
-    const FASTAPI_URL = "http://localhost:8000";
+    // 自动检测服务器地址
+    // 自动检测服务器地址
+    const FASTAPI_URL = (() => {
+      const currentOrigin = window.location.origin;
+      const currentHostname = window.location.hostname;
+      const currentPort = window.location.port;
+      const currentPath = window.location.pathname;
+      const currentProtocol = window.location.protocol;
+      
+      // 如果当前端口是7860（前端服务器），则使用后端服务器（8000端口）
+      if (currentPort === '7860') {
+        const backendUrl = `${currentProtocol}//${currentHostname}:8000`;
+        console.log('✅ 检测到前端服务器（端口7860），使用后端API服务器:', backendUrl);
+        return backendUrl;
+      }
+      
+      // 如果路径包含 /webui/，说明是挂载在FastAPI下的
+      if (currentPath.includes('/webui/')) {
+        console.log('✅ 检测到FastAPI静态文件服务，使用当前origin:', currentOrigin);
+        return currentOrigin;
+      }
+      
+      // 否则使用当前origin
+      console.log('✅ 使用当前origin作为API服务器:', currentOrigin);
+      return currentOrigin;
+    })();
+    
+    console.log('最终确定的API服务器地址:', FASTAPI_URL);
     const trainBtn = document.getElementById("trainBtn");
     const refreshModelsBtn = document.getElementById("refreshModelsBtn");
     const refreshTasksBtn = document.getElementById("refreshTasksBtn");

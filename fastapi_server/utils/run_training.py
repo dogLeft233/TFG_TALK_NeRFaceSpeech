@@ -155,6 +155,8 @@ def start_training(
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
+                encoding='utf-8',
+                errors='replace',  # 使用replace模式处理非UTF-8字节，避免解码错误
                 bufsize=1,
                 env=env,
                 cwd=str(NERF_CODE_DIR)

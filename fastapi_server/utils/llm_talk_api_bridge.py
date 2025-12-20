@@ -66,6 +66,28 @@ def main():
         else:  # llm_only
             result = get_llm_response_api(args.user_input)
         
+        # 递归检查并转换bytes为字符串（防止JSON序列化错误）
+        def ensure_json_serializable(obj):
+            """递归检查并转换不可JSON序列化的对象为字符串"""
+            if isinstance(obj, bytes):
+                return obj.decode('utf-8')
+            elif isinstance(obj, dict):
+                return {k: ensure_json_serializable(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [ensure_json_serializable(item) for item in obj]
+            elif isinstance(obj, (set, tuple)):
+                return [ensure_json_serializable(item) for item in obj]
+            else:
+                # 尝试直接返回，如果无法序列化会在json.dumps时抛出异常
+                try:
+                    json.dumps(obj)
+                    return obj
+                except (TypeError, ValueError):
+                    return str(obj)
+        
+        # 确保结果可以JSON序列化
+        result = ensure_json_serializable(result)
+        
         # 输出 JSON 结果
         print(json.dumps(result, ensure_ascii=False))
         return 0

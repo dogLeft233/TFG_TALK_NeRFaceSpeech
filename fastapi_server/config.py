@@ -37,6 +37,14 @@ DATABASE_DIR.mkdir(parents=True, exist_ok=True)
 VIDEOS_STORAGE_DIR = DATABASE_DIR / "videos"
 VIDEOS_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
+# 音频存储目录（在数据库目录下）
+AUDIOS_STORAGE_DIR = DATABASE_DIR / "audios"
+AUDIOS_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+# 文本存储目录（在数据库目录下）
+TEXTS_STORAGE_DIR = DATABASE_DIR / "texts"
+TEXTS_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+
 # 训练数据集目录
 # 优先使用服务器上的绝对路径，如果不存在则尝试相对路径
 DATA_DIR = Path("/root/autodl-tmp/TFG_TALK_NeRFaceSpeech/data")
@@ -96,6 +104,8 @@ def ensure_dirs():
     # 如果 MODEL_DIR 不存在且是相对路径，才创建目录（绝对路径可能不需要创建）
     if not MODEL_DIR.exists() and not MODEL_DIR.is_absolute():
         MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    # 确保文本存储目录存在
+    TEXTS_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 def get_character_audio_prompt(character: str) -> Path:
     """获取角色的音频提示文件路径"""
