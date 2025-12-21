@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NeRFFaceSpeech - 开始界面</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="settings.js"></script>
+    <script src="api.js"></script>
+</head>
+
+<body>
+    <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
+
+    <!-- 侧边栏遮罩 -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- 设置侧边栏 -->
+    <div class="sidebar" id="settingsSidebar">
+        <div class="sidebar-content">
+            <div class="sidebar-header">
+                <h2>设置</h2>
+                <button class="sidebar-close" id="sidebarClose">×</button>
+            </div>
+
+            <div class="sidebar-tabs">
+                <button class="sidebar-tab active" data-tab="theme">主题</button>
+                <button class="sidebar-tab" data-tab="font">字体</button>
+            </div>
+
+            <!-- 主题设置 -->
+            <div class="tab-content active" id="themeTab">
+                <div class="options-grid">
+                    <div class="option-card" data-theme="tech">
+                        <div class="option-name">科技风</div>
+                        <div class="option-desc">深蓝色科技感</div>
+                    </div>
+                    <div class="option-card" data-theme="warm">
+                        <div class="option-name">温馨风</div>
+                        <div class="option-desc">暖色调温馨</div>
+                    </div>
+                    <div class="option-card" data-theme="minimal">
+                        <div class="option-name">简约风</div>
+                        <div class="option-desc">灰色简约</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 字体设置 -->
+            <div class="tab-content" id="fontTab">
+                <div style="margin-bottom: 16px;">
+                    <label
+                        style="display: block; margin-bottom: 8px; color: var(--text); font-weight: 500;">字体样式</label>
+                    <div class="options-grid">
+                        <div class="option-card" data-font="SimSun">
+                            <div class="option-name">宋体</div>
+                            <div class="option-desc">SimSun</div>
+                        </div>
+                        <div class="option-card" data-font="SimHei">
+                            <div class="option-name">黑体</div>
+                            <div class="option-desc">SimHei</div>
+                        </div>
+                        <div class="option-card" data-font="Microsoft YaHei">
+                            <div class="option-name">微软雅黑</div>
+                            <div class="option-desc">Microsoft YaHei</div>
+                        </div>
+                        <div class="option-card" data-font="Arial">
+                            <div class="option-name">Arial</div>
+                            <div class="option-desc">Arial</div>
+                        </div>
+                        <div class="option-card" data-font="Times New Roman">
+                            <div class="option-name">Times New Roman</div>
+                            <div class="option-desc">Times New Roman</div>
+                        </div>
+                        <div class="option-card" data-font="Inter">
+                            <div class="option-name">Inter</div>
+                            <div class="option-desc">Inter（默认）</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label
+                        style="display: block; margin-bottom: 8px; color: var(--text); font-weight: 500;">字号大小</label>
+                    <div class="font-size-group">
+                        <button class="font-size-btn" data-size="small">小</button>
+                        <button class="font-size-btn" data-size="medium">中</button>
+                        <button class="font-size-btn" data-size="large">大</button>
+                        <button class="font-size-btn" data-size="custom">自定义</button>
+                    </div>
+                    <div class="font-size-custom" id="customSizeInput" style="display: none;">
+                        <input type="number" id="customSizeValue" placeholder="输入字号（px）" min="10" max="24" value="14">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>NeRFFaceSpeech</h1>
+            <p>AI 驱动的语音视频生成系统</p>
+        </div>
+
+        <div class="cards">
+            <!-- 后端入口 -->
+            <div class="card" onclick="openBackend()">
+                <div class="card-icon">🖥️</div>
+                <h2>后端 API 文档</h2>
+                <p>查看后端 API 文档和调试信息<br>监控系统运行状态</p>
+                <div class="card-url" id="backendUrl">http://localhost:8000/</div>
+            </div>
+
+            <!-- 前端应用入口 -->
+            <div class="card" onclick="openFrontend()">
+                <div class="card-icon">🎨</div>
+                <h2>前端应用</h2>
+                <p>使用核心功能模块<br>视频生成、对话、训练</p>
+                <div class="card-url">Web UI</div>
+            </div>
+        </div>
+
+        <!-- 状态检查 -->
+        <div class="status">
+            <div class="status-item">
+                <span class="status-label">后端服务器</span>
+                <span class="status-value">
+                    <span class="status-dot" id="backendStatus"></span>
+                    <span id="backendText">检查中...</span>
+                </span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">前端服务器</span>
+                <span class="status-value">
+                    <span class="status-dot active"></span>
+                    <span>运行中</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- API 地址配置 -->
+        <div class="api-config" id="apiConfig" style="display: none;">
+            <div class="config-card">
+                <h3>配置后端地址</h3>
+                <p class="config-desc">如果后端在远程服务器或使用了端口转发，请在此配置</p>
+                <div class="config-input-group">
+                    <label for="apiUrlInput">后端 API 地址：</label>
+                    <input type="text" id="apiUrlInput" placeholder="http://localhost:8000"
+                        value="http://localhost:8000">
+                    <div class="config-hint">
+                        <p>💡 提示：</p>
+                        <ul>
+                            <li>如果使用端口转发（如：<code>ssh -L 8000:localhost:8000</code>），使用
+                                <code>http://localhost:8000</code>
+                            </li>
+                            <li>如果后端在远程服务器，使用 <code>http://服务器IP:8000</code></li>
+                            <li>也可以通过 URL 参数设置：<code>?api_url=http://your-server:8000</code></li>
+                        </ul>
+                    </div>
+                    <div class="config-buttons">
+                        <button class="btn-save" onclick="saveApiUrl()">保存</button>
+                        <button class="btn-cancel" onclick="cancelApiConfig()">取消</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <span>北京理工大学 · NeRFFaceSpeech 团队</span>
+            <span style="margin-left: 20px;">
+                <a href="#" onclick="showApiConfig(); return false;"
+                    style="color: var(--muted); text-decoration: none; font-size: 12px;">
+                    ⚙️ 配置后端地址
+                </a>
+            </span>
+        </div>
+    </div>
+
+    <script>
+        // 获取 API 地址的函数（供全局使用）
+        function getApiUrl() {
+            if (typeof window !== 'undefined') {
+                if (window.API_BASE_URL) return window.API_BASE_URL;
+                if (window.getApiBaseUrl) return window.getApiBaseUrl();
+            }
+            const saved = localStorage.getItem('API_BASE_URL');
+            return saved || 'http://localhost:8000';
+        }
+
+        // 等待页面加载完成
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 应用设置（从数据库读取）
+            try {
+                const settings = await fetchSettings();
+                await Promise.all([
+                    applySettingsOnly(settings),
+                    updateThemeSelection(settings),
+                    updateFontSelection(settings),
+                    updateFontSizeSelection(settings)
+                ]);
+            } catch (error) {
+                console.error('应用设置失败:', error);
+            }
+
+            // 设置侧边栏控制
+            const settingsBtn = document.getElementById('settingsBtn');
+            const settingsSidebar = document.getElementById('settingsSidebar');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const sidebarClose = document.getElementById('sidebarClose');
+
+            if (settingsBtn && settingsSidebar) {
+                const openSidebar = () => {
+                    settingsSidebar.classList.add('active');
+                    sidebarOverlay.classList.add('active');
+                };
+
+                const closeSidebar = () => {
+                    settingsSidebar.classList.remove('active');
+                    sidebarOverlay.classList.remove('active');
+                };
+
+                settingsBtn.addEventListener('click', openSidebar);
+                if (sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
+                if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+
+                // 标签切换
+                document.querySelectorAll('.sidebar-tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        const targetTab = tab.dataset.tab;
+                        document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+                        document.querySelectorAll('.sidebar .tab-content').forEach(c => c.classList.remove('active'));
+                        tab.classList.add('active');
+                        const targetContent = document.getElementById(targetTab + 'Tab');
+                        if (targetContent) targetContent.classList.add('active');
+                    });
+                });
+
+                // 主题选择
+                document.querySelectorAll('[data-theme]').forEach(card => {
+                    card.addEventListener('click', () => {
+                        applyTheme(card.dataset.theme);
+                    });
+                });
+
+                // 字体选择
+                document.querySelectorAll('[data-font]').forEach(card => {
+                    card.addEventListener('click', () => {
+                        applyFont(card.dataset.font);
+                    });
+                });
+
+                // 字号选择
+                document.querySelectorAll('[data-size]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        if (btn.dataset.size === 'custom') {
+                            const customInput = document.getElementById('customSizeInput');
+                            if (customInput) customInput.style.display = 'block';
+                        } else {
+                            const customInput = document.getElementById('customSizeInput');
+                            if (customInput) customInput.style.display = 'none';
+                            applyFontSize(btn.dataset.size);
+                        }
+                    });
+                });
+
+                // 自定义字号输入
+                const customSizeInput = document.getElementById('customSizeValue');
+                if (customSizeInput) {
+                    customSizeInput.addEventListener('change', () => {
+                        applyFontSize('custom');
+                    });
+                }
+            }
+
+            // 更新后端 URL 显示
+            const apiUrl = getApiUrl();
+            document.getElementById('backendUrl').textContent = apiUrl + '/';
+
+            // 在控制台打印后端地址
+            console.log('========================================');
+            console.log('🔗 后端 API 地址信息');
+            console.log('========================================');
+            console.log('后端地址:', apiUrl);
+            console.log('API 文档:', apiUrl + '/docs');
+            console.log('来源:', (() => {
+                if (window.API_BASE_URL && window.API_BASE_URL === apiUrl) {
+                    return 'settings.js (window.API_BASE_URL)';
+                }
+                if (window.getApiBaseUrl && window.getApiBaseUrl() === apiUrl) {
+                    return 'api.js (getApiBaseUrl())';
+                }
+                const saved = localStorage.getItem('API_BASE_URL');
+                if (saved === apiUrl) {
+                    return 'localStorage';
+                }
+                return '默认值';
+            })());
+            console.log('========================================');
+
+            // 检查后端状态
+            async function checkBackendStatus() {
+                const statusDot = document.getElementById('backendStatus');
+                const statusText = document.getElementById('backendText');
+
+                // 先显示检查中状态
+                statusText.textContent = '检查中...';
+                statusText.style.color = '#9ca3af'; // muted color
+
+                try {
+                    // 使用 api.js 中的 checkBackendConnection 函数（如果已加载）
+                    if (typeof checkBackendConnection === 'function') {
+                        const isConnected = await checkBackendConnection();
+
+                        if (isConnected) {
+                            // 连接成功
+                            statusDot.classList.add('active');
+                            statusText.textContent = '✅ 连接成功';
+                            statusText.style.color = '#4ade80';
+                        } else {
+                            // 连接失败
+                            statusDot.classList.remove('active');
+                            statusText.textContent = '❌ 连接失败';
+                            statusText.style.color = '#ef4444';
+                        }
+                    } else {
+                        // 如果 api.js 未加载，直接使用 fetch
+                        const currentApiUrl = getApiUrl();
+                        const response = await fetch(`${currentApiUrl}/docs`, {
+                            method: 'GET',
+                            mode: 'cors',
+                            cache: 'no-cache',
+                            signal: AbortSignal.timeout(3000)
+                        });
+
+                        if (response.ok) {
+                            statusDot.classList.add('active');
+                            statusText.textContent = '✅ 连接成功';
+                            statusText.style.color = '#4ade80';
+                        } else {
+                            statusDot.classList.remove('active');
+                            statusText.textContent = `❌ 连接失败 (${response.status})`;
+                            statusText.style.color = '#ef4444';
+                        }
+                    }
+                } catch (error) {
+                    // 网络错误或超时
+                    statusDot.classList.remove('active');
+
+                    if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+                        statusText.textContent = '⏱️ 连接超时';
+                        statusText.style.color = '#f59e0b';
+                    } else if (error.message && error.message.includes('Failed to fetch')) {
+                        statusText.textContent = '❌ 无法连接';
+                        statusText.style.color = '#ef4444';
+                    } else {
+                        statusText.textContent = '❌ 连接失败';
+                        statusText.style.color = '#ef4444';
+                    }
+                }
+            }
+
+            // 打开后端 API 文档
+            window.openBackend = function () {
+                const currentApiUrl = getApiUrl();
+                window.open(`${currentApiUrl}/docs`, '_blank');
+            };
+
+            // 打开前端应用
+            window.openFrontend = function () {
+                window.open('index.html', '_blank');
+            };
+
+            // 页面加载时检查状态
+            await checkBackendStatus();
+            // 每5秒检查一次
+            setInterval(checkBackendStatus, 5000);
+
+            // 检查 URL 参数中是否有 api_url
+            const urlParams = new URLSearchParams(window.location.search);
+            const apiUrlFromUrl = urlParams.get('api_url') || urlParams.get('apiUrl');
+            if (apiUrlFromUrl) {
+                console.log('从 URL 参数检测到后端地址:', apiUrlFromUrl);
+                // 更新显示
+                document.getElementById('backendUrl').textContent = apiUrlFromUrl + '/';
+                // 保存到 localStorage
+                localStorage.setItem('API_BASE_URL', apiUrlFromUrl);
+                // 更新 window.API_BASE_URL（如果 settings.js 已加载）
+                if (window.API_BASE_URL) {
+                    window.API_BASE_URL = apiUrlFromUrl;
+                }
+                // 重新检查连接
+                await checkBackendStatus();
+            }
+        });
+
+        // 显示 API 配置界面
+        function showApiConfig() {
+            const configDiv = document.getElementById('apiConfig');
+            const input = document.getElementById('apiUrlInput');
+            const currentUrl = getApiUrl();
+            input.value = currentUrl;
+            configDiv.style.display = 'block';
+            // 滚动到配置区域
+            configDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // 保存 API 地址
+        function saveApiUrl() {
+            const input = document.getElementById('apiUrlInput');
+            const newUrl = input.value.trim();
+
+            if (!newUrl) {
+                alert('请输入后端地址');
+                return;
+            }
+
+            // 验证 URL 格式
+            try {
+                new URL(newUrl);
+            } catch (e) {
+                alert('请输入有效的 URL 地址（例如：http://localhost:8000）');
+                return;
+            }
+
+            // 保存到 localStorage
+            localStorage.setItem('API_BASE_URL', newUrl);
+
+            // 更新 window.API_BASE_URL
+            if (window.API_BASE_URL) {
+                window.API_BASE_URL = newUrl;
+            }
+
+            // 更新显示
+            document.getElementById('backendUrl').textContent = newUrl + '/';
+
+            // 隐藏配置界面
+            document.getElementById('apiConfig').style.display = 'none';
+
+            // 重新检查连接
+            checkBackendStatus();
+
+            // 显示成功提示
+            alert('后端地址已更新为：' + newUrl + '\n正在重新检查连接...');
+
+            // 刷新页面以应用新配置
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+
+        // 取消配置
+        function cancelApiConfig() {
+            document.getElementById('apiConfig').style.display = 'none';
+        }
+    </script>
+</body>
+
+</html>

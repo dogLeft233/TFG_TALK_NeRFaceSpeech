@@ -5,25 +5,25 @@
 
 // 自动检测服务器地址（从当前页面的URL获取）
 const SETTINGS_API_BASE = (() => {
-  const currentOrigin = window.location.origin;
-  const currentHostname = window.location.hostname;
-  const currentPort = window.location.port;
-  const currentPath = window.location.pathname;
-  const currentProtocol = window.location.protocol;
-  
-  // 如果当前端口是7860（前端服务器），则使用后端服务器（8000端口）
-  if (currentPort === '7860') {
-    const backendUrl = `${currentProtocol}//${currentHostname}:8000`;
-    return `${backendUrl}/api/settings`;
-  }
-  
-  // 如果路径包含 /webui/，说明是挂载在FastAPI下的
-  if (currentPath.includes('/webui/')) {
+    const currentOrigin = window.location.origin;
+    const currentHostname = window.location.hostname;
+    const currentPort = window.location.port;
+    const currentPath = window.location.pathname;
+    const currentProtocol = window.location.protocol;
+
+    // 如果当前端口是7860（前端服务器），则使用后端服务器（8000端口）
+    if (currentPort === '7860') {
+        const backendUrl = `${currentProtocol}//${currentHostname}:8000`;
+        return `${backendUrl}/api/settings`;
+    }
+
+    // 如果路径包含 /webui/，说明是挂载在FastAPI下的
+    if (currentPath.includes('/webui/')) {
+        return `${currentOrigin}/api/settings`;
+    }
+
+    // 否则使用当前origin
     return `${currentOrigin}/api/settings`;
-  }
-  
-  // 否则使用当前origin
-  return `${currentOrigin}/api/settings`;
 })();
 
 // 默认设置（仅在数据库中没有设置时使用）
@@ -42,18 +42,18 @@ async function fetchSettings() {
         // 设置超时，避免前端页面一直加载
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000); // 3秒超时
-        
+
         const response = await fetch(SETTINGS_API_BASE, {
             signal: controller.signal
         });
         clearTimeout(timeoutId);
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         const result = await response.json();
-        
+
         // 如果数据库未初始化（success为false），抛出错误
         if (!result.success) {
             const errorMsg = result.message || result.error || "数据库未初始化";
@@ -62,17 +62,17 @@ async function fetchSettings() {
             alert(`❌ 数据库错误\n\n${errorMsg}\n\n请先运行 start.py 初始化数据库，然后再打开网页。`);
             throw new Error(errorMsg);
         }
-        
+
         if (!result.data) {
             throw new Error("API返回数据格式错误：缺少data字段");
         }
-        
+
         return result.data;
     } catch (error) {
         // 如果是数据库未初始化错误，阻止页面加载
-        if (error.message && (error.message.includes("数据库未初始化") || 
-                              error.message.includes("数据库文件不存在") ||
-                              error.message.includes("数据库"))) {
+        if (error.message && (error.message.includes("数据库未初始化") ||
+            error.message.includes("数据库文件不存在") ||
+            error.message.includes("数据库"))) {
             console.error("❌ 数据库未初始化，阻止页面加载:", error);
             // 错误已经在上面显示了，这里直接抛出
             throw error;
@@ -102,7 +102,7 @@ async function updateSetting(key, value) {
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({"value": String(value)})  // 发送 {"value": "xxx"} 格式
+            body: JSON.stringify({ "value": String(value) })  // 发送 {"value": "xxx"} 格式
         });
         const result = await response.json();
         return result.success || false;
@@ -217,7 +217,7 @@ async function applyFont(font) {
 async function applyFontSize(size) {
     let fontSize;
     let customValue = null;
-    
+
     if (size === 'small') fontSize = '12px';
     else if (size === 'medium') fontSize = '14px';
     else if (size === 'large') fontSize = '16px';
@@ -231,7 +231,7 @@ async function applyFontSize(size) {
             return; // 如果没有自定义值，不应用
         }
     }
-    
+
     if (fontSize) {
         applyFontSizeToPage(size, customValue);
         await updateSetting('nerf_font_size', size);
@@ -248,11 +248,14 @@ async function applyFontSize(size) {
 
 /**
  * 更新主题选择状态（从数据库读取当前设置）
+ * @param {Object} settings - 可选的设置对象，如果提供则直接使用，否则从数据库读取
  */
-async function updateThemeSelection() {
+async function updateThemeSelection(settings = null) {
     if (!document.body) return; // 如果body还没加载，直接返回
     try {
-        const settings = await fetchSettings();
+        if (!settings) {
+            settings = await fetchSettings();
+        }
         const currentTheme = settings.nerf_theme || DEFAULT_SETTINGS.nerf_theme;
         const themeCards = document.querySelectorAll('[data-theme]');
         if (themeCards.length === 0) return; // 如果没有找到元素，直接返回
@@ -266,11 +269,14 @@ async function updateThemeSelection() {
 
 /**
  * 更新字体选择状态（从数据库读取当前设置）
+ * @param {Object} settings - 可选的设置对象，如果提供则直接使用，否则从数据库读取
  */
-async function updateFontSelection() {
+async function updateFontSelection(settings = null) {
     if (!document.body) return; // 如果body还没加载，直接返回
     try {
-        const settings = await fetchSettings();
+        if (!settings) {
+            settings = await fetchSettings();
+        }
         const currentFont = settings.nerf_font || DEFAULT_SETTINGS.nerf_font;
         const fontCards = document.querySelectorAll('[data-font]');
         if (fontCards.length === 0) return; // 如果没有找到元素，直接返回
@@ -284,11 +290,14 @@ async function updateFontSelection() {
 
 /**
  * 更新字号选择状态（从数据库读取当前设置）
+ * @param {Object} settings - 可选的设置对象，如果提供则直接使用，否则从数据库读取
  */
-async function updateFontSizeSelection() {
+async function updateFontSizeSelection(settings = null) {
     if (!document.body) return; // 如果body还没加载，直接返回
     try {
-        const settings = await fetchSettings();
+        if (!settings) {
+            settings = await fetchSettings();
+        }
         const currentSize = settings.nerf_font_size || DEFAULT_SETTINGS.nerf_font_size;
         const sizeButtons = document.querySelectorAll('[data-size]');
         if (sizeButtons.length > 0) {
@@ -296,7 +305,7 @@ async function updateFontSizeSelection() {
                 btn.classList.toggle('selected', btn.dataset.size === currentSize);
             });
         }
-        
+
         const customInput = document.getElementById('customSizeInput');
         if (customInput) {
             if (currentSize === 'custom') {
@@ -318,16 +327,19 @@ async function updateFontSizeSelection() {
 /**
  * 从数据库读取设置并应用（用于除start.html外的所有页面）
  * 总是从数据库读取，不使用缓存
+ * @param {Object} settings - 可选的设置对象，如果提供则直接使用，否则从数据库读取
  */
-async function applySettingsOnly() {
+async function applySettingsOnly(settings = null) {
     try {
-        // 总是从数据库读取设置
-        const settings = await fetchSettings();
-        
+        // 如果没有提供设置，则从数据库读取
+        if (!settings) {
+            settings = await fetchSettings();
+        }
+
         // 应用数据库中的设置
         const theme = settings.nerf_theme || DEFAULT_SETTINGS.nerf_theme;
         applyThemeToPage(theme);
-        
+
         // 应用字体
         const font = settings.nerf_font || DEFAULT_SETTINGS.nerf_font;
         if (document.body) {
@@ -335,7 +347,7 @@ async function applySettingsOnly() {
         } else {
             document.documentElement.style.fontFamily = font;
         }
-        
+
         // 应用字体大小
         const fontSize = settings.nerf_font_size || DEFAULT_SETTINGS.nerf_font_size;
         const customSize = settings.nerf_custom_font_size || DEFAULT_SETTINGS.nerf_custom_font_size;
@@ -363,11 +375,11 @@ async function initSettings() {
     try {
         // 获取所有设置（从数据库）
         const settings = await fetchSettings();
-        
+
         // 使用数据库中的设置，如果数据库中没有则使用默认值（但不更新数据库）
         const theme = settings.nerf_theme || DEFAULT_SETTINGS.nerf_theme;
         applyThemeToPage(theme);
-        
+
         // 应用字体
         const font = settings.nerf_font || DEFAULT_SETTINGS.nerf_font;
         if (document.body) {
@@ -375,17 +387,19 @@ async function initSettings() {
         } else {
             document.documentElement.style.fontFamily = font;
         }
-        
+
         // 应用字体大小
         const fontSize = settings.nerf_font_size || DEFAULT_SETTINGS.nerf_font_size;
         const customSize = settings.nerf_custom_font_size || DEFAULT_SETTINGS.nerf_custom_font_size;
         applyFontSizeToPage(fontSize, fontSize === 'custom' ? customSize : null);
-        
-        // 更新选择状态（此时DOM应该已经加载完成）
-        await updateThemeSelection();
-        await updateFontSelection();
-        await updateFontSizeSelection();
-        
+
+        // 更新选择状态（此时DOM应该已经加载完成）- 使用已获取的设置，避免重复API调用
+        await Promise.all([
+            updateThemeSelection(settings),
+            updateFontSelection(settings),
+            updateFontSizeSelection(settings)
+        ]);
+
         return settings;
     } catch (error) {
         console.error("初始化设置失败:", error);

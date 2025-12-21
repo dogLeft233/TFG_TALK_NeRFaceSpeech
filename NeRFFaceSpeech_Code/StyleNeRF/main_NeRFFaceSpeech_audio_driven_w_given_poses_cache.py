@@ -397,7 +397,7 @@ def generate_images(
                 
             count+=1
         
-        creat_final_video(outdir_valid_final, test_data, outdir)
+        creat_final_video(outdir_valid_final, test_data, outdir, watermark=False)
         
         
         

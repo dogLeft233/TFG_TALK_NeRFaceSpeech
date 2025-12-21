@@ -1,80 +1,137 @@
 <!doctype html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>人机对话 - NeRFFaceSpeech</title>
   <style>
     :root {
-      --primary: #1e40af; /* 主色调：深蓝色，用于选中状态、强调按钮 */
-      --primary-2: #3b82f6; /* 次要主色：中间蓝色，用于渐变、次要强调 */
-      --bg: #0b1020; /* 页面背景色：深色背景 */
-      --card: rgba(255,255,255,0.06); /* 卡片背景：半透明白色，用于内容卡片 */
-      --border: rgba(255,255,255,0.14); /* 边框颜色：半透明白色边框 */
-      --text: #e5e7eb; /* 主文字颜色：浅灰色文字 */
-      --muted: #9ca3af; /* 次要文字颜色：灰色，用于辅助信息 */
-      --g1: rgba(59,130,246,0.16); /* 渐变1：蓝色渐变点1 */
-      --card-bg: rgba(59,130,246,0.25); /* 卡片背景色：浅蓝色，用于首页卡片和下拉菜单 */
-      --g2: rgba(14,165,233,0.14); /* 渐变2：青色渐变点2 */
-      --g3: rgba(56,189,248,0.12); /* 渐变3：浅蓝色渐变点3 */
+      --primary: #1e40af;
+      /* 主色调：深蓝色，用于选中状态、强调按钮 */
+      --primary-2: #3b82f6;
+      /* 次要主色：中间蓝色，用于渐变、次要强调 */
+      --bg: #0b1020;
+      /* 页面背景色：深色背景 */
+      --card: rgba(255, 255, 255, 0.06);
+      /* 卡片背景：半透明白色，用于内容卡片 */
+      --border: rgba(255, 255, 255, 0.14);
+      /* 边框颜色：半透明白色边框 */
+      --text: #e5e7eb;
+      /* 主文字颜色：浅灰色文字 */
+      --muted: #9ca3af;
+      /* 次要文字颜色：灰色，用于辅助信息 */
+      --g1: rgba(59, 130, 246, 0.16);
+      /* 渐变1：蓝色渐变点1 */
+      --card-bg: rgba(59, 130, 246, 0.25);
+      /* 卡片背景色：浅蓝色，用于首页卡片和下拉菜单 */
+      --g2: rgba(14, 165, 233, 0.14);
+      /* 渐变2：青色渐变点2 */
+      --g3: rgba(56, 189, 248, 0.12);
+      /* 渐变3：浅蓝色渐变点3 */
     }
+
     body.theme-tech {
-      --primary: #1e40af; /* 主色调：深蓝色 */
-      --primary-2: #3b82f6; /* 次要主色：中间蓝色 */
-      --bg: #0b1020; /* 页面背景色：深色背景 */
-      --card: rgba(255,255,255,0.06); /* 卡片背景：半透明白色 */
-      --border: rgba(255,255,255,0.14); /* 边框颜色：半透明白色边框 */
-      --text: #e5e7eb; /* 主文字颜色：浅灰色文字 */
-      --muted: #9ca3af; /* 次要文字颜色：灰色 */
-      --g1: rgba(59,130,246,0.16); /* 渐变1：蓝色渐变点1 */
-      --g2: rgba(14,165,233,0.14); /* 渐变2：青色渐变点2 */
-      --g3: rgba(56,189,248,0.12); /* 渐变3：浅蓝色渐变点3 */
-      --card-bg: rgba(59,130,246,0.25); /* 卡片背景色：浅蓝色 */
+      --primary: #1e40af;
+      /* 主色调：深蓝色 */
+      --primary-2: #3b82f6;
+      /* 次要主色：中间蓝色 */
+      --bg: #0b1020;
+      /* 页面背景色：深色背景 */
+      --card: rgba(255, 255, 255, 0.06);
+      /* 卡片背景：半透明白色 */
+      --border: rgba(255, 255, 255, 0.14);
+      /* 边框颜色：半透明白色边框 */
+      --text: #e5e7eb;
+      /* 主文字颜色：浅灰色文字 */
+      --muted: #9ca3af;
+      /* 次要文字颜色：灰色 */
+      --g1: rgba(59, 130, 246, 0.16);
+      /* 渐变1：蓝色渐变点1 */
+      --g2: rgba(14, 165, 233, 0.14);
+      /* 渐变2：青色渐变点2 */
+      --g3: rgba(56, 189, 248, 0.12);
+      /* 渐变3：浅蓝色渐变点3 */
+      --card-bg: rgba(59, 130, 246, 0.25);
+      /* 卡片背景色：浅蓝色 */
     }
+
     body.theme-warm {
-      --primary: #f97316; /* 主色调：橙色，用于选中状态、强调按钮 */
-      --primary-2: #ea580c; /* 次要主色：深橙色，用于渐变、次要强调 */
-      --bg: #fff8f0; /* 页面背景色：浅暖色背景 */
-      --card: rgba(255,255,255,0.9); /* 卡片背景：半透明白色 */
-      --border: rgba(249,115,22,0.2); /* 边框颜色：半透明橙色边框 */
-      --text: #1f2937; /* 主文字颜色：深灰色文字 */
-      --muted: #6b7280; /* 次要文字颜色：灰色 */
-      --g1: rgba(251,191,36,0.15); /* 渐变1：黄色渐变点1 */
-      --g2: rgba(249,115,22,0.12); /* 渐变2：橙色渐变点2 */
-      --g3: rgba(234,88,12,0.1); /* 渐变3：深橙色渐变点3 */
-      --card-bg: rgba(251,191,36,0.15); /* 卡片背景色：浅黄色 */
+      --primary: #f97316;
+      /* 主色调：橙色，用于选中状态、强调按钮 */
+      --primary-2: #ea580c;
+      /* 次要主色：深橙色，用于渐变、次要强调 */
+      --bg: #fff8f0;
+      /* 页面背景色：浅暖色背景 */
+      --card: rgba(255, 255, 255, 0.9);
+      /* 卡片背景：半透明白色 */
+      --border: rgba(249, 115, 22, 0.2);
+      /* 边框颜色：半透明橙色边框 */
+      --text: #1f2937;
+      /* 主文字颜色：深灰色文字 */
+      --muted: #6b7280;
+      /* 次要文字颜色：灰色 */
+      --g1: rgba(251, 191, 36, 0.15);
+      /* 渐变1：黄色渐变点1 */
+      --g2: rgba(249, 115, 22, 0.12);
+      /* 渐变2：橙色渐变点2 */
+      --g3: rgba(234, 88, 12, 0.1);
+      /* 渐变3：深橙色渐变点3 */
+      --card-bg: rgba(251, 191, 36, 0.15);
+      /* 卡片背景色：浅黄色 */
     }
+
     body.theme-minimal {
-      --primary: #6b7280; /* 主色调：灰色，用于选中状态、强调按钮 */
-      --primary-2: #4b5563; /* 次要主色：深灰色，用于渐变、次要强调 */
-      --bg: #f5f5f5; /* 页面背景色：浅灰色背景 */
-      --card: #ffffff; /* 卡片背景：白色 */
-      --border: #e5e7eb; /* 边框颜色：浅灰色边框 */
-      --text: #111827; /* 主文字颜色：深色文字 */
-      --muted: #6b7280; /* 次要文字颜色：灰色 */
-      --g1: rgba(107,114,128,0.08); /* 渐变1：灰色渐变点1 */
-      --g2: rgba(75,85,99,0.07); /* 渐变2：深灰色渐变点2 */
-      --g3: rgba(156,163,175,0.06); /* 渐变3：浅灰色渐变点3 */
-      --card-bg: rgba(107,114,128,0.1); /* 卡片背景色：浅灰色 */
+      --primary: #6b7280;
+      /* 主色调：灰色，用于选中状态、强调按钮 */
+      --primary-2: #4b5563;
+      /* 次要主色：深灰色，用于渐变、次要强调 */
+      --bg: #f5f5f5;
+      /* 页面背景色：浅灰色背景 */
+      --card: #ffffff;
+      /* 卡片背景：白色 */
+      --border: #e5e7eb;
+      /* 边框颜色：浅灰色边框 */
+      --text: #111827;
+      /* 主文字颜色：深色文字 */
+      --muted: #6b7280;
+      /* 次要文字颜色：灰色 */
+      --g1: rgba(107, 114, 128, 0.08);
+      /* 渐变1：灰色渐变点1 */
+      --g2: rgba(75, 85, 99, 0.07);
+      /* 渐变2：深灰色渐变点2 */
+      --g3: rgba(156, 163, 175, 0.06);
+      /* 渐变3：浅灰色渐变点3 */
+      --card-bg: rgba(107, 114, 128, 0.1);
+      /* 卡片背景色：浅灰色 */
     }
-    * { box-sizing: border-box; }
+
+    * {
+      box-sizing: border-box;
+    }
+
     :root {
-      --base-font-size: 14px; /* 基础字号 */
+      --base-font-size: 14px;
+      /* 基础字号 */
     }
+
     html {
       font-size: var(--base-font-size);
     }
+
     body {
       margin: 0;
       font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 1rem; /* 使用rem单位，基于根元素字体大小 */
+      font-size: 1rem;
+      /* 使用rem单位，基于根元素字体大小 */
       background: radial-gradient(circle at 20% 20%, var(--g1), transparent 25%),
-                  radial-gradient(circle at 80% 30%, var(--g2), transparent 25%),
-                  radial-gradient(circle at 50% 80%, var(--g3), transparent 22%),
-                  var(--bg);
+        radial-gradient(circle at 80% 30%, var(--g2), transparent 25%),
+        radial-gradient(circle at 50% 80%, var(--g3), transparent 22%),
+        var(--bg);
       color: var(--text);
       min-height: 100vh;
     }
+
     /* 设置按钮 */
     .settings-btn {
       position: fixed;
@@ -91,12 +148,13 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .settings-btn:hover {
       background: var(--primary);
       color: #fff;
       border-color: var(--primary);
     }
-    
+
     /* 侧边栏遮罩 */
     .sidebar-overlay {
       display: none;
@@ -109,10 +167,11 @@
       z-index: 2000;
       transition: opacity 0.3s ease;
     }
+
     .sidebar-overlay.active {
       display: block;
     }
-    
+
     /* 侧边栏 */
     .sidebar {
       position: fixed;
@@ -127,12 +186,15 @@
       overflow-y: auto;
       box-shadow: -4px 0 20px rgba(0, 0, 0, 0.2);
     }
+
     .sidebar.active {
       right: 0;
     }
+
     .sidebar-content {
       padding: 24px;
     }
+
     .sidebar-header {
       display: flex;
       justify-content: space-between;
@@ -141,11 +203,13 @@
       padding-bottom: 16px;
       border-bottom: 1px solid var(--border);
     }
+
     .sidebar-header h2 {
       margin: 0;
       font-size: 20px;
       color: var(--text);
     }
+
     .sidebar-close {
       background: none;
       border: none;
@@ -161,11 +225,12 @@
       border-radius: 8px;
       transition: all 0.2s ease;
     }
+
     .sidebar-close:hover {
       background: var(--card-bg);
       color: var(--text);
     }
-    
+
     /* 分页标签 */
     .sidebar-tabs {
       display: flex;
@@ -173,6 +238,7 @@
       margin-bottom: 20px;
       border-bottom: 1px solid var(--border);
     }
+
     .sidebar-tab {
       padding: 10px 20px;
       background: none;
@@ -184,22 +250,25 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .sidebar-tab.active {
       color: var(--primary);
       border-bottom-color: var(--primary);
     }
+
     .sidebar-tab:hover {
       color: var(--text);
     }
-    
+
     /* 分页内容 */
     .tab-content {
       display: none;
     }
+
     .tab-content.active {
       display: block;
     }
-    
+
     /* 选项网格 */
     .options-grid {
       display: grid;
@@ -207,6 +276,7 @@
       gap: 12px;
       margin-bottom: 20px;
     }
+
     .option-card {
       padding: 16px;
       border: 2px solid var(--border);
@@ -216,39 +286,46 @@
       transition: all 0.2s ease;
       text-align: center;
     }
+
     .option-card:hover {
       border-color: var(--primary);
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
+
     .option-card.selected {
       border-color: var(--primary);
       background: var(--primary);
       color: #fff;
     }
+
     .option-card.selected .option-name {
       color: #fff;
     }
+
     .option-name {
       font-size: 14px;
       font-weight: 500;
       color: var(--text);
       margin-bottom: 4px;
     }
+
     .option-desc {
       font-size: 12px;
       color: var(--muted);
     }
+
     .option-card.selected .option-desc {
       color: rgba(255, 255, 255, 0.9);
     }
-    
+
     /* 字号选择 */
     .font-size-group {
       display: flex;
       gap: 8px;
       margin-bottom: 20px;
     }
+
     .font-size-btn {
       flex: 1;
       padding: 12px;
@@ -261,17 +338,21 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .font-size-btn:hover {
       border-color: var(--primary);
     }
+
     .font-size-btn.selected {
       border-color: var(--primary);
       background: var(--primary);
       color: #fff;
     }
+
     .font-size-custom {
       margin-top: 16px;
     }
+
     .font-size-custom input {
       width: 100%;
       padding: 10px;
@@ -281,44 +362,120 @@
       color: var(--text);
       font-size: 14px;
     }
-    
-    .page { max-width: 1400px; width: 94vw; margin: 0 auto; padding: 20px 24px 40px; min-height: 96vh; }
-    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-    h1 { margin: 0; font-size: 24px; letter-spacing: 0.4px; }
-    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 12px; background: rgba(59,130,246,0.2); color: #c7d2fe; font-size: 12px; border: 1px solid rgba(96,165,250,0.5); }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
-    label { font-weight: 700; margin-bottom: 6px; display: block; }
+
+    .page {
+      max-width: 1400px;
+      width: 94vw;
+      margin: 0 auto;
+      padding: 20px 24px 40px;
+      min-height: 96vh;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0.4px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 12px;
+      background: rgba(59, 130, 246, 0.2);
+      color: #c7d2fe;
+      font-size: 12px;
+      border: 1px solid rgba(96, 165, 250, 0.5);
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+    }
+
+    label {
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: block;
+    }
+
     textarea {
-      width: 100%; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
-      font-size: 15px; background: rgba(255,255,255,0.04); color: var(--text);
-      outline: none; transition: border-color .15s ease, box-shadow .15s ease;
-      min-height: 140px; resize: vertical;
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 15px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+      min-height: 140px;
+      resize: vertical;
     }
+
     textarea:focus {
-      border-color: rgba(96,165,250,0.8);
-      box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
+      border-color: rgba(96, 165, 250, 0.8);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
     }
+
     button.primary {
       background: linear-gradient(135deg, var(--primary), var(--primary-2));
       border: 1px solid var(--primary-2);
-      color: #fff; font-weight: 700; border-radius: 12px; padding: 12px 14px; cursor: pointer; width: 100%;
+      color: #fff;
+      font-weight: 700;
+      border-radius: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      width: 100%;
     }
+
     .log-box {
-      background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 12px;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 12px;
+      border-radius: 12px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      min-height: 120px; white-space: pre-wrap; word-break: break-all;
+      min-height: 120px;
+      white-space: pre-wrap;
+      word-break: break-all;
     }
-    .help-btn { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; border-radius: 10px; padding: 8px 10px; cursor: pointer; font-weight: 600; }
-    a { color: #bfdbfe; text-decoration: none; }
+
+    .help-btn {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    a {
+      color: #bfdbfe;
+      text-decoration: none;
+    }
+
     footer {
       margin-top: 24px;
       padding: 12px;
       text-align: center;
       color: var(--muted);
       font-size: 13px;
-      border-top: 1px solid rgba(255,255,255,0.1);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
-    
+
     /* 聊天界面样式 */
     .chat-container {
       display: flex;
@@ -327,6 +484,7 @@
       max-height: 800px;
       min-height: 600px;
     }
+
     .chat-messages {
       flex: 1;
       overflow-y: auto;
@@ -334,25 +492,37 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
-      background: rgba(255,255,255,0.02);
+      background: rgba(255, 255, 255, 0.02);
       border-radius: 12px;
       margin-bottom: 16px;
     }
+
     .message {
       display: flex;
       gap: 12px;
       animation: fadeIn 0.3s ease;
     }
+
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
+
     .message.user {
       justify-content: flex-end;
     }
+
     .message.assistant {
       justify-content: flex-start;
     }
+
     .message-bubble {
       max-width: 70%;
       padding: 12px 16px;
@@ -360,41 +530,48 @@
       word-wrap: break-word;
       position: relative;
     }
+
     .message.user .message-bubble {
       background: var(--primary);
       color: #fff;
       border-bottom-right-radius: 4px;
     }
+
     .message.assistant .message-bubble {
       background: var(--card);
       color: var(--text);
       border: 1px solid var(--border);
       border-bottom-left-radius: 4px;
     }
+
     .message-time {
       font-size: 11px;
       color: var(--muted);
       margin-top: 4px;
       text-align: right;
     }
+
     .message.assistant .message-time {
       text-align: left;
     }
+
     .message-audio {
       margin-top: 8px;
       display: flex;
       align-items: center;
       gap: 8px;
     }
+
     .audio-player {
       flex: 1;
       height: 32px;
     }
+
     .audio-player audio {
       width: 100%;
       height: 32px;
     }
-    
+
     .chat-input-area {
       display: flex;
       flex-direction: column;
@@ -404,22 +581,26 @@
       border: 1px solid var(--border);
       border-radius: 12px;
     }
+
     .input-row {
       display: flex;
       gap: 8px;
       align-items: flex-end;
     }
+
     .input-row textarea {
       flex: 1;
       min-height: 60px;
       max-height: 120px;
       resize: vertical;
     }
+
     .input-actions {
       display: flex;
       gap: 8px;
       align-items: center;
     }
+
     .icon-btn {
       width: 40px;
       height: 40px;
@@ -434,25 +615,37 @@
       transition: all 0.2s ease;
       font-size: 18px;
     }
+
     .icon-btn:hover {
       background: var(--primary);
       color: #fff;
       border-color: var(--primary);
     }
+
     .icon-btn.recording {
       background: #ef4444;
       color: #fff;
       border-color: #ef4444;
       animation: pulse 1.5s infinite;
     }
+
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.7;
+      }
     }
+
     .icon-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
+
     .volume-control {
       display: flex;
       align-items: center;
@@ -462,22 +655,27 @@
       border: 1px solid var(--border);
       border-radius: 10px;
     }
+
     .volume-control input[type="range"] {
       width: 100px;
     }
+
     .volume-control.muted {
       opacity: 0.5;
     }
+
     .file-input-wrapper {
       position: relative;
       display: inline-block;
     }
+
     .file-input-wrapper input[type="file"] {
       position: absolute;
       opacity: 0;
       width: 0;
       height: 0;
     }
+
     .typing-indicator {
       display: flex;
       gap: 4px;
@@ -489,11 +687,13 @@
       max-width: 70px;
       position: relative;
     }
+
     .typing-indicator-wrapper {
       display: flex;
       align-items: center;
       gap: 8px;
     }
+
     .cancel-typing-btn {
       width: 24px;
       height: 24px;
@@ -509,11 +709,13 @@
       transition: all 0.2s ease;
       flex-shrink: 0;
     }
+
     .cancel-typing-btn:hover {
       background: #ef4444;
       color: #fff;
       border-color: #ef4444;
     }
+
     .typing-dot {
       width: 8px;
       height: 8px;
@@ -521,22 +723,34 @@
       background: var(--muted);
       animation: typing 1.4s infinite;
     }
+
     .typing-dot:nth-child(2) {
       animation-delay: 0.2s;
     }
+
     .typing-dot:nth-child(3) {
       animation-delay: 0.4s;
     }
+
     @keyframes typing {
-      0%, 60%, 100% { transform: translateY(0); }
-      30% { transform: translateY(-10px); }
+
+      0%,
+      60%,
+      100% {
+        transform: translateY(0);
+      }
+
+      30% {
+        transform: translateY(-10px);
+      }
     }
+
     .empty-state {
       text-align: center;
       color: var(--muted);
       padding: 40px;
     }
-    
+
     /* 消息状态 */
     .message-status {
       font-size: 11px;
@@ -546,24 +760,34 @@
       align-items: center;
       gap: 4px;
     }
+
     .message.user .message-status {
       justify-content: flex-end;
     }
+
     .message-status.sending::before {
       content: "⏳";
       animation: spin 1s linear infinite;
     }
+
     .message-status.sent::before {
       content: "✓";
     }
+
     .message-status.error::before {
       content: "❌";
     }
+
     @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
     }
-    
+
     /* 对话管理侧边栏 */
     .chat-sidebar {
       position: fixed;
@@ -579,9 +803,11 @@
       flex-direction: column;
       box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2);
     }
+
     .chat-sidebar.active {
       left: 0;
     }
+
     .chat-sidebar-header {
       padding: 20px;
       border-bottom: 1px solid var(--border);
@@ -589,11 +815,13 @@
       justify-content: space-between;
       align-items: center;
     }
+
     .chat-sidebar-header h3 {
       margin: 0;
       font-size: 18px;
       color: var(--text);
     }
+
     .chat-sidebar-close {
       background: none;
       border: none;
@@ -609,15 +837,18 @@
       border-radius: 8px;
       transition: all 0.2s ease;
     }
+
     .chat-sidebar-close:hover {
       background: var(--card-bg);
       color: var(--text);
     }
+
     .chat-sidebar-content {
       flex: 1;
       overflow-y: auto;
       padding: 16px;
     }
+
     .chat-sidebar-actions {
       padding: 16px;
       border-top: 1px solid var(--border);
@@ -625,6 +856,7 @@
       flex-direction: column;
       gap: 8px;
     }
+
     .sidebar-btn {
       padding: 10px 16px;
       border-radius: 10px;
@@ -636,20 +868,24 @@
       font-size: 14px;
       text-align: left;
     }
+
     .sidebar-btn:hover {
       background: var(--primary);
       color: #fff;
       border-color: var(--primary);
     }
+
     .sidebar-btn.danger:hover {
       background: #ef4444;
       border-color: #ef4444;
     }
+
     .history-list {
       display: flex;
       flex-direction: column;
       gap: 8px;
     }
+
     .history-item {
       padding: 12px;
       border-radius: 10px;
@@ -658,16 +894,19 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .history-item:hover {
       background: var(--primary);
       color: #fff;
       border-color: var(--primary);
     }
+
     .history-item.active {
       background: var(--primary);
       color: #fff;
       border-color: var(--primary);
     }
+
     .history-item-title {
       font-weight: 500;
       margin-bottom: 4px;
@@ -677,6 +916,7 @@
       gap: 8px;
       flex: 1;
     }
+
     .history-item-title input {
       flex: 1;
       background: transparent;
@@ -688,10 +928,12 @@
       font-weight: 500;
       outline: none;
     }
+
     .history-item-title input:focus {
       border-color: var(--primary);
       background: var(--card-bg);
     }
+
     .history-item-edit {
       opacity: 0;
       transition: opacity 0.2s ease;
@@ -700,16 +942,20 @@
       border-radius: 4px;
       font-size: 12px;
     }
+
     .history-item:hover .history-item-edit {
       opacity: 1;
     }
+
     .history-item-edit:hover {
       background: rgba(255, 255, 255, 0.1);
     }
+
     .history-item-time {
       font-size: 11px;
       opacity: 0.7;
     }
+
     .retry-btn {
       margin-top: 8px;
       padding: 6px 12px;
@@ -721,16 +967,18 @@
       font-size: 12px;
       transition: all 0.2s ease;
     }
+
     .retry-btn:hover {
       background: var(--primary);
       color: #fff;
       border-color: var(--primary);
     }
-    
+
     /* 流式输出动画 */
     .streaming-text {
       display: inline;
     }
+
     .streaming-cursor {
       display: inline-block;
       width: 2px;
@@ -739,11 +987,20 @@
       animation: blink 1s infinite;
       margin-left: 2px;
     }
+
     @keyframes blink {
-      0%, 50% { opacity: 1; }
-      51%, 100% { opacity: 0; }
+
+      0%,
+      50% {
+        opacity: 1;
+      }
+
+      51%,
+      100% {
+        opacity: 0;
+      }
     }
-    
+
     /* 对话管理按钮 */
     .chat-manage-btn {
       position: fixed;
@@ -760,6 +1017,7 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .chat-manage-btn:hover {
       background: var(--primary);
       color: #fff;
@@ -768,10 +1026,11 @@
   </style>
   <script src="settings.js"></script>
 </head>
+
 <body>
   <button class="chat-manage-btn" id="chatManageBtn">💬 对话管理</button>
   <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
-  
+
   <!-- 对话管理侧边栏 -->
   <div class="chat-sidebar" id="chatSidebar">
     <div class="chat-sidebar-header">
@@ -792,10 +1051,10 @@
       <button class="sidebar-btn danger" id="clearChatBtn">🗑️ 清空当前对话</button>
     </div>
   </div>
-  
+
   <!-- 侧边栏遮罩 -->
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
-  
+
   <!-- 设置侧边栏 -->
   <div class="sidebar" id="settingsSidebar">
     <div class="sidebar-content">
@@ -803,12 +1062,12 @@
         <h2>设置</h2>
         <button class="sidebar-close" id="sidebarClose">×</button>
       </div>
-      
+
       <div class="sidebar-tabs">
         <button class="sidebar-tab active" data-tab="theme">主题</button>
         <button class="sidebar-tab" data-tab="font">字体</button>
       </div>
-      
+
       <!-- 主题设置 -->
       <div class="tab-content active" id="themeTab">
         <div class="options-grid">
@@ -826,7 +1085,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- 字体设置 -->
       <div class="tab-content" id="fontTab">
         <div style="margin-bottom: 16px;">
@@ -858,7 +1117,7 @@
             </div>
           </div>
         </div>
-        
+
         <div>
           <label style="display: block; margin-bottom: 8px; color: var(--text); font-weight: 500;">字号大小</label>
           <div class="font-size-group">
@@ -881,7 +1140,8 @@
         <span class="pill">实时对话 · LLM + TTS</span>
       </div>
       <div style="display:flex; gap:10px; max-width:320px;">
-        <a href="./index.html"><button class="primary" style="background:#1f2937; border:1px solid #374151;">返回首页</button></a>
+        <a href="./index.html"><button class="primary"
+            style="background:#1f2937; border:1px solid #374151;">返回首页</button></a>
         <button class="help-btn" id="helpBtn">❗ 帮助</button>
       </div>
     </header>
@@ -893,7 +1153,7 @@
           <p>👋 开始对话吧！输入文字或录制语音与AI交流</p>
         </div>
       </div>
-      
+
       <!-- 输入区域 -->
       <div class="chat-input-area">
         <!-- 音量控制 -->
@@ -902,7 +1162,7 @@
           <input type="range" id="volumeSlider" min="0" max="100" value="50" style="width: 100px;">
           <span id="volumeValue">50%</span>
         </div>
-        
+
         <!-- 输入框和按钮 -->
         <div class="input-row">
           <textarea id="chatInput" placeholder="输入消息... (Shift+Enter换行，Enter发送)"></textarea>
@@ -929,22 +1189,28 @@
   <script>
     // 等待DOM加载完成后再初始化设置事件绑定
     document.addEventListener('DOMContentLoaded', async () => {
-      // 应用设置（从数据库读取）
+      // 应用设置（从数据库读取）- 优化：只调用一次API，然后并行更新UI
       try {
-        await applySettingsOnly();
-        await updateThemeSelection();
-        await updateFontSelection();
-        await updateFontSizeSelection();
+        // 只调用一次 fetchSettings()，获取所有设置
+        const settings = await fetchSettings();
+
+        // 并行应用设置和更新选择状态（使用已获取的设置，避免重复API调用）
+        await Promise.all([
+          applySettingsOnly(settings),
+          updateThemeSelection(settings),
+          updateFontSelection(settings),
+          updateFontSizeSelection(settings)
+        ]);
       } catch (error) {
         console.error('应用设置失败:', error);
       }
-      
+
       // 侧边栏控制
       const settingsBtn = document.getElementById('settingsBtn');
       const settingsSidebar = document.getElementById('settingsSidebar');
       const sidebarOverlay = document.getElementById('sidebarOverlay');
       const sidebarClose = document.getElementById('sidebarClose');
-      
+
       if (!settingsBtn || !settingsSidebar) {
         console.error('设置按钮或侧边栏元素未找到', {
           settingsBtn: !!settingsBtn,
@@ -952,23 +1218,23 @@
         });
         return;
       }
-      
+
       function openSidebar() {
         settingsSidebar.classList.add('active');
         sidebarOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
       }
-      
+
       function closeSidebar() {
         settingsSidebar.classList.remove('active');
         sidebarOverlay.classList.remove('active');
         document.body.style.overflow = '';
       }
-      
+
       settingsBtn.addEventListener('click', openSidebar);
       if (sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
       if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
-      
+
       // 分页切换
       document.querySelectorAll('.sidebar-tab').forEach(tab => {
         tab.addEventListener('click', () => {
@@ -980,28 +1246,28 @@
           if (targetContent) targetContent.classList.add('active');
         });
       });
-      
+
       // 主题选择
       document.querySelectorAll('[data-theme]').forEach(card => {
         card.addEventListener('click', () => {
           applyTheme(card.dataset.theme);
         });
       });
-      
+
       // 字体选择
       document.querySelectorAll('[data-font]').forEach(card => {
         card.addEventListener('click', () => {
           applyFont(card.dataset.font);
         });
       });
-      
+
       // 字号选择
       document.querySelectorAll('[data-size]').forEach(btn => {
         btn.addEventListener('click', () => {
           applyFontSize(btn.dataset.size);
         });
       });
-      
+
       // 自定义字号输入
       const customSizeValue = document.getElementById('customSizeValue');
       if (customSizeValue) {
@@ -1012,10 +1278,10 @@
         });
       }
     });
-    
+
     const volumeSlider = document.getElementById("volumeSlider");
     const volumeControl = document.getElementById("volumeControl");
-    
+
     let mediaRecorder = null;
     let audioChunks = [];
     let isRecording = false;
@@ -1026,7 +1292,7 @@
     let chatHistory = {}; // 存储所有对话历史 {chatId: {messages: [], title: "", time: "", sessionId: null}}
     let isWaitingForAudio = false; // 是否正在等待音频返回
     let abortController = null; // 用于取消正在进行的请求
-    
+
     // 后端API地址 - 自动检测服务器地址
     // 自动检测服务器地址
     const FASTAPI_URL = (() => {
@@ -1035,29 +1301,29 @@
       const currentPort = window.location.port;
       const currentPath = window.location.pathname;
       const currentProtocol = window.location.protocol;
-      
+
       // 如果当前端口是7860（前端服务器），则使用后端服务器（8000端口）
       if (currentPort === '7860') {
         const backendUrl = `${currentProtocol}//${currentHostname}:8000`;
         console.log('✅ 检测到前端服务器（端口7860），使用后端API服务器:', backendUrl);
         return backendUrl;
       }
-      
+
       // 如果路径包含 /webui/，说明是挂载在FastAPI下的
       if (currentPath.includes('/webui/')) {
         console.log('✅ 检测到FastAPI静态文件服务，使用当前origin:', currentOrigin);
         return currentOrigin;
       }
-      
+
       // 否则使用当前origin
       console.log('✅ 使用当前origin作为API服务器:', currentOrigin);
       return currentOrigin;
     })();
-    
+
     console.log('最终确定的API服务器地址:', FASTAPI_URL);
     let isStreaming = false; // 是否正在流式输出
     let streamingMessageId = null; // 正在流式输出的消息ID
-    
+
     // 从数据库加载对话历史
     async function loadChatHistoryFromDatabase() {
       try {
@@ -1069,12 +1335,12 @@
         const data = await response.json();
         if (data.success && data.data) {
           const sessions = data.data;
-          
+
           // 将数据库会话转换为前端格式
           for (const session of sessions) {
             const sessionId = session.session_id;
             const frontendChatId = sessionId; // 使用session_id作为前端chatId
-            
+
             // 获取该会话的所有消息
             const messagesResponse = await fetch(`${FASTAPI_URL}/chat/sessions/${sessionId}/messages`);
             if (messagesResponse.ok) {
@@ -1091,7 +1357,7 @@
                   status: 'sent',
                   time: msg.created_at
                 }));
-                
+
                 chatHistory[frontendChatId] = {
                   messages: messages,
                   title: session.title || messages[0]?.text?.substring(0, 20) || '未命名对话',
@@ -1101,19 +1367,19 @@
               }
             }
           }
-          
+
           updateHistoryList();
         }
       } catch (error) {
         console.error("从数据库加载对话历史失败:", error);
       }
     }
-    
+
     // 初始化对话历史
     async function initChatHistory() {
       // 从数据库加载历史记录
       await loadChatHistoryFromDatabase();
-      
+
       // 初始化当前对话
       if (!chatHistory[currentChatId]) {
         chatHistory[currentChatId] = {
@@ -1123,17 +1389,17 @@
         };
       }
     }
-    
+
     // 保存对话历史（不再使用localStorage，记录已通过API保存到数据库）
     function saveChatHistory() {
       // 不再使用localStorage，记录已通过API保存到数据库
       // 这里保留函数是为了兼容现有代码，但不执行任何操作
     }
-    
+
     // 更新对话标题（使用第一条用户消息）
     function updateChatTitle(chatId, firstUserMessage) {
       if (chatHistory[chatId] && firstUserMessage) {
-        const title = firstUserMessage.length > 20 
+        const title = firstUserMessage.length > 20
           ? firstUserMessage.substring(0, 20) + "..."
           : firstUserMessage;
         chatHistory[chatId].title = title;
@@ -1141,7 +1407,7 @@
         updateHistoryList();
       }
     }
-    
+
     // 添加消息到聊天界面
     function addMessage(text, isUser, audioBase64 = null, audioDuration = 0, messageId = null, status = 'sent', messageData = null) {
       // 如果是第一条消息，清空空状态
@@ -1149,23 +1415,23 @@
       if (emptyState) {
         emptyState.remove();
       }
-      
+
       if (!messageId) {
         messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       }
-      
+
       const messageDiv = document.createElement("div");
       messageDiv.className = `message ${isUser ? 'user' : 'assistant'}`;
       messageDiv.dataset.messageId = messageId;
-      
+
       const bubble = document.createElement("div");
       bubble.className = "message-bubble";
       bubble.textContent = text;
-      
+
       const time = document.createElement("div");
       time.className = "message-time";
       time.textContent = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-      
+
       // 添加消息状态（仅用户消息显示）
       if (isUser) {
         const statusDiv = document.createElement("div");
@@ -1173,10 +1439,10 @@
         statusDiv.id = `status-${messageId}`;
         messageDiv.appendChild(statusDiv);
       }
-      
+
       messageDiv.appendChild(bubble);
       messageDiv.appendChild(time);
-      
+
       // 如果是AI回复且有音频，添加音频播放器
       const hasAudio = audioBase64 || (messageData && messageData.audioUrl);
       if (!isUser && hasAudio) {
@@ -1186,32 +1452,32 @@
         audio.className = "audio-player";
         audio.controls = true;
         audio.volume = isMuted ? 0 : volumeSlider.value / 100;
-        
+
         // 优先使用URL，如果不存在则使用base64
         if (messageData && messageData.audioUrl) {
           audio.src = `${FASTAPI_URL}${messageData.audioUrl}`;
         } else if (audioBase64) {
           audio.src = `data:audio/wav;base64,${audioBase64}`;
         }
-        
+
         audioDiv.appendChild(audio);
         bubble.appendChild(audioDiv);
-        
+
         // 保存当前音频引用
         currentAudio = audio;
-        
+
         // 设置初始音量
         audio.volume = isMuted ? 0 : volumeSlider.value / 100;
-        
+
         // 自动播放（如果未静音）
         if (!isMuted) {
           audio.play().catch(e => console.log("自动播放失败:", e));
         }
       }
-      
+
       chatMessages.appendChild(messageDiv);
       chatMessages.scrollTop = chatMessages.scrollHeight;
-      
+
       // 保存到对话历史（延迟保存，避免在流式输出时频繁保存）
       if (chatHistory[currentChatId] && !isStreaming) {
         const existingMessage = chatHistory[currentChatId].messages.find(m => m.messageId === messageId);
@@ -1228,17 +1494,17 @@
           saveChatHistory();
         }
       }
-      
+
       return messageDiv;
     }
-    
+
     // 更新消息状态
     function updateMessageStatus(messageId, status) {
       const statusDiv = document.getElementById(`status-${messageId}`);
       if (statusDiv) {
         statusDiv.className = `message-status ${status}`;
       }
-      
+
       // 更新历史记录中的状态
       if (chatHistory[currentChatId]) {
         const message = chatHistory[currentChatId].messages.find(m => m.messageId === messageId);
@@ -1248,7 +1514,7 @@
         }
       }
     }
-    
+
     // 更新消息内容（用于流式输出）
     function updateMessageText(messageId, text, isComplete = false) {
       const messageDiv = document.querySelector(`[data-message-id="${messageId}"]`);
@@ -1268,7 +1534,7 @@
           chatMessages.scrollTop = chatMessages.scrollHeight;
         }
       }
-      
+
       // 更新历史记录
       if (chatHistory[currentChatId]) {
         const message = chatHistory[currentChatId].messages.find(m => m.messageId === messageId);
@@ -1278,16 +1544,16 @@
         }
       }
     }
-    
+
     // 显示输入指示器（带取消按钮）
     function showTypingIndicator() {
       const indicator = document.createElement("div");
       indicator.className = "message assistant";
       indicator.id = "typingIndicator";
-      
+
       const wrapper = document.createElement("div");
       wrapper.className = "typing-indicator-wrapper";
-      
+
       const typingDiv = document.createElement("div");
       typingDiv.className = "typing-indicator";
       typingDiv.innerHTML = `
@@ -1295,7 +1561,7 @@
         <div class="typing-dot"></div>
         <div class="typing-dot"></div>
       `;
-      
+
       const cancelBtn = document.createElement("button");
       cancelBtn.className = "cancel-typing-btn";
       cancelBtn.textContent = "×";
@@ -1306,14 +1572,14 @@
         }
         hideTypingIndicator();
       };
-      
+
       wrapper.appendChild(typingDiv);
       wrapper.appendChild(cancelBtn);
       indicator.appendChild(wrapper);
       chatMessages.appendChild(indicator);
       chatMessages.scrollTop = chatMessages.scrollHeight;
     }
-    
+
     // 隐藏输入指示器
     function hideTypingIndicator() {
       const indicator = document.getElementById("typingIndicator");
@@ -1321,14 +1587,14 @@
         indicator.remove();
       }
     }
-    
+
     // 检查是否启用了音频（通过音量控制按钮状态或配置）
     function isAudioEnabled() {
       // 检查音量控制是否可见且未静音
       const volumeControl = document.getElementById("volumeControl");
       return volumeControl && !volumeControl.classList.contains("muted") && volumeSlider.value > 0;
     }
-    
+
     // 简单的toast提示函数
     function showToast(message, type = 'info') {
       // 创建一个简单的toast元素
@@ -1349,7 +1615,7 @@
       `;
       toast.textContent = message;
       document.body.appendChild(toast);
-      
+
       // 3秒后自动移除
       setTimeout(() => {
         toast.style.opacity = '0';
@@ -1359,20 +1625,20 @@
         }, 300);
       }, 3000);
     }
-    
+
     // 发送消息
     async function sendMessage(text, retryMessageId = null) {
       if (!text.trim()) return;
-      
+
       // 如果正在等待音频返回，禁止发送新消息
       if (isWaitingForAudio || isStreaming) {
         showToast("请等待AI回复完成后再发送", "warning");
         return;
       }
-      
+
       const userMessageId = retryMessageId || `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const enable_audio = isAudioEnabled();
-      
+
       // 添加用户消息（如果是重试，不重复添加）
       if (!retryMessageId) {
         addMessage(text, true, null, 0, userMessageId, 'sending');
@@ -1382,17 +1648,17 @@
         // 重试时更新状态
         updateMessageStatus(userMessageId, 'sending');
       }
-      
+
       // 显示输入指示器
       showTypingIndicator();
-      
+
       // 禁用发送按钮
       sendBtn.disabled = true;
       sendBtn.textContent = enable_audio ? "生成中（含音频）..." : "发送中...";
-      
+
       // 创建AbortController用于取消请求
       abortController = new AbortController();
-      
+
       try {
         const response = await fetch(`${FASTAPI_URL}/chat`, {
           method: "POST",
@@ -1405,18 +1671,18 @@
           }),
           signal: abortController.signal  // 支持取消请求
         });
-        
+
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         const data = await response.json();
-        
+
         hideTypingIndicator();
-        
+
         // 更新用户消息状态为已送达
         updateMessageStatus(userMessageId, 'sent');
-        
+
         // 更新会话ID（如果API返回了新的会话ID）
         if (data.data && data.data.session_id) {
           currentSessionId = data.data.session_id;
@@ -1425,21 +1691,21 @@
             chatHistory[currentChatId].sessionId = currentSessionId;
           }
         }
-        
+
         if (data.success) {
           const answer = data.data.llm_answer || "";
           const audioBase64 = data.data.audio_base64 || null;
           const audioUrl = data.data.audio_url || null;  // 如果音频已保存为文件
           const audioDuration = data.data.audio_duration || 0;
           const assistantMessageId = data.data.assistant_message_id || `assistant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          
+
           if (enable_audio && (audioBase64 || audioUrl)) {
             // 开启声音时：等待音频生成完毕后再显示文本，并同步播放
             isWaitingForAudio = true;
-            
+
             // 先创建空消息
             addMessage("", false, null, 0, assistantMessageId);
-            
+
             const messageDiv = document.querySelector(`[data-message-id="${assistantMessageId}"]`);
             if (messageDiv) {
               const bubble = messageDiv.querySelector('.message-bubble');
@@ -1450,57 +1716,57 @@
                 audio.className = "audio-player";
                 audio.controls = true;
                 audio.volume = isMuted ? 0 : volumeSlider.value / 100;
-                
+
                 // 优先使用URL，如果不存在则使用base64
                 if (audioUrl) {
                   audio.src = `${FASTAPI_URL}${audioUrl}`;
                 } else if (audioBase64) {
                   audio.src = `data:audio/wav;base64,${audioBase64}`;
                 }
-                
+
                 audioDiv.appendChild(audio);
                 bubble.appendChild(audioDiv);
-                
+
                 currentAudio = audio;
-                
+
                 try {
                   // 等待音频加载完成
                   await new Promise((resolve, reject) => {
                     audio.addEventListener('loadeddata', resolve, { once: true });
                     audio.addEventListener('error', reject, { once: true });
-                    
+
                     // 超时处理（10秒）
                     setTimeout(() => reject(new Error('音频加载超时')), 10000);
                   });
-                  
+
                   // 音频加载完成后，同步播放和文本显示
                   streamingMessageId = assistantMessageId;
                   isStreaming = true;
-                  
+
                   // 开始播放音频
                   if (!isMuted) {
                     audio.play().catch(e => console.log("自动播放失败:", e));
                   }
-                  
+
                   // 根据音频播放进度同步显示文本
                   const totalDuration = audio.duration || audioDuration;
                   const textLength = answer.length;
                   let displayedLength = 0;
-                  
+
                   const updateTextWithAudio = () => {
                     if (!isStreaming) return; // 如果流式输出已停止，不再更新
-                    
+
                     const currentTime = audio.currentTime;
                     const progress = totalDuration > 0 ? currentTime / totalDuration : 0;
                     const targetLength = Math.floor(textLength * progress);
-                    
+
                     // 逐步显示文本（每次显示一些字符）
                     if (targetLength > displayedLength) {
                       const newText = answer.substring(0, targetLength);
                       updateMessageText(assistantMessageId, newText, false);
                       displayedLength = targetLength;
                     }
-                    
+
                     // 如果音频播放完成或已显示所有文本
                     if (audio.ended || displayedLength >= textLength) {
                       updateMessageText(assistantMessageId, answer, true);
@@ -1511,10 +1777,10 @@
                       sendBtn.textContent = "发送";
                     }
                   };
-                  
+
                   // 监听音频播放进度
                   audio.addEventListener('timeupdate', updateTextWithAudio);
-                  
+
                   // 音频播放结束时显示完整文本
                   audio.addEventListener('ended', () => {
                     updateMessageText(assistantMessageId, answer, true);
@@ -1524,13 +1790,13 @@
                     sendBtn.disabled = false;
                     sendBtn.textContent = "发送";
                   }, { once: true });
-                  
+
                   // 立即显示一部分文本（第一个字符）
                   if (answer.length > 0) {
                     updateMessageText(assistantMessageId, answer[0], false);
                     displayedLength = 1;
                   }
-                  
+
                   // 更新历史记录中的音频
                   if (chatHistory[currentChatId]) {
                     const message = chatHistory[currentChatId].messages.find(m => m.messageId === assistantMessageId);
@@ -1546,7 +1812,7 @@
                   isWaitingForAudio = false;
                   streamingMessageId = assistantMessageId;
                   isStreaming = true;
-                  
+
                   // 逐字显示文本
                   let currentText = "";
                   for (let i = 0; i < answer.length; i++) {
@@ -1555,7 +1821,7 @@
                     updateMessageText(assistantMessageId, currentText, false);
                     await new Promise(resolve => setTimeout(resolve, 30));
                   }
-                  
+
                   updateMessageText(assistantMessageId, answer, true);
                   isStreaming = false;
                   streamingMessageId = null;
@@ -1568,10 +1834,10 @@
             // 关闭声音时：立即逐字显示文本
             streamingMessageId = assistantMessageId;
             isStreaming = true;
-            
+
             // 先创建空消息
             addMessage("", false, null, 0, assistantMessageId);
-            
+
             // 逐字显示
             let currentText = "";
             for (let i = 0; i < answer.length; i++) {
@@ -1583,18 +1849,18 @@
               updateMessageText(assistantMessageId, currentText, false);
               await new Promise(resolve => setTimeout(resolve, 30)); // 30ms延迟，模拟打字效果
             }
-            
+
             // 完成流式输出
             updateMessageText(assistantMessageId, answer, true);
             isStreaming = false;
             streamingMessageId = null;
-            
+
             // 文本显示完成后，可以立即输入下一个问题
             sendBtn.disabled = false;
             sendBtn.textContent = "发送";
             isWaitingForAudio = false;
           }
-          
+
           // 保存消息到历史记录
           if (chatHistory[currentChatId]) {
             const existingMessage = chatHistory[currentChatId].messages.find(m => m.messageId === assistantMessageId);
@@ -1611,7 +1877,7 @@
               });
             }
           }
-          
+
           // 保存历史记录（数据库已自动保存，这里不需要额外操作）
           saveChatHistory();
         } else {
@@ -1620,7 +1886,7 @@
           const errorMessage = "❌ 错误: " + (data.error || "未知错误");
           const errorMessageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           const errorDiv = addMessage(errorMessage, false, null, 0, errorMessageId);
-          
+
           // 添加重试按钮
           const retryBtn = document.createElement("button");
           retryBtn.className = "retry-btn";
@@ -1630,14 +1896,14 @@
             errorDiv.remove();
           };
           errorDiv.querySelector('.message-bubble').appendChild(retryBtn);
-          
+
           // 更新用户消息状态为错误
           updateMessageStatus(userMessageId, 'error');
         }
       } catch (error) {
         hideTypingIndicator();
         isWaitingForAudio = false;
-        
+
         // 如果是取消请求，不显示错误
         if (error.name === 'AbortError') {
           console.log("请求已取消");
@@ -1646,13 +1912,13 @@
           const currentStreamingId = streamingMessageId; // 保存当前值
           streamingMessageId = null;
           isWaitingForAudio = false;
-          
+
           // 移除发送中的用户消息
           const userMessageDiv = document.querySelector(`[data-message-id="${userMessageId}"]`);
           if (userMessageDiv) {
             userMessageDiv.remove();
           }
-          
+
           // 移除正在生成的消息（如果有）
           if (currentStreamingId) {
             const streamingDiv = document.querySelector(`[data-message-id="${currentStreamingId}"]`);
@@ -1660,21 +1926,21 @@
               streamingDiv.remove();
             }
           }
-          
+
           // 移除输入指示器
           hideTypingIndicator();
-          
+
           // 恢复发送按钮
           sendBtn.disabled = false;
           sendBtn.textContent = "发送";
-          
+
           return;
         }
-        
+
         const errorMessage = "❌ 网络错误: " + error.message;
         const errorMessageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const errorDiv = addMessage(errorMessage, false, null, 0, errorMessageId);
-        
+
         // 添加重试按钮
         const retryBtn = document.createElement("button");
         retryBtn.className = "retry-btn";
@@ -1684,7 +1950,7 @@
           errorDiv.remove();
         };
         errorDiv.querySelector('.message-bubble').appendChild(retryBtn);
-        
+
         // 更新用户消息状态为错误
         updateMessageStatus(userMessageId, 'error');
       } finally {
@@ -1696,12 +1962,12 @@
         abortController = null;
       }
     }
-    
+
     // 发送按钮点击
     sendBtn.addEventListener("click", () => {
       sendMessage(chatInput.value.trim());
     });
-    
+
     // Enter发送，Shift+Enter换行
     chatInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
@@ -1709,29 +1975,29 @@
         sendMessage(chatInput.value.trim());
       }
     });
-    
+
     // ==================== 语音录制功能 ====================
     async function startRecording() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
         audioChunks = [];
-        
+
         mediaRecorder.ondataavailable = (event) => {
           audioChunks.push(event.data);
         };
-        
+
         mediaRecorder.onstop = async () => {
           const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-          
+
           // 将音频转换为文本（这里需要语音识别API，暂时提示用户）
           // 目前先提示用户语音录制功能需要语音识别支持
           alert("语音录制完成！\n注意：语音转文本功能需要后端语音识别API支持，当前版本请使用文本输入。");
-          
+
           // 停止所有音频轨道
           stream.getTracks().forEach(track => track.stop());
         };
-        
+
         mediaRecorder.start();
         isRecording = true;
         recordBtn.classList.add("recording");
@@ -1741,7 +2007,7 @@
         alert("无法访问麦克风: " + error.message);
       }
     }
-    
+
     function stopRecording() {
       if (mediaRecorder && isRecording) {
         mediaRecorder.stop();
@@ -1751,7 +2017,7 @@
         recordBtn.title = "录制语音";
       }
     }
-    
+
     recordBtn.addEventListener("click", () => {
       if (isRecording) {
         stopRecording();
@@ -1759,29 +2025,29 @@
         startRecording();
       }
     });
-    
+
     // ==================== 音频上传功能 ====================
     uploadBtn.addEventListener("click", () => {
       audioUpload.click();
     });
-    
+
     audioUpload.addEventListener("change", async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      
+
       if (!file.type.startsWith('audio/')) {
         alert("请选择音频文件！");
         return;
       }
-      
+
       // 这里需要语音识别API将音频转为文本
       // 目前先提示用户
       alert("音频上传成功！\n注意：语音转文本功能需要后端语音识别API支持，当前版本请使用文本输入。");
-      
+
       // 重置文件输入
       audioUpload.value = "";
     });
-    
+
     // ==================== 音量控制 ====================
     function updateAllAudioVolumes() {
       const allAudios = document.querySelectorAll('.audio-player');
@@ -1790,16 +2056,16 @@
         audio.volume = volume;
       });
     }
-    
+
     volumeSlider.addEventListener("input", (e) => {
       const volume = e.target.value;
       volumeValue.textContent = volume + "%";
       updateAllAudioVolumes();
     });
-    
+
     volumeBtn.addEventListener("click", () => {
       isMuted = !isMuted;
-      
+
       if (isMuted) {
         volumeBtn.textContent = "🔇";
         volumeControl.classList.add("muted");
@@ -1809,20 +2075,20 @@
       }
       updateAllAudioVolumes();
     });
-    
+
     // ==================== 帮助功能 ====================
     function initHelp() {
       const btn = document.getElementById("helpBtn");
       btn.addEventListener("click", () => {
         alert("使用提示：\n" +
-              "1. 在输入框中输入文字，按Enter发送\n" +
-              "2. 点击🎤按钮可以录制语音（需要语音识别支持）\n" +
-              "3. 点击📁按钮可以上传音频文件\n" +
-              "4. 使用音量滑块控制AI回复的语音音量\n" +
-              "5. 点击🔊/🔇按钮可以静音/取消静音");
+          "1. 在输入框中输入文字，按Enter发送\n" +
+          "2. 点击🎤按钮可以录制语音（需要语音识别支持）\n" +
+          "3. 点击📁按钮可以上传音频文件\n" +
+          "4. 使用音量滑块控制AI回复的语音音量\n" +
+          "5. 点击🔊/🔇按钮可以静音/取消静音");
       });
     }
-    
+
     // ==================== 对话管理功能 ====================
     const chatManageBtn = document.getElementById("chatManageBtn");
     const chatSidebar = document.getElementById("chatSidebar");
@@ -1831,35 +2097,35 @@
     const exportChatBtn = document.getElementById("exportChatBtn");
     const clearChatBtn = document.getElementById("clearChatBtn");
     const historyList = document.getElementById("historyList");
-    
+
     // 打开/关闭对话管理侧边栏
     chatManageBtn.addEventListener("click", () => {
       chatSidebar.classList.toggle("active");
     });
-    
+
     chatSidebarClose.addEventListener("click", () => {
       chatSidebar.classList.remove("active");
     });
-    
+
     // 编辑对话名称
     function editChatName(chatId, titleSpan, editBtn) {
       const chatData = chatHistory[chatId];
       if (!chatData) return;
-      
+
       const currentTitle = chatData.title || '未命名对话';
       const input = document.createElement("input");
       input.type = "text";
       input.value = currentTitle;
       input.style.width = "100%";
-      
+
       // 替换标题为输入框
       titleSpan.style.display = 'none';
       editBtn.style.display = 'none';
       titleSpan.parentElement.insertBefore(input, titleSpan);
-      
+
       input.focus();
       input.select();
-      
+
       const finishEdit = () => {
         const newTitle = input.value.trim() || '未命名对话';
         chatData.title = newTitle;
@@ -1870,7 +2136,7 @@
         saveChatHistory();
         updateHistoryList(); // 重新渲染以更新显示
       };
-      
+
       input.addEventListener("blur", finishEdit);
       input.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
@@ -1883,24 +2149,24 @@
         }
       });
     }
-    
+
     // 更新历史列表
     function updateHistoryList() {
       historyList.innerHTML = '';
-      
+
       // 添加当前对话
       const currentItem = document.createElement("div");
       currentItem.className = `history-item ${currentChatId === 'current' ? 'active' : ''}`;
       currentItem.dataset.id = 'current';
-      
+
       const currentTitleDiv = document.createElement("div");
       currentTitleDiv.className = "history-item-title";
-      
+
       const currentTitleSpan = document.createElement("span");
       currentTitleSpan.textContent = "当前对话";
       currentTitleSpan.style.flex = '1';
       currentTitleSpan.style.cursor = 'pointer';
-      
+
       const currentEditBtn = document.createElement("span");
       currentEditBtn.className = "history-item-edit";
       currentEditBtn.textContent = "✏️";
@@ -1909,44 +2175,44 @@
         e.stopPropagation();
         editChatName('current', currentTitleSpan, currentEditBtn);
       };
-      
+
       // 双击标题也可以编辑
       currentTitleSpan.ondblclick = (e) => {
         e.stopPropagation();
         editChatName('current', currentTitleSpan, currentEditBtn);
       };
-      
+
       currentTitleDiv.appendChild(currentTitleSpan);
       currentTitleDiv.appendChild(currentEditBtn);
-      
+
       const currentTimeDiv = document.createElement("div");
       currentTimeDiv.className = "history-item-time";
       currentTimeDiv.textContent = "进行中";
-      
+
       currentItem.appendChild(currentTitleDiv);
       currentItem.appendChild(currentTimeDiv);
       currentItem.addEventListener("click", () => switchChat('current'));
       historyList.appendChild(currentItem);
-      
+
       // 添加历史对话（过滤掉空的会话）
       const sortedChats = Object.entries(chatHistory)
         .filter(([id]) => id !== 'current')
         .filter(([id, data]) => data.messages && data.messages.length > 0)  // 只显示有消息的会话
         .sort((a, b) => new Date(b[1].time) - new Date(a[1].time));
-      
+
       sortedChats.forEach(([chatId, chatData]) => {
         const item = document.createElement("div");
         item.className = `history-item ${currentChatId === chatId ? 'active' : ''}`;
         item.dataset.id = chatId;
-        
+
         const titleDiv = document.createElement("div");
         titleDiv.className = "history-item-title";
-        
+
         const titleSpan = document.createElement("span");
         titleSpan.textContent = chatData.title || '未命名对话';
         titleSpan.style.flex = '1';
         titleSpan.style.cursor = 'pointer';
-        
+
         const editBtn = document.createElement("span");
         editBtn.className = "history-item-edit";
         editBtn.textContent = "✏️";
@@ -1955,37 +2221,37 @@
           e.stopPropagation();
           editChatName(chatId, titleSpan, editBtn);
         };
-        
+
         // 双击标题也可以编辑
         titleSpan.ondblclick = (e) => {
           e.stopPropagation();
           editChatName(chatId, titleSpan, editBtn);
         };
-        
+
         titleDiv.appendChild(titleSpan);
         titleDiv.appendChild(editBtn);
-        
+
         const timeDiv = document.createElement("div");
         timeDiv.className = "history-item-time";
         timeDiv.textContent = new Date(chatData.time).toLocaleString('zh-CN');
-        
+
         item.appendChild(titleDiv);
         item.appendChild(timeDiv);
         item.addEventListener("click", () => switchChat(chatId));
         historyList.appendChild(item);
       });
     }
-    
+
     // 切换对话
     function switchChat(chatId) {
       // 保存当前对话
       if (chatHistory[currentChatId]) {
         saveChatHistory();
       }
-      
+
       // 切换到新对话
       currentChatId = chatId;
-      
+
       // 如果对话不存在，创建新对话
       if (!chatHistory[currentChatId]) {
         chatHistory[currentChatId] = {
@@ -1998,10 +2264,10 @@
         // 如果对话存在，恢复会话ID
         currentSessionId = chatHistory[currentChatId].sessionId || null;
       }
-      
+
       // 清空消息显示区域
       chatMessages.innerHTML = '';
-      
+
       // 加载对话消息
       const messages = chatHistory[currentChatId].messages || [];
       if (messages.length === 0) {
@@ -2010,7 +2276,7 @@
         // 临时禁用保存，避免重复保存
         const wasStreaming = isStreaming;
         isStreaming = true;
-        
+
         messages.forEach(msg => {
           const messageDiv = addMessage(
             msg.text,
@@ -2021,7 +2287,7 @@
             msg.status || 'sent',
             { audioUrl: msg.audioUrl }
           );
-          
+
           // 如果是错误消息，添加重试按钮
           if (!msg.isUser && msg.text.includes('❌')) {
             const retryBtn = document.createElement("button");
@@ -2038,18 +2304,18 @@
             messageDiv.querySelector('.message-bubble').appendChild(retryBtn);
           }
         });
-        
+
         // 恢复流式状态
         isStreaming = wasStreaming;
       }
-      
+
       // 更新历史列表
       updateHistoryList();
-      
+
       // 关闭侧边栏
       chatSidebar.classList.remove("active");
     }
-    
+
     // 新建对话
     newChatBtn.addEventListener("click", () => {
       const newChatId = `chat-${Date.now()}`;
@@ -2061,7 +2327,7 @@
       saveChatHistory();
       switchChat(newChatId);
     });
-    
+
     // 清空当前对话
     clearChatBtn.addEventListener("click", () => {
       if (confirm("确定要清空当前对话吗？")) {
@@ -2075,24 +2341,24 @@
         updateHistoryList();
       }
     });
-    
+
     // 导出对话记录
     exportChatBtn.addEventListener("click", () => {
       if (!chatHistory[currentChatId] || chatHistory[currentChatId].messages.length === 0) {
         alert("当前对话为空，无法导出");
         return;
       }
-      
+
       const messages = chatHistory[currentChatId].messages;
       let exportText = `对话记录 - ${new Date().toLocaleString('zh-CN')}\n`;
       exportText += "=".repeat(50) + "\n\n";
-      
+
       messages.forEach(msg => {
         const role = msg.isUser ? "用户" : "AI";
         const time = new Date(msg.time).toLocaleString('zh-CN');
         exportText += `[${time}] ${role}:\n${msg.text}\n\n`;
       });
-      
+
       // 创建下载链接
       const blob = new Blob([exportText], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
@@ -2104,22 +2370,22 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     });
-    
+
     // 页面加载时自动加载历史聊天记录
     initChatHistory().then(() => {
       updateHistoryList();
     });
-    
+
     // 页面卸载时取消正在进行的请求（只有真正关闭标签页时才取消）
     window.addEventListener('beforeunload', () => {
       if (abortController) {
         abortController.abort();
       }
     });
-    
+
     // 初始化
     initHelp();
   </script>
 </body>
-</html>
 
+</html>

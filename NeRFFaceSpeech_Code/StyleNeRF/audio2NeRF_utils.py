@@ -78,8 +78,23 @@ def creat_final_video(outdir_valid_final, test_data, outdir, watermark=True):
 
     import subprocess
     #ours_path = "/source/gihoon/Dataset_FFHQ_SYH_sorted/out_origin_PTI"
-    cmd = f"ffmpeg -y -i {test_data} -i {outdir}/out_refine.mp4 -c:v copy -c:a aac {outdir}/output_NeRFFaceSpeech.mp4"
-    subprocess.call(cmd, shell=True)
+    # 直接输出 H.264 格式，避免后端再次转码（浏览器兼容性更好）
+    # 注意：某些旧版本的 ffmpeg 不支持 -crf 参数，使用 -b:v 替代
+    # 先尝试使用 -crf（新版本），如果失败则使用 -b:v（旧版本兼容）
+    print("Using ffmpeg:", shutil.which("ffmpeg"))
+    cmd_with_crf = f"ffmpeg -y -i {test_data} -i {outdir}/out_refine.mp4 -c:v libx264 -crf 23 -c:a aac -b:a 128k -movflags +faststart {outdir}/output_NeRFFaceSpeech.mp4"
+    result = subprocess.call(cmd_with_crf, shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    
+    # 如果失败且错误信息包含 crf，尝试使用 -b:v 替代
+    if result != 0:
+        if os.path.exists(f"{outdir}/output_NeRFFaceSpeech.mp4"):
+            # 文件已生成，可能是其他错误，不重试
+            pass
+        else:
+            # 尝试使用 -b:v 替代 -crf（兼容旧版本 ffmpeg）
+            print(f"ffmpeg -crf 参数不支持，尝试使用 -b:v 替代")
+            cmd_with_bitrate = f"ffmpeg -y -i {test_data} -i {outdir}/out_refine.mp4 -c:v libx264 -b:v 2M -c:a aac -b:a 128k -movflags +faststart {outdir}/output_NeRFFaceSpeech.mp4"
+            subprocess.call(cmd_with_bitrate, shell=True)
     
     epoch_folder = os.path.join(outdir, 'epoch_0_final')
     if os.path.exists(epoch_folder):

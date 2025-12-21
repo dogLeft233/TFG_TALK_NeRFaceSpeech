@@ -2,8 +2,16 @@
 
 import PIL.Image
 import torch
-import cv2, albumentations
+import cv2
 import numpy as np
+
+# albumentations 是可选的，如果不存在则使用 cv2 替代
+try:
+    import albumentations
+    ALBUMENTATIONS_AVAILABLE = True
+except ImportError:
+    ALBUMENTATIONS_AVAILABLE = False
+    albumentations = None
 
 
 def save_image(img, filename):
@@ -32,8 +40,13 @@ def save_image_grid(img, fname, drange, grid_size):
 
 def resize_image(img_pytorch, curr_res):
     img = img_pytorch.permute(0,2,3,1).cpu().numpy()
-    img = [albumentations.geometric.functional.resize(
-        img[i], height=curr_res, width=curr_res, interpolation=cv2.INTER_LANCZOS4)
-        for i in range(img.shape[0])]
+    if ALBUMENTATIONS_AVAILABLE:
+        img = [albumentations.geometric.functional.resize(
+            img[i], height=curr_res, width=curr_res, interpolation=cv2.INTER_LANCZOS4)
+            for i in range(img.shape[0])]
+    else:
+        # 使用 cv2 作为替代方案
+        img = [cv2.resize(img[i], (curr_res, curr_res), interpolation=cv2.INTER_LANCZOS4)
+               for i in range(img.shape[0])]
     img = torch.from_numpy(np.stack(img, axis=0)).permute(0,3,1,2).to(img_pytorch.device)
     return img

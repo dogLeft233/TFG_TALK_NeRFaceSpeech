@@ -1,80 +1,137 @@
 <!doctype html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>训练模型 - NeRFFaceSpeech</title>
   <style>
     :root {
-      --primary: #1e40af; /* 主色调：深蓝色，用于选中状态、强调按钮 */
-      --primary-2: #3b82f6; /* 次要主色：中间蓝色，用于渐变、次要强调 */
-      --bg: #0b1020; /* 页面背景色：深色背景 */
-      --card: rgba(255,255,255,0.06); /* 卡片背景：半透明白色，用于内容卡片 */
-      --border: rgba(255,255,255,0.14); /* 边框颜色：半透明白色边框 */
-      --text: #e5e7eb; /* 主文字颜色：浅灰色文字 */
-      --muted: #9ca3af; /* 次要文字颜色：灰色，用于辅助信息 */
-      --g1: rgba(59,130,246,0.16); /* 渐变1：蓝色渐变点1 */
-      --card-bg: rgba(59,130,246,0.25); /* 卡片背景色：浅蓝色，用于首页卡片和下拉菜单 */
-      --g2: rgba(14,165,233,0.14); /* 渐变2：青色渐变点2 */
-      --g3: rgba(56,189,248,0.12); /* 渐变3：浅蓝色渐变点3 */
+      --primary: #1e40af;
+      /* 主色调：深蓝色，用于选中状态、强调按钮 */
+      --primary-2: #3b82f6;
+      /* 次要主色：中间蓝色，用于渐变、次要强调 */
+      --bg: #0b1020;
+      /* 页面背景色：深色背景 */
+      --card: rgba(255, 255, 255, 0.06);
+      /* 卡片背景：半透明白色，用于内容卡片 */
+      --border: rgba(255, 255, 255, 0.14);
+      /* 边框颜色：半透明白色边框 */
+      --text: #e5e7eb;
+      /* 主文字颜色：浅灰色文字 */
+      --muted: #9ca3af;
+      /* 次要文字颜色：灰色，用于辅助信息 */
+      --g1: rgba(59, 130, 246, 0.16);
+      /* 渐变1：蓝色渐变点1 */
+      --card-bg: rgba(59, 130, 246, 0.25);
+      /* 卡片背景色：浅蓝色，用于首页卡片和下拉菜单 */
+      --g2: rgba(14, 165, 233, 0.14);
+      /* 渐变2：青色渐变点2 */
+      --g3: rgba(56, 189, 248, 0.12);
+      /* 渐变3：浅蓝色渐变点3 */
     }
+
     body.theme-tech {
-      --primary: #1e40af; /* 主色调：深蓝色 */
-      --primary-2: #3b82f6; /* 次要主色：中间蓝色 */
-      --bg: #0b1020; /* 页面背景色：深色背景 */
-      --card: rgba(255,255,255,0.06); /* 卡片背景：半透明白色 */
-      --border: rgba(255,255,255,0.14); /* 边框颜色：半透明白色边框 */
-      --text: #e5e7eb; /* 主文字颜色：浅灰色文字 */
-      --muted: #9ca3af; /* 次要文字颜色：灰色 */
-      --g1: rgba(59,130,246,0.16); /* 渐变1：蓝色渐变点1 */
-      --g2: rgba(14,165,233,0.14); /* 渐变2：青色渐变点2 */
-      --g3: rgba(56,189,248,0.12); /* 渐变3：浅蓝色渐变点3 */
-      --card-bg: rgba(59,130,246,0.25); /* 卡片背景色：浅蓝色 */
+      --primary: #1e40af;
+      /* 主色调：深蓝色 */
+      --primary-2: #3b82f6;
+      /* 次要主色：中间蓝色 */
+      --bg: #0b1020;
+      /* 页面背景色：深色背景 */
+      --card: rgba(255, 255, 255, 0.06);
+      /* 卡片背景：半透明白色 */
+      --border: rgba(255, 255, 255, 0.14);
+      /* 边框颜色：半透明白色边框 */
+      --text: #e5e7eb;
+      /* 主文字颜色：浅灰色文字 */
+      --muted: #9ca3af;
+      /* 次要文字颜色：灰色 */
+      --g1: rgba(59, 130, 246, 0.16);
+      /* 渐变1：蓝色渐变点1 */
+      --g2: rgba(14, 165, 233, 0.14);
+      /* 渐变2：青色渐变点2 */
+      --g3: rgba(56, 189, 248, 0.12);
+      /* 渐变3：浅蓝色渐变点3 */
+      --card-bg: rgba(59, 130, 246, 0.25);
+      /* 卡片背景色：浅蓝色 */
     }
+
     body.theme-warm {
-      --primary: #f97316; /* 主色调：橙色，用于选中状态、强调按钮 */
-      --primary-2: #ea580c; /* 次要主色：深橙色，用于渐变、次要强调 */
-      --bg: #fff8f0; /* 页面背景色：浅暖色背景 */
-      --card: rgba(255,255,255,0.9); /* 卡片背景：半透明白色 */
-      --border: rgba(249,115,22,0.2); /* 边框颜色：半透明橙色边框 */
-      --text: #1f2937; /* 主文字颜色：深灰色文字 */
-      --muted: #6b7280; /* 次要文字颜色：灰色 */
-      --g1: rgba(251,191,36,0.15); /* 渐变1：黄色渐变点1 */
-      --g2: rgba(249,115,22,0.12); /* 渐变2：橙色渐变点2 */
-      --g3: rgba(234,88,12,0.1); /* 渐变3：深橙色渐变点3 */
-      --card-bg: rgba(251,191,36,0.15); /* 卡片背景色：浅黄色 */
+      --primary: #f97316;
+      /* 主色调：橙色，用于选中状态、强调按钮 */
+      --primary-2: #ea580c;
+      /* 次要主色：深橙色，用于渐变、次要强调 */
+      --bg: #fff8f0;
+      /* 页面背景色：浅暖色背景 */
+      --card: rgba(255, 255, 255, 0.9);
+      /* 卡片背景：半透明白色 */
+      --border: rgba(249, 115, 22, 0.2);
+      /* 边框颜色：半透明橙色边框 */
+      --text: #1f2937;
+      /* 主文字颜色：深灰色文字 */
+      --muted: #6b7280;
+      /* 次要文字颜色：灰色 */
+      --g1: rgba(251, 191, 36, 0.15);
+      /* 渐变1：黄色渐变点1 */
+      --g2: rgba(249, 115, 22, 0.12);
+      /* 渐变2：橙色渐变点2 */
+      --g3: rgba(234, 88, 12, 0.1);
+      /* 渐变3：深橙色渐变点3 */
+      --card-bg: rgba(251, 191, 36, 0.15);
+      /* 卡片背景色：浅黄色 */
     }
+
     body.theme-minimal {
-      --primary: #6b7280; /* 主色调：灰色，用于选中状态、强调按钮 */
-      --primary-2: #4b5563; /* 次要主色：深灰色，用于渐变、次要强调 */
-      --bg: #f5f5f5; /* 页面背景色：浅灰色背景 */
-      --card: #ffffff; /* 卡片背景：白色 */
-      --border: #e5e7eb; /* 边框颜色：浅灰色边框 */
-      --text: #111827; /* 主文字颜色：深色文字 */
-      --muted: #6b7280; /* 次要文字颜色：灰色 */
-      --g1: rgba(107,114,128,0.08); /* 渐变1：灰色渐变点1 */
-      --g2: rgba(75,85,99,0.07); /* 渐变2：深灰色渐变点2 */
-      --g3: rgba(156,163,175,0.06); /* 渐变3：浅灰色渐变点3 */
-      --card-bg: rgba(107,114,128,0.1); /* 卡片背景色：浅灰色 */
+      --primary: #6b7280;
+      /* 主色调：灰色，用于选中状态、强调按钮 */
+      --primary-2: #4b5563;
+      /* 次要主色：深灰色，用于渐变、次要强调 */
+      --bg: #f5f5f5;
+      /* 页面背景色：浅灰色背景 */
+      --card: #ffffff;
+      /* 卡片背景：白色 */
+      --border: #e5e7eb;
+      /* 边框颜色：浅灰色边框 */
+      --text: #111827;
+      /* 主文字颜色：深色文字 */
+      --muted: #6b7280;
+      /* 次要文字颜色：灰色 */
+      --g1: rgba(107, 114, 128, 0.08);
+      /* 渐变1：灰色渐变点1 */
+      --g2: rgba(75, 85, 99, 0.07);
+      /* 渐变2：深灰色渐变点2 */
+      --g3: rgba(156, 163, 175, 0.06);
+      /* 渐变3：浅灰色渐变点3 */
+      --card-bg: rgba(107, 114, 128, 0.1);
+      /* 卡片背景色：浅灰色 */
     }
-    * { box-sizing: border-box; }
+
+    * {
+      box-sizing: border-box;
+    }
+
     :root {
-      --base-font-size: 14px; /* 基础字号 */
+      --base-font-size: 14px;
+      /* 基础字号 */
     }
+
     html {
       font-size: var(--base-font-size);
     }
+
     body {
       margin: 0;
       font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 1rem; /* 使用rem单位，基于根元素字体大小 */
+      font-size: 1rem;
+      /* 使用rem单位，基于根元素字体大小 */
       background: radial-gradient(circle at 20% 20%, var(--g1), transparent 25%),
-                  radial-gradient(circle at 80% 30%, var(--g2), transparent 25%),
-                  radial-gradient(circle at 50% 80%, var(--g3), transparent 22%),
-                  var(--bg);
+        radial-gradient(circle at 80% 30%, var(--g2), transparent 25%),
+        radial-gradient(circle at 50% 80%, var(--g3), transparent 22%),
+        var(--bg);
       color: var(--text);
       min-height: 100vh;
     }
+
     /* 设置按钮 */
     .settings-btn {
       position: fixed;
@@ -91,12 +148,13 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .settings-btn:hover {
       background: var(--primary);
       color: #fff;
       border-color: var(--primary);
     }
-    
+
     /* 侧边栏遮罩 */
     .sidebar-overlay {
       display: none;
@@ -109,10 +167,11 @@
       z-index: 2000;
       transition: opacity 0.3s ease;
     }
+
     .sidebar-overlay.active {
       display: block;
     }
-    
+
     /* 侧边栏 */
     .sidebar {
       position: fixed;
@@ -127,12 +186,15 @@
       overflow-y: auto;
       box-shadow: -4px 0 20px rgba(0, 0, 0, 0.2);
     }
+
     .sidebar.active {
       right: 0;
     }
+
     .sidebar-content {
       padding: 24px;
     }
+
     .sidebar-header {
       display: flex;
       justify-content: space-between;
@@ -141,11 +203,13 @@
       padding-bottom: 16px;
       border-bottom: 1px solid var(--border);
     }
+
     .sidebar-header h2 {
       margin: 0;
       font-size: 20px;
       color: var(--text);
     }
+
     .sidebar-close {
       background: none;
       border: none;
@@ -161,11 +225,12 @@
       border-radius: 8px;
       transition: all 0.2s ease;
     }
+
     .sidebar-close:hover {
       background: var(--card-bg);
       color: var(--text);
     }
-    
+
     /* 分页标签 */
     .sidebar-tabs {
       display: flex;
@@ -173,6 +238,7 @@
       margin-bottom: 20px;
       border-bottom: 1px solid var(--border);
     }
+
     .sidebar-tab {
       padding: 10px 20px;
       background: none;
@@ -184,22 +250,25 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .sidebar-tab.active {
       color: var(--primary);
       border-bottom-color: var(--primary);
     }
+
     .sidebar-tab:hover {
       color: var(--text);
     }
-    
+
     /* 分页内容 */
     .tab-content {
       display: none;
     }
+
     .tab-content.active {
       display: block;
     }
-    
+
     /* 选项网格 */
     .options-grid {
       display: grid;
@@ -207,6 +276,7 @@
       gap: 12px;
       margin-bottom: 20px;
     }
+
     .option-card {
       padding: 16px;
       border: 2px solid var(--border);
@@ -216,39 +286,46 @@
       transition: all 0.2s ease;
       text-align: center;
     }
+
     .option-card:hover {
       border-color: var(--primary);
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
+
     .option-card.selected {
       border-color: var(--primary);
       background: var(--primary);
       color: #fff;
     }
+
     .option-card.selected .option-name {
       color: #fff;
     }
+
     .option-name {
       font-size: 14px;
       font-weight: 500;
       color: var(--text);
       margin-bottom: 4px;
     }
+
     .option-desc {
       font-size: 12px;
       color: var(--muted);
     }
+
     .option-card.selected .option-desc {
       color: rgba(255, 255, 255, 0.9);
     }
-    
+
     /* 字号选择 */
     .font-size-group {
       display: flex;
       gap: 8px;
       margin-bottom: 20px;
     }
+
     .font-size-btn {
       flex: 1;
       padding: 12px;
@@ -261,17 +338,21 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .font-size-btn:hover {
       border-color: var(--primary);
     }
+
     .font-size-btn.selected {
       border-color: var(--primary);
       background: var(--primary);
       color: #fff;
     }
+
     .font-size-custom {
       margin-top: 16px;
     }
+
     .font-size-custom input {
       width: 100%;
       padding: 10px;
@@ -281,122 +362,227 @@
       color: var(--text);
       font-size: 14px;
     }
-    .page { max-width: 1400px; width: 94vw; margin: 0 auto; padding: 20px 24px 40px; min-height: 96vh; }
-    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-    h1 { margin: 0; font-size: 24px; letter-spacing: 0.4px; }
-    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 12px; background: rgba(59,130,246,0.2); color: #c7d2fe; font-size: 12px; border: 1px solid rgba(96,165,250,0.5); }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
-    label { font-weight: 700; margin-bottom: 6px; display: block; }
+
+    .page {
+      max-width: 1400px;
+      width: 94vw;
+      margin: 0 auto;
+      padding: 20px 24px 40px;
+      min-height: 96vh;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0.4px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 12px;
+      background: rgba(59, 130, 246, 0.2);
+      color: #c7d2fe;
+      font-size: 12px;
+      border: 1px solid rgba(96, 165, 250, 0.5);
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+    }
+
+    label {
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: block;
+    }
+
     input {
-      width: 100%; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
-      font-size: 15px; background: rgba(255,255,255,0.04); color: var(--text);
-      outline: none; transition: border-color .15s ease, box-shadow .15s ease;
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 15px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
     }
+
     input:focus {
-      border-color: rgba(96,165,250,0.8);
-      box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
+      border-color: rgba(96, 165, 250, 0.8);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
     }
+
     button.primary {
       background: linear-gradient(135deg, var(--primary), var(--primary-2));
       border: 1px solid var(--primary-2);
-      color: #fff; font-weight: 700; border-radius: 12px; padding: 12px 14px; cursor: pointer; width: 100%;
+      color: #fff;
+      font-weight: 700;
+      border-radius: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      width: 100%;
     }
+
     .log-box {
-      background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 12px;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 12px;
+      border-radius: 12px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      min-height: 300px; max-height: 500px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+      min-height: 300px;
+      max-height: 500px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
     }
+
     .training-config {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
       margin-bottom: 12px;
     }
+
     .training-config.full-width {
       grid-template-columns: 1fr;
     }
+
     .progress-bar {
       width: 100%;
       height: 8px;
-      background: rgba(255,255,255,0.1);
+      background: rgba(255, 255, 255, 0.1);
       border-radius: 4px;
       overflow: hidden;
       margin: 8px 0;
     }
+
     .progress-fill {
       height: 100%;
       background: linear-gradient(90deg, var(--primary), var(--primary-2));
       transition: width 0.3s ease;
     }
+
     .task-list {
       margin-top: 16px;
       padding: 12px;
-      background: rgba(255,255,255,0.02);
+      background: rgba(255, 255, 255, 0.02);
       border-radius: 12px;
       max-height: 200px;
       overflow-y: auto;
     }
+
     .task-item {
       padding: 8px;
       margin-bottom: 8px;
-      background: rgba(255,255,255,0.04);
+      background: rgba(255, 255, 255, 0.04);
       border-radius: 8px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
+
     .task-status {
       padding: 4px 8px;
       border-radius: 6px;
       font-size: 12px;
       font-weight: 500;
     }
+
     .task-status.running {
-      background: rgba(59,130,246,0.3);
+      background: rgba(59, 130, 246, 0.3);
       color: #60a5fa;
     }
+
     .task-status.completed {
-      background: rgba(34,197,94,0.3);
+      background: rgba(34, 197, 94, 0.3);
       color: #4ade80;
     }
+
     .task-status.failed {
-      background: rgba(239,68,68,0.3);
+      background: rgba(239, 68, 68, 0.3);
       color: #f87171;
     }
+
     .task-status.stopped {
-      background: rgba(107,114,128,0.3);
+      background: rgba(107, 114, 128, 0.3);
       color: #9ca3af;
     }
+
     select {
-      width: 100%; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
-      font-size: 15px; background: rgba(255,255,255,0.04); color: var(--text);
-      outline: none; transition: border-color .15s ease, box-shadow .15s ease;
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 15px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
     }
+
     select:focus {
-      border-color: rgba(96,165,250,0.8);
-      box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
+      border-color: rgba(96, 165, 250, 0.8);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
     }
-    .row { display: flex; gap: 10px; }
-    .row > * { flex: 1; }
-    .help-btn { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; border-radius: 10px; padding: 8px 10px; cursor: pointer; font-weight: 600; }
-    a { color: #bfdbfe; text-decoration: none; }
+
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .row>* {
+      flex: 1;
+    }
+
+    .help-btn {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    a {
+      color: #bfdbfe;
+      text-decoration: none;
+    }
+
     footer {
       margin-top: 24px;
       padding: 12px;
       text-align: center;
       color: var(--muted);
       font-size: 13px;
-      border-top: 1px solid rgba(255,255,255,0.1);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
   </style>
   <script src="settings.js"></script>
 </head>
+
 <body>
   <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
-  
+
   <!-- 侧边栏遮罩 -->
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
-  
+
   <!-- 设置侧边栏 -->
   <div class="sidebar" id="settingsSidebar">
     <div class="sidebar-content">
@@ -404,12 +590,12 @@
         <h2>设置</h2>
         <button class="sidebar-close" id="sidebarClose">×</button>
       </div>
-      
+
       <div class="sidebar-tabs">
         <button class="sidebar-tab active" data-tab="theme">主题</button>
         <button class="sidebar-tab" data-tab="font">字体</button>
       </div>
-      
+
       <!-- 主题设置 -->
       <div class="tab-content active" id="themeTab">
         <div class="options-grid">
@@ -427,7 +613,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- 字体设置 -->
       <div class="tab-content" id="fontTab">
         <div style="margin-bottom: 16px;">
@@ -459,7 +645,7 @@
             </div>
           </div>
         </div>
-        
+
         <div>
           <label style="display: block; margin-bottom: 8px; color: var(--text); font-weight: 500;">字号大小</label>
           <div class="font-size-group">
@@ -482,7 +668,8 @@
         <span class="pill">StyleNeRF 模型微调训练</span>
       </div>
       <div style="display:flex; gap:10px; max-width:320px;">
-        <a href="./index.html"><button class="primary" style="background:#1f2937; border:1px solid #374151;">返回首页</button></a>
+        <a href="./index.html"><button class="primary"
+            style="background:#1f2937; border:1px solid #374151;">返回首页</button></a>
         <button class="help-btn" id="helpBtn">❗ 帮助</button>
       </div>
     </header>
@@ -494,15 +681,18 @@
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <label style="margin:0;">训练配置</label>
             <div style="display:flex; gap:8px;">
-              <button class="secondary" id="saveConfigBtn" style="width:auto; padding:6px 12px; font-size:12px;">💾 保存配置</button>
-              <button class="secondary" id="loadConfigBtn" style="width:auto; padding:6px 12px; font-size:12px;">📂 加载配置</button>
+              <button class="secondary" id="saveConfigBtn" style="width:auto; padding:6px 12px; font-size:12px;">💾
+                保存配置</button>
+              <button class="secondary" id="loadConfigBtn" style="width:auto; padding:6px 12px; font-size:12px;">📂
+                加载配置</button>
             </div>
           </div>
           <div class="training-config">
             <!-- 文件上传区域 -->
             <div class="training-config full-width">
               <label>训练数据上传</label>
-              <div id="fileUploadArea" style="border:2px dashed var(--border); border-radius:12px; padding:24px; text-align:center; cursor:pointer; background:rgba(255,255,255,0.02); transition:all 0.2s;">
+              <div id="fileUploadArea"
+                style="border:2px dashed var(--border); border-radius:12px; padding:24px; text-align:center; cursor:pointer; background:rgba(255,255,255,0.02); transition:all 0.2s;">
                 <div style="font-size:48px; margin-bottom:8px;">📁</div>
                 <div style="color:var(--text); margin-bottom:4px;">点击选择文件或拖拽文件到此处</div>
                 <div style="color:var(--muted); font-size:12px;">支持文件夹选择（通过路径输入）</div>
@@ -510,7 +700,8 @@
               </div>
               <div style="margin-top:8px;">
                 <label style="font-size:12px; color:var(--muted);">或输入训练数据路径:</label>
-                <input id="trainData" placeholder="/root/autodl-tmp/TFG_TALK_NeRFaceSpeech/data/geneface_datasets/data/raw" />
+                <input id="trainData"
+                  placeholder="/root/autodl-tmp/TFG_TALK_NeRFaceSpeech/data/geneface_datasets/data/raw" />
               </div>
             </div>
             <div>
@@ -561,25 +752,29 @@
             </div>
           </div>
         </div>
-        
+
         <!-- 操作按钮 -->
         <div class="row">
           <button class="secondary" id="refreshModelsBtn">刷新模型列表</button>
           <button class="secondary" id="refreshTasksBtn">刷新任务列表</button>
           <button class="primary" id="trainBtn">🚀 启动训练</button>
         </div>
-        
+
         <!-- 当前训练任务 -->
         <div id="currentTaskSection" style="display:none;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <label style="margin:0;">当前训练任务</label>
             <div style="display:flex; gap:8px;">
-              <button class="secondary" id="pauseTrainBtn" style="width:auto; padding:6px 12px; font-size:12px;">⏸️ 暂停</button>
-              <button class="secondary" id="resumeTrainBtn" style="width:auto; padding:6px 12px; font-size:12px; display:none;">▶️ 恢复</button>
-              <button class="secondary" id="stopTrainBtn" style="width:auto; padding:6px 12px; font-size:12px;">停止训练</button>
+              <button class="secondary" id="pauseTrainBtn" style="width:auto; padding:6px 12px; font-size:12px;">⏸️
+                暂停</button>
+              <button class="secondary" id="resumeTrainBtn"
+                style="width:auto; padding:6px 12px; font-size:12px; display:none;">▶️ 恢复</button>
+              <button class="secondary" id="stopTrainBtn"
+                style="width:auto; padding:6px 12px; font-size:12px;">停止训练</button>
             </div>
           </div>
-          <div id="currentTaskInfo" style="padding:12px; background:rgba(255,255,255,0.02); border-radius:8px; margin-bottom:8px;">
+          <div id="currentTaskInfo"
+            style="padding:12px; background:rgba(255,255,255,0.02); border-radius:8px; margin-bottom:8px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
               <span>任务ID: <span id="currentTaskId"></span></span>
               <span class="task-status" id="currentTaskStatus">running</span>
@@ -591,7 +786,8 @@
                   <div class="progress-fill" id="currentTaskProgress" style="width:0%"></div>
                 </div>
                 <div style="font-size:12px; color:var(--muted); margin-top:4px;">
-                  进度: <span id="currentTaskProgressText">0%</span> | Epoch: <span id="currentEpoch">0</span> | Step: <span id="currentStep">0</span>
+                  进度: <span id="currentTaskProgressText">0%</span> | Epoch: <span id="currentEpoch">0</span> | Step:
+                  <span id="currentStep">0</span>
                 </div>
               </div>
               <div>
@@ -605,7 +801,7 @@
               </div>
             </div>
           </div>
-          
+
           <!-- GPU 使用率 -->
           <div id="gpuStatsSection" style="display:none;">
             <label style="margin-bottom:8px; display:block;">GPU 使用情况</label>
@@ -613,7 +809,7 @@
               <!-- GPU 统计信息将在这里动态生成 -->
             </div>
           </div>
-          
+
           <!-- 损失曲线图 -->
           <div id="lossChartSection" style="display:none;">
             <label style="margin-bottom:8px; display:block;">训练损失曲线</label>
@@ -622,7 +818,7 @@
             </div>
           </div>
         </div>
-        
+
         <!-- 训练任务列表 -->
         <div>
           <label>训练任务历史</label>
@@ -630,21 +826,23 @@
             <div style="text-align:center; color:var(--muted); padding:20px;">暂无训练任务</div>
           </div>
         </div>
-        
+
         <!-- 训练日志 -->
         <div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <label style="margin:0;">训练日志（实时自动滚动）</label>
-            <button class="secondary" id="clearLogBtn" style="width:auto; padding:6px 12px; font-size:12px;">清空日志</button>
+            <button class="secondary" id="clearLogBtn"
+              style="width:auto; padding:6px 12px; font-size:12px;">清空日志</button>
           </div>
           <div class="log-box" id="trainLog">等待启动训练任务...</div>
         </div>
-        
+
         <!-- 模型管理 -->
         <div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <label style="margin:0;">已训练模型</label>
-            <button class="secondary" id="refreshModelsListBtn" style="width:auto; padding:6px 12px; font-size:12px;">🔄 刷新列表</button>
+            <button class="secondary" id="refreshModelsListBtn" style="width:auto; padding:6px 12px; font-size:12px;">🔄
+              刷新列表</button>
           </div>
           <div class="model-list" id="modelList">
             <div style="text-align:center; color:var(--muted); padding:40px; grid-column:1/-1;">
@@ -666,22 +864,28 @@
   <script>
     // 等待DOM加载完成后再初始化设置事件绑定
     document.addEventListener('DOMContentLoaded', async () => {
-      // 应用设置（从数据库读取）
+      // 应用设置（从数据库读取）- 优化：只调用一次API，然后并行更新UI
       try {
-        await applySettingsOnly();
-        await updateThemeSelection();
-        await updateFontSelection();
-        await updateFontSizeSelection();
+        // 只调用一次 fetchSettings()，获取所有设置
+        const settings = await fetchSettings();
+
+        // 并行应用设置和更新选择状态（使用已获取的设置，避免重复API调用）
+        await Promise.all([
+          applySettingsOnly(settings),
+          updateThemeSelection(settings),
+          updateFontSelection(settings),
+          updateFontSizeSelection(settings)
+        ]);
       } catch (error) {
         console.error('应用设置失败:', error);
       }
-      
+
       // 侧边栏控制
       const settingsBtn = document.getElementById('settingsBtn');
       const settingsSidebar = document.getElementById('settingsSidebar');
       const sidebarOverlay = document.getElementById('sidebarOverlay');
       const sidebarClose = document.getElementById('sidebarClose');
-      
+
       if (!settingsBtn || !settingsSidebar) {
         console.error('设置按钮或侧边栏元素未找到', {
           settingsBtn: !!settingsBtn,
@@ -689,23 +893,23 @@
         });
         return;
       }
-      
+
       function openSidebar() {
         settingsSidebar.classList.add('active');
         sidebarOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
       }
-      
+
       function closeSidebar() {
         settingsSidebar.classList.remove('active');
         sidebarOverlay.classList.remove('active');
         document.body.style.overflow = '';
       }
-      
+
       settingsBtn.addEventListener('click', openSidebar);
       if (sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
       if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
-      
+
       // 分页切换
       document.querySelectorAll('.sidebar-tab').forEach(tab => {
         tab.addEventListener('click', () => {
@@ -717,28 +921,28 @@
           if (targetContent) targetContent.classList.add('active');
         });
       });
-      
+
       // 主题选择
       document.querySelectorAll('[data-theme]').forEach(card => {
         card.addEventListener('click', () => {
           applyTheme(card.dataset.theme);
         });
       });
-      
+
       // 字体选择
       document.querySelectorAll('[data-font]').forEach(card => {
         card.addEventListener('click', () => {
           applyFont(card.dataset.font);
         });
       });
-      
+
       // 字号选择
       document.querySelectorAll('[data-size]').forEach(btn => {
         btn.addEventListener('click', () => {
           applyFontSize(btn.dataset.size);
         });
       });
-      
+
       // 自定义字号输入
       const customSizeValue = document.getElementById('customSizeValue');
       if (customSizeValue) {
@@ -758,25 +962,25 @@
       const currentPort = window.location.port;
       const currentPath = window.location.pathname;
       const currentProtocol = window.location.protocol;
-      
+
       // 如果当前端口是7860（前端服务器），则使用后端服务器（8000端口）
       if (currentPort === '7860') {
         const backendUrl = `${currentProtocol}//${currentHostname}:8000`;
         console.log('✅ 检测到前端服务器（端口7860），使用后端API服务器:', backendUrl);
         return backendUrl;
       }
-      
+
       // 如果路径包含 /webui/，说明是挂载在FastAPI下的
       if (currentPath.includes('/webui/')) {
         console.log('✅ 检测到FastAPI静态文件服务，使用当前origin:', currentOrigin);
         return currentOrigin;
       }
-      
+
       // 否则使用当前origin
       console.log('✅ 使用当前origin作为API服务器:', currentOrigin);
       return currentOrigin;
     })();
-    
+
     console.log('最终确定的API服务器地址:', FASTAPI_URL);
     const trainBtn = document.getElementById("trainBtn");
     const refreshModelsBtn = document.getElementById("refreshModelsBtn");
@@ -786,16 +990,16 @@
     const trainLog = document.getElementById("trainLog");
     const taskList = document.getElementById("taskList");
     const currentTaskSection = document.getElementById("currentTaskSection");
-    
+
     let currentTaskId = null;
     let statusPollInterval = null;
-    
+
     // 加载默认数据集路径
     async function loadDefaultDatasetPath() {
       try {
         const res = await fetch(`${FASTAPI_URL}/train/datasets`);
         const data = await res.json();
-        
+
         if (data.success && data.default_path) {
           const trainDataInput = document.getElementById("trainData");
           if (trainDataInput && !trainDataInput.value.trim()) {
@@ -809,13 +1013,13 @@
         console.error("加载默认数据集路径失败:", e);
       }
     }
-    
+
     // 加载基础模型列表
     async function loadBaseModels() {
       try {
         const res = await fetch(`${FASTAPI_URL}/models`);
         const data = await res.json();
-        
+
         // 检查是否是错误响应
         if (data.success === false || (data.error && !Array.isArray(data))) {
           const errorMsg = data.error || "未知错误";
@@ -831,7 +1035,7 @@
           }
           return;
         }
-        
+
         // 正常情况：data 应该是数组
         if (!Array.isArray(data) || data.length === 0) {
           appendLog("❌ 模型列表为空，请检查模型目录");
@@ -846,7 +1050,7 @@
           }
           return;
         }
-        
+
         const baseModelSelect = document.getElementById("baseModel");
         if (!baseModelSelect) return;
         baseModelSelect.innerHTML = "";
@@ -872,13 +1076,13 @@
         }
       }
     }
-    
+
     // 加载训练任务列表
     async function loadTasks() {
       try {
         const res = await fetch(`${FASTAPI_URL}/train/tasks`);
         const data = await res.json();
-        
+
         if (data.success && data.data && data.data.length > 0) {
           taskList.innerHTML = "";
           data.data.forEach(task => {
@@ -908,7 +1112,7 @@
         appendLog("❌ 加载任务列表失败: " + e.message);
       }
     }
-    
+
     function getStatusText(status) {
       const statusMap = {
         "running": "运行中",
@@ -919,7 +1123,7 @@
       };
       return statusMap[status] || status;
     }
-    
+
     // 启动训练
     async function startTraining() {
       const dataPath = document.getElementById("trainData").value.trim();
@@ -927,7 +1131,7 @@
         appendLog("❌ 请输入训练数据路径");
         return;
       }
-      
+
       const config = {
         data_path: dataPath,
         base_model: document.getElementById("baseModel").value,
@@ -940,20 +1144,20 @@
         mirror: document.getElementById("mirror").value === "true",
         config_name: document.getElementById("modelConfig").value
       };
-      
+
       trainBtn.disabled = true;
       trainBtn.textContent = "启动中...";
       appendLog("正在启动训练任务...");
-      
+
       try {
         const res = await fetch(`${FASTAPI_URL}/train/start`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(config)
         });
-        
+
         const data = await res.json();
-        
+
         if (data.success) {
           currentTaskId = data.task_id;
           appendLog(`✅ 训练任务已启动，任务ID: ${currentTaskId}`);
@@ -974,7 +1178,7 @@
         trainBtn.textContent = "🚀 启动训练";
       }
     }
-    
+
     // 查看任务详情
     async function viewTask(taskId) {
       currentTaskId = taskId;
@@ -982,22 +1186,22 @@
       document.getElementById("currentTaskId").textContent = taskId.substring(0, 16) + "...";
       startStatusPolling();
     }
-    
+
     // 停止训练
     async function stopTraining() {
       if (!currentTaskId) return;
-      
+
       if (!confirm("确定要停止当前训练任务吗？")) {
         return;
       }
-      
+
       try {
         const res = await fetch(`${FASTAPI_URL}/train/stop/${currentTaskId}`, {
           method: "POST"
         });
-        
+
         const data = await res.json();
-        
+
         if (data.success) {
           appendLog("✅ 训练任务已停止");
           stopStatusPolling();
@@ -1009,40 +1213,40 @@
         appendLog("❌ 停止训练失败: " + e.message);
       }
     }
-    
+
     // 开始轮询状态
     function startStatusPolling() {
       if (statusPollInterval) {
         clearInterval(statusPollInterval);
       }
-      
+
       statusPollInterval = setInterval(async () => {
         if (!currentTaskId) {
           stopStatusPolling();
           return;
         }
-        
+
         try {
           const res = await fetch(`${FASTAPI_URL}/train/status/${currentTaskId}`);
           const data = await res.json();
-          
+
           if (data.success) {
             const task = data.data;
             document.getElementById("currentTaskStatus").textContent = getStatusText(task.status);
             document.getElementById("currentTaskStatus").className = `task-status ${task.status}`;
             document.getElementById("currentTaskProgress").style.width = task.progress + "%";
             document.getElementById("currentTaskProgressText").textContent = task.progress + "%";
-            
+
             // 更新日志
             if (task.recent_log && task.recent_log.length > 0) {
               const logText = task.recent_log.join("\n");
               trainLog.textContent = logText;
               trainLog.scrollTop = trainLog.scrollHeight;
             }
-            
+
             // 更新损失曲线（从日志中解析损失值）
             updateLossChart(task.log || []);
-            
+
             // 如果任务完成或失败，停止轮询
             if (task.status === "completed" || task.status === "failed" || task.status === "stopped") {
               stopStatusPolling();
@@ -1061,7 +1265,7 @@
         }
       }, 2000); // 每2秒轮询一次
     }
-    
+
     // 停止轮询
     function stopStatusPolling() {
       if (statusPollInterval) {
@@ -1069,19 +1273,19 @@
         statusPollInterval = null;
       }
     }
-    
+
     // 追加日志
     function appendLog(message) {
       const timestamp = new Date().toLocaleTimeString('zh-CN');
       trainLog.textContent += `[${timestamp}] ${message}\n`;
       trainLog.scrollTop = trainLog.scrollHeight;
     }
-    
+
     // 清空日志
     function clearLog() {
       trainLog.textContent = "";
     }
-    
+
     // ==================== 文件上传功能 ====================
     fileUploadArea.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", (e) => {
@@ -1091,7 +1295,7 @@
         appendLog("⚠️ 文件选择完成。由于浏览器限制，请手动输入数据路径。");
       }
     });
-    
+
     // 拖拽上传
     fileUploadArea.addEventListener("dragover", (e) => {
       e.preventDefault();
@@ -1105,12 +1309,12 @@
       fileUploadArea.classList.remove("dragover");
       appendLog("⚠️ 文件拖拽完成。由于浏览器限制，请手动输入数据路径。");
     });
-    
+
     // ==================== 配置预设功能 ====================
     saveConfigBtn.addEventListener("click", () => {
       const configName = prompt("请输入配置名称:");
       if (!configName) return;
-      
+
       const config = {
         trainData: document.getElementById("trainData").value,
         baseModel: document.getElementById("baseModel").value,
@@ -1123,13 +1327,13 @@
         mirror: document.getElementById("mirror").value,
         modelConfig: document.getElementById("modelConfig").value
       };
-      
+
       const savedConfigs = JSON.parse(localStorage.getItem("train_configs") || "{}");
       savedConfigs[configName] = config;
       localStorage.setItem("train_configs", JSON.stringify(savedConfigs));
       appendLog(`✅ 配置 "${configName}" 已保存`);
     });
-    
+
     loadConfigBtn.addEventListener("click", () => {
       const savedConfigs = JSON.parse(localStorage.getItem("train_configs") || "{}");
       const configNames = Object.keys(savedConfigs);
@@ -1137,12 +1341,12 @@
         alert("没有保存的配置");
         return;
       }
-      
+
       const selected = prompt(`请输入要加载的配置名称:\n可用配置: ${configNames.join(", ")}`);
       if (!selected || !savedConfigs[selected]) {
         return;
       }
-      
+
       const config = savedConfigs[selected];
       document.getElementById("trainData").value = config.trainData || "";
       document.getElementById("baseModel").value = config.baseModel || "ffhq_1024.pkl";
@@ -1156,12 +1360,12 @@
       document.getElementById("modelConfig").value = config.modelConfig || "style_ffhq_ae_basic";
       appendLog(`✅ 配置 "${selected}" 已加载`);
     });
-    
+
     // ==================== 损失曲线图初始化 ====================
     function initLossChart() {
       const ctx = document.getElementById("lossChart");
       if (!ctx) return;
-      
+
       lossChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -1185,7 +1389,7 @@
         }
       });
     }
-    
+
     // ==================== GPU 使用率显示 ====================
     async function updateGPUStats() {
       // 这里需要后端API提供GPU信息
@@ -1209,32 +1413,32 @@
         </div>
       `;
     }
-    
+
     // ==================== 训练时间统计 ====================
     function startTrainingTimer() {
       trainingStartTime = Date.now();
       if (trainingTimerInterval) clearInterval(trainingTimerInterval);
-      
+
       trainingTimerInterval = setInterval(() => {
         if (!trainingStartTime) return;
         const elapsed = Date.now() - trainingStartTime;
         const hours = Math.floor(elapsed / 3600000);
         const minutes = Math.floor((elapsed % 3600000) / 60000);
         const seconds = Math.floor((elapsed % 60000) / 1000);
-        
-        document.getElementById("trainingTime").textContent = 
+
+        document.getElementById("trainingTime").textContent =
           `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         document.getElementById("elapsedTime").textContent = `${hours}h ${minutes}m`;
       }, 1000);
     }
-    
+
     function stopTrainingTimer() {
       if (trainingTimerInterval) {
         clearInterval(trainingTimerInterval);
         trainingTimerInterval = null;
       }
     }
-    
+
     // ==================== 模型管理功能 ====================
     async function loadTrainedModels() {
       try {
@@ -1250,7 +1454,7 @@
         appendLog("❌ 加载模型列表失败: " + e.message);
       }
     }
-    
+
     // 事件绑定
     trainBtn.addEventListener("click", startTraining);
     refreshModelsBtn.addEventListener("click", loadBaseModels);
@@ -1258,29 +1462,29 @@
     refreshModelsListBtn.addEventListener("click", loadTrainedModels);
     stopTrainBtn.addEventListener("click", stopTraining);
     clearLogBtn.addEventListener("click", clearLog);
-    
+
     // 初始化
     loadBaseModels();
     loadDefaultDatasetPath();
     loadTasks();
     loadTrainedModels();
     initLossChart();
-    
+
     // ==================== 帮助功能 ====================
     function initHelp() {
       document.getElementById("helpBtn").addEventListener("click", () => {
         alert("使用提示：\n" +
-              "1. 填写训练数据路径（单张图像数据集目录）\n" +
-              "2. 选择基础模型和配置参数\n" +
-              "3. 点击“启动训练”开始训练\n" +
-              "4. 训练日志会实时更新\n" +
-              "5. 可以查看训练任务历史和进度\n" +
-              "6. 训练完成后，模型会保存到训练输出目录");
+          "1. 填写训练数据路径（单张图像数据集目录）\n" +
+          "2. 选择基础模型和配置参数\n" +
+          "3. 点击“启动训练”开始训练\n" +
+          "4. 训练日志会实时更新\n" +
+          "5. 可以查看训练任务历史和进度\n" +
+          "6. 训练完成后，模型会保存到训练输出目录");
       });
     }
-    
+
     initHelp();
   </script>
 </body>
-</html>
 
+</html>

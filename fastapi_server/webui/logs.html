@@ -1,51 +1,77 @@
 <!doctype html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>后端输出 - NeRFFaceSpeech</title>
   <style>
     :root {
-      --primary: #1e40af; /* 主色调：深蓝色，用于选中状态、强调按钮 */
-      --primary-2: #3b82f6; /* 次要主色：中间蓝色，用于渐变、次要强调 */
-      --bg: #0b1020; /* 页面背景色：深色背景 */
-      --card: rgba(255,255,255,0.08); /* 卡片背景：半透明白色，用于内容卡片 */
-      --border: rgba(255,255,255,0.15); /* 边框颜色：半透明白色边框 */
-      --text: #e5e7eb; /* 主文字颜色：浅灰色文字 */
-      --muted: #9ca3af; /* 次要文字颜色：灰色，用于辅助信息 */
-      --g1: rgba(59,130,246,0.16); /* 渐变1：蓝色渐变点1 */
-      --g2: rgba(14,165,233,0.14); /* 渐变2：青色渐变点2 */
-      --g3: rgba(56,189,248,0.12); /* 渐变3：浅蓝色渐变点3 */
-      --card-bg: rgba(59,130,246,0.25); /* 卡片背景色：浅蓝色，用于首页卡片和下拉菜单 */
+      --primary: #1e40af;
+      /* 主色调：深蓝色，用于选中状态、强调按钮 */
+      --primary-2: #3b82f6;
+      /* 次要主色：中间蓝色，用于渐变、次要强调 */
+      --bg: #0b1020;
+      /* 页面背景色：深色背景 */
+      --card: rgba(255, 255, 255, 0.08);
+      /* 卡片背景：半透明白色，用于内容卡片 */
+      --border: rgba(255, 255, 255, 0.15);
+      /* 边框颜色：半透明白色边框 */
+      --text: #e5e7eb;
+      /* 主文字颜色：浅灰色文字 */
+      --muted: #9ca3af;
+      /* 次要文字颜色：灰色，用于辅助信息 */
+      --g1: rgba(59, 130, 246, 0.16);
+      /* 渐变1：蓝色渐变点1 */
+      --g2: rgba(14, 165, 233, 0.14);
+      /* 渐变2：青色渐变点2 */
+      --g3: rgba(56, 189, 248, 0.12);
+      /* 渐变3：浅蓝色渐变点3 */
+      --card-bg: rgba(59, 130, 246, 0.25);
+      /* 卡片背景色：浅蓝色，用于首页卡片和下拉菜单 */
     }
+
     body.theme-tech {
-      --primary: #1e40af; /* 主色调：深蓝色 */
-      --primary-2: #3b82f6; /* 次要主色：中间蓝色 */
-      --bg: #0b1020; /* 页面背景色：深色背景 */
-      --card: rgba(255,255,255,0.08); /* 卡片背景：半透明白色 */
-      --border: rgba(255,255,255,0.15); /* 边框颜色：半透明白色边框 */
-      --text: #e5e7eb; /* 主文字颜色：浅灰色文字 */
-      --muted: #9ca3af; /* 次要文字颜色：灰色 */
-      --g1: rgba(59,130,246,0.16); /* 渐变1：蓝色渐变点1 */
-      --g2: rgba(14,165,233,0.14); /* 渐变2：青色渐变点2 */
-      --g3: rgba(56,189,248,0.12); /* 渐变3：浅蓝色渐变点3 */
-      --card-bg: rgba(59,130,246,0.25); /* 卡片背景色：浅蓝色 */
+      --primary: #1e40af;
+      /* 主色调：深蓝色 */
+      --primary-2: #3b82f6;
+      /* 次要主色：中间蓝色 */
+      --bg: #0b1020;
+      /* 页面背景色：深色背景 */
+      --card: rgba(255, 255, 255, 0.08);
+      /* 卡片背景：半透明白色 */
+      --border: rgba(255, 255, 255, 0.15);
+      /* 边框颜色：半透明白色边框 */
+      --text: #e5e7eb;
+      /* 主文字颜色：浅灰色文字 */
+      --muted: #9ca3af;
+      /* 次要文字颜色：灰色 */
+      --g1: rgba(59, 130, 246, 0.16);
+      /* 渐变1：蓝色渐变点1 */
+      --g2: rgba(14, 165, 233, 0.14);
+      /* 渐变2：青色渐变点2 */
+      --g3: rgba(56, 189, 248, 0.12);
+      /* 渐变3：浅蓝色渐变点3 */
+      --card-bg: rgba(59, 130, 246, 0.25);
+      /* 卡片背景色：浅蓝色 */
     }
+
     body.theme-warm {
       --primary: #f97316;
       --primary-2: #ea580c;
       --bg: #fff8f0;
-      --card: rgba(255,255,255,0.9);
-      --border: rgba(249,115,22,0.2);
+      --card: rgba(255, 255, 255, 0.9);
+      --border: rgba(249, 115, 22, 0.2);
       --text: #1f2937;
       --muted: #6b7280;
-      --g1: rgba(251,191,36,0.15);
-      --g2: rgba(249,115,22,0.12);
-      --g3: rgba(234,88,12,0.1);
+      --g1: rgba(251, 191, 36, 0.15);
+      --g2: rgba(249, 115, 22, 0.12);
+      --g3: rgba(234, 88, 12, 0.1);
       --grad1: #fff8f0;
       --grad2: #fff5e6;
-      --card-bg: rgba(251,191,36,0.15);
+      --card-bg: rgba(251, 191, 36, 0.15);
     }
+
     body.theme-minimal {
       --primary: #6b7280;
       --primary-2: #4b5563;
@@ -54,58 +80,132 @@
       --border: #e5e7eb;
       --text: #111827;
       --muted: #6b7280;
-      --g1: rgba(107,114,128,0.08);
-      --g2: rgba(75,85,99,0.07);
-      --g3: rgba(156,163,175,0.06);
+      --g1: rgba(107, 114, 128, 0.08);
+      --g2: rgba(75, 85, 99, 0.07);
+      --g3: rgba(156, 163, 175, 0.06);
       --grad1: #f9fafb;
       --grad2: #f3f4f6;
-      --card-bg: rgba(107,114,128,0.1);
+      --card-bg: rgba(107, 114, 128, 0.1);
     }
-    * { box-sizing: border-box; }
+
+    * {
+      box-sizing: border-box;
+    }
+
     :root {
       --base-font-size: 14px;
     }
+
     html {
       font-size: var(--base-font-size);
     }
+
     body {
       margin: 0;
       font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       font-size: 1rem;
       background: radial-gradient(circle at 20% 20%, var(--g1), transparent 25%),
-                  radial-gradient(circle at 80% 30%, var(--g2), transparent 25%),
-                  radial-gradient(circle at 50% 80%, var(--g3), transparent 22%),
-                  var(--bg);
+        radial-gradient(circle at 80% 30%, var(--g2), transparent 25%),
+        radial-gradient(circle at 50% 80%, var(--g3), transparent 22%),
+        var(--bg);
       color: var(--text);
       min-height: 100vh;
     }
-    .page { max-width: 1400px; width: 94vw; margin: 0 auto; padding: 20px 24px 40px; min-height: 96vh; }
-    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-    h1 { margin: 0; font-size: 24px; letter-spacing: 0.4px; }
-    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 12px; background: rgba(59,130,246,0.2); color: #c7d2fe; font-size: 12px; border: 1px solid rgba(96,165,250,0.5); }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
-    label { font-weight: 700; margin-bottom: 6px; display: block; }
+
+    .page {
+      max-width: 1400px;
+      width: 94vw;
+      margin: 0 auto;
+      padding: 20px 24px 40px;
+      min-height: 96vh;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0.4px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 12px;
+      background: rgba(59, 130, 246, 0.2);
+      color: #c7d2fe;
+      font-size: 12px;
+      border: 1px solid rgba(96, 165, 250, 0.5);
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+    }
+
+    label {
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: block;
+    }
+
     button.primary {
       background: linear-gradient(135deg, var(--primary), var(--primary-2));
       border: 1px solid var(--primary-2);
-      color: #fff; font-weight: 700; border-radius: 12px; padding: 12px 14px; cursor: pointer; width: 100%;
+      color: #fff;
+      font-weight: 700;
+      border-radius: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      width: 100%;
     }
+
     button.secondary {
-      background: rgba(255,255,255,0.08);
+      background: rgba(255, 255, 255, 0.08);
       border: 1px solid var(--border);
-      color: #e5e7eb; font-weight: 600; border-radius: 12px; padding: 12px 14px; cursor: pointer; width: 100%;
+      color: #e5e7eb;
+      font-weight: 600;
+      border-radius: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      width: 100%;
     }
-    button:disabled { opacity: 0.6; cursor: not-allowed; }
-    .row { display: flex; gap: 10px; }
-    .row > * { flex: 1; }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .row>* {
+      flex: 1;
+    }
+
     .log-container {
       margin-top: 18px;
     }
+
     .log-section {
       display: flex;
       flex-direction: column;
       height: 600px;
     }
+
     .log-header {
       display: flex;
       justify-content: space-between;
@@ -114,17 +214,20 @@
       padding-bottom: 8px;
       border-bottom: 1px solid var(--border);
     }
+
     .log-title {
       font-weight: 600;
       font-size: 16px;
     }
+
     .log-count {
       font-size: 12px;
       color: var(--muted);
-      background: rgba(255,255,255,0.1);
+      background: rgba(255, 255, 255, 0.1);
       padding: 4px 8px;
       border-radius: 6px;
     }
+
     .log-content {
       background: #0f172a;
       border: 1px solid var(--border);
@@ -141,46 +244,78 @@
       word-break: break-word;
       word-wrap: break-word;
     }
+
     .log-line {
       margin-bottom: 2px;
     }
-    .log-line.info { color: #60a5fa; }
-    .log-line.warning { color: #fbbf24; }
-    .log-line.error { color: #f87171; }
-    .log-line.debug { color: #9ca3af; opacity: 0.7; }
-    .log-line.success { color: #4ade80; }
-    .log-line.http { color: #818cf8; }
-    .log-line.progress { color: #34d399; }
-    .log-line.module { color: #fbbf24; }
+
+    .log-line.info {
+      color: #60a5fa;
+    }
+
+    .log-line.warning {
+      color: #fbbf24;
+    }
+
+    .log-line.error {
+      color: #f87171;
+    }
+
+    .log-line.debug {
+      color: #9ca3af;
+      opacity: 0.7;
+    }
+
+    .log-line.success {
+      color: #4ade80;
+    }
+
+    .log-line.http {
+      color: #818cf8;
+    }
+
+    .log-line.progress {
+      color: #34d399;
+    }
+
+    .log-line.module {
+      color: #fbbf24;
+    }
+
     .controls {
       display: flex;
       gap: 10px;
       margin-top: 12px;
     }
+
     .controls button {
       width: auto;
       padding: 8px 16px;
     }
+
     .controls select {
       width: auto;
       padding: 8px 16px;
       border: 1px solid var(--border);
       border-radius: 12px;
-      background: rgba(255,255,255,0.08);
+      background: rgba(255, 255, 255, 0.08);
       color: var(--text);
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       outline: none;
     }
+
     .controls select:hover {
       border-color: var(--primary);
-      background: rgba(255,255,255,0.12);
+      background: rgba(255, 255, 255, 0.12);
     }
+
     .controls select:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
     }
+
     .status-indicator {
       display: inline-block;
       width: 8px;
@@ -189,14 +324,24 @@
       background: #9ca3af;
       margin-right: 8px;
     }
+
     .status-indicator.active {
       background: #4ade80;
       animation: pulse 2s infinite;
     }
+
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
     }
+
     .view-mode-btn {
       padding: 8px 16px;
       border-radius: 8px;
@@ -208,23 +353,27 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .view-mode-btn:hover {
       border-color: var(--primary);
       background: rgba(59, 130, 246, 0.1);
     }
+
     .view-mode-btn.active {
       border-color: var(--primary);
       background: var(--primary);
       color: #fff;
     }
+
     footer {
       margin-top: 24px;
       padding: 12px;
       text-align: center;
       color: var(--muted);
       font-size: 13px;
-      border-top: 1px solid rgba(255,255,255,0.1);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
+
     .settings-btn {
       position: fixed;
       top: 20px;
@@ -240,11 +389,13 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .settings-btn:hover {
       background: var(--primary);
       color: #fff;
       border-color: var(--primary);
     }
+
     .sidebar-overlay {
       display: none;
       position: fixed;
@@ -256,9 +407,11 @@
       z-index: 2000;
       transition: opacity 0.3s ease;
     }
+
     .sidebar-overlay.active {
       display: block;
     }
+
     .sidebar {
       position: fixed;
       top: 0;
@@ -272,12 +425,15 @@
       overflow-y: auto;
       box-shadow: -4px 0 20px rgba(0, 0, 0, 0.2);
     }
+
     .sidebar.active {
       right: 0;
     }
+
     .sidebar-content {
       padding: 24px;
     }
+
     .sidebar-header {
       display: flex;
       justify-content: space-between;
@@ -286,11 +442,13 @@
       padding-bottom: 16px;
       border-bottom: 1px solid var(--border);
     }
+
     .sidebar-header h2 {
       margin: 0;
       font-size: 20px;
       color: var(--text);
     }
+
     .sidebar-close {
       background: none;
       border: none;
@@ -306,16 +464,19 @@
       border-radius: 8px;
       transition: all 0.2s ease;
     }
+
     .sidebar-close:hover {
       background: var(--card-bg);
       color: var(--text);
     }
+
     .sidebar-tabs {
       display: flex;
       gap: 8px;
       margin-bottom: 20px;
       border-bottom: 1px solid var(--border);
     }
+
     .sidebar-tab {
       padding: 10px 20px;
       background: none;
@@ -327,19 +488,24 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .sidebar-tab.active {
       color: var(--primary);
       border-bottom-color: var(--primary);
     }
+
     .sidebar-tab:hover {
       color: var(--text);
     }
+
     .tab-content {
       display: none;
     }
+
     .tab-content.active {
       display: block;
     }
+
     .option-card {
       padding: 16px;
       border: 2px solid var(--border);
@@ -349,43 +515,52 @@
       transition: all 0.2s ease;
       text-align: center;
     }
+
     .option-card:hover {
       border-color: var(--primary);
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
+
     .option-card.selected {
       border-color: var(--primary);
       background: var(--primary);
       color: #fff;
     }
+
     .option-card.selected .option-name {
       color: #fff;
     }
+
     .option-name {
       font-size: 14px;
       font-weight: 500;
       color: var(--text);
       margin-bottom: 4px;
     }
+
     .option-desc {
       font-size: 12px;
       color: var(--muted);
     }
+
     .option-card.selected .option-desc {
       color: rgba(255, 255, 255, 0.9);
     }
+
     .options-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
       gap: 12px;
       margin-bottom: 20px;
     }
+
     .font-size-group {
       display: flex;
       gap: 8px;
       margin-bottom: 20px;
     }
+
     .font-size-btn {
       flex: 1;
       padding: 12px;
@@ -398,17 +573,21 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .font-size-btn:hover {
       border-color: var(--primary);
     }
+
     .font-size-btn.selected {
       border-color: var(--primary);
       background: var(--primary);
       color: #fff;
     }
+
     .font-size-custom {
       margin-top: 16px;
     }
+
     .font-size-custom input {
       width: 100%;
       padding: 10px;
@@ -421,12 +600,13 @@
   </style>
   <script src="settings.js"></script>
 </head>
+
 <body>
   <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
-  
+
   <!-- 侧边栏遮罩 -->
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
-  
+
   <!-- 设置侧边栏 -->
   <div class="sidebar" id="settingsSidebar">
     <div class="sidebar-content">
@@ -434,12 +614,12 @@
         <h2>设置</h2>
         <button class="sidebar-close" id="sidebarClose">×</button>
       </div>
-      
+
       <div class="sidebar-tabs">
         <button class="sidebar-tab active" data-tab="theme">主题</button>
         <button class="sidebar-tab" data-tab="font">字体</button>
       </div>
-      
+
       <!-- 主题设置 -->
       <div class="tab-content active" id="themeTab">
         <div class="options-grid">
@@ -457,7 +637,7 @@
           </div>
         </div>
       </div>
-      
+
       <div id="fontTab" class="tab-content">
         <div style="margin-bottom: 16px;">
           <label style="display: block; margin-bottom: 8px; color: var(--text); font-weight: 500;">字体样式</label>
@@ -488,7 +668,7 @@
             </div>
           </div>
         </div>
-        
+
         <div>
           <label style="display: block; margin-bottom: 8px; color: var(--text); font-weight: 500;">字号大小</label>
           <div class="font-size-group">
@@ -507,17 +687,17 @@
 
   <div class="page">
     <header>
-        <div style="display:flex; align-items:center; gap:12px; flex-wrap: wrap;">
-          <h1>后端输出查看 - 日志输出</h1>
-          <div style="display: flex; gap: 8px;">
-            <a href="/webui/logs.html" style="text-decoration: none;">
-              <button class="view-mode-btn active">📋 日志输出</button>
-            </a>
-            <a href="/webui/database.html" style="text-decoration: none;">
-              <button class="view-mode-btn">💾 数据库内容</button>
-            </a>
-          </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap: wrap;">
+        <h1>后端输出查看 - 日志输出</h1>
+        <div style="display: flex; gap: 8px;">
+          <a href="/webui/logs.html" style="text-decoration: none;">
+            <button class="view-mode-btn active">📋 日志输出</button>
+          </a>
+          <a href="/webui/database.html" style="text-decoration: none;">
+            <button class="view-mode-btn">💾 数据库内容</button>
+          </a>
         </div>
+      </div>
     </header>
 
     <div class="card">
@@ -530,7 +710,7 @@
         <button class="secondary" id="clearPartialBtn">📋 部分清空（保留100行）</button>
         <button class="secondary" id="autoScrollBtn">📜 自动滚动: 开启</button>
       </div>
-      
+
       <div class="log-container">
         <div class="log-section">
           <div class="log-header">
@@ -560,25 +740,25 @@
       const currentPort = window.location.port;
       const currentPath = window.location.pathname;
       const currentProtocol = window.location.protocol;
-      
+
       // 如果当前端口是7860（前端服务器），则使用后端服务器（8000端口）
       if (currentPort === '7860') {
         const backendUrl = `${currentProtocol}//${currentHostname}:8000`;
         console.log('✅ 检测到前端服务器（端口7860），使用后端API服务器:', backendUrl);
         return backendUrl;
       }
-      
+
       // 如果路径包含 /webui/，说明是挂载在FastAPI下的
       if (currentPath.includes('/webui/')) {
         console.log('✅ 检测到FastAPI静态文件服务，使用当前origin:', currentOrigin);
         return currentOrigin;
       }
-      
+
       // 否则使用当前origin
       console.log('✅ 使用当前origin作为API服务器:', currentOrigin);
       return currentOrigin;
     })();
-    
+
     console.log('最终确定的API服务器地址:', FASTAPI_URL);
     let allLogs = []; // 合并后的所有日志
     let autoScroll = true;
@@ -611,25 +791,25 @@
         const timeB = b.timestamp || '';
         return timeA.localeCompare(timeB);
       });
-      
+
       // 根据过滤选项过滤日志
       let filteredLogs = allLogs;
       if (logFilter === 'no-http') {
         filteredLogs = allLogs.filter(log => !isHttpRequestLog(log.content));
       }
-      
+
       // 渲染过滤后的日志
-      logContentEl.innerHTML = filteredLogs.map(log => 
+      logContentEl.innerHTML = filteredLogs.map(log =>
         `<div class="log-line ${log.level}">${escapeHtml(log.content)}</div>`
       ).join('');
-      
+
       // 显示日志数量（显示过滤后的数量，以及总数量）
       if (logFilter === 'no-http' && filteredLogs.length !== allLogs.length) {
         logCountEl.textContent = `${filteredLogs.length} 行（共 ${allLogs.length} 行，已过滤 ${allLogs.length - filteredLogs.length} 条HTTP请求日志）`;
       } else {
         logCountEl.textContent = `${filteredLogs.length} 行`;
       }
-      
+
       // 自动滚动到底部
       if (autoScroll) {
         logContentEl.scrollTop = logContentEl.scrollHeight;
@@ -647,37 +827,37 @@
      */
     function detectLogLevel(message) {
       const msg = message.toLowerCase();
-      
+
       // HTTP 请求日志（包含 HTTP/1.1 或 HTTP/1.0）
       if (/http\/1\.\d/.test(message) || /"GET |"POST |"PUT |"DELETE |"OPTIONS |"HEAD /.test(message)) {
         return 'http';
       }
-      
+
       // 进度条（包含 %| 或 it/s）
       if (/%\|/.test(message) || /it\/s/.test(message) || /fetching|downloading|loading/i.test(message)) {
         return 'progress';
       }
-      
+
       // 错误（ERROR、Error、Exception）
       if (/error|exception|failed|failure|traceback/i.test(msg)) {
         return 'error';
       }
-      
+
       // 警告（WARNING、Warning、UserWarning、RuntimeWarning）
       if (/warning|warn/i.test(msg)) {
         return 'warning';
       }
-      
+
       // 成功（success、完成、完成）
       if (/success|成功|完成|done/i.test(msg)) {
         return 'success';
       }
-      
+
       // 模块日志（包含 :: 或 : 分隔的模块名）
       if (/^[a-z_][a-z0-9_.]*::/i.test(message.trim()) || /^info:[a-z_]/i.test(message.trim())) {
         return 'module';
       }
-      
+
       // 默认使用 info
       return 'info';
     }
@@ -685,7 +865,7 @@
     async function fetchLogs() {
       try {
         statusIndicator.classList.add('active');
-        
+
         // 获取完整正常日志（无长度限制）
         const normalResponse = await fetch(`${FASTAPI_URL}/logs/full?debug=false`);
         let normalLogsData = [];
@@ -704,7 +884,7 @@
             });
           }
         }
-        
+
         // 获取完整 Debug 日志（无长度限制）
         const debugResponse = await fetch(`${FASTAPI_URL}/logs/full?debug=true`);
         let debugLogsData = [];
@@ -725,16 +905,16 @@
             });
           }
         }
-        
+
         // 合并所有日志
         allLogs = [...normalLogsData, ...debugLogsData];
-        
+
         renderLogs();
       } catch (e) {
-        allLogs.push({ 
+        allLogs.push({
           timestamp: new Date().toISOString(),
-          level: 'error', 
-          content: `获取日志失败: ${e.message}` 
+          level: 'error',
+          content: `获取日志失败: ${e.message}`
         });
         renderLogs();
       } finally {
@@ -773,7 +953,7 @@
       logFilter = e.target.value;
       renderLogs(); // 重新渲染日志
     });
-    
+
     // 启动自动刷新
     function startAutoRefresh() {
       if (refreshInterval) {
@@ -783,7 +963,7 @@
         fetchLogs();
       }, AUTO_REFRESH_INTERVAL);
     }
-    
+
     // 停止自动刷新
     function stopAutoRefresh() {
       if (refreshInterval) {
@@ -791,29 +971,35 @@
         refreshInterval = null;
       }
     }
-    
+
     clearAllBtn.addEventListener('click', clearAllLogs);
     clearPartialBtn.addEventListener('click', clearPartialLogs);
     autoScrollBtn.addEventListener('click', toggleAutoScroll);
 
     // 等待DOM加载完成后再初始化设置事件绑定
     document.addEventListener('DOMContentLoaded', async () => {
-      // 应用设置（从数据库读取）
+      // 应用设置（从数据库读取）- 优化：只调用一次API，然后并行更新UI
       try {
-        await applySettingsOnly();
-        await updateThemeSelection();
-        await updateFontSelection();
-        await updateFontSizeSelection();
+        // 只调用一次 fetchSettings()，获取所有设置
+        const settings = await fetchSettings();
+
+        // 并行应用设置和更新选择状态（使用已获取的设置，避免重复API调用）
+        await Promise.all([
+          applySettingsOnly(settings),
+          updateThemeSelection(settings),
+          updateFontSelection(settings),
+          updateFontSizeSelection(settings)
+        ]);
       } catch (error) {
         console.error('应用设置失败:', error);
       }
-      
+
       // 侧边栏控制
       const settingsBtn = document.getElementById('settingsBtn');
       const settingsSidebar = document.getElementById('settingsSidebar');
       const sidebarOverlay = document.getElementById('sidebarOverlay');
       const sidebarClose = document.getElementById('sidebarClose');
-      
+
       if (!settingsBtn || !settingsSidebar) {
         console.error('设置按钮或侧边栏元素未找到', {
           settingsBtn: !!settingsBtn,
@@ -821,23 +1007,23 @@
         });
         return;
       }
-      
+
       function openSidebar() {
         settingsSidebar.classList.add('active');
         sidebarOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
       }
-      
+
       function closeSidebar() {
         settingsSidebar.classList.remove('active');
         sidebarOverlay.classList.remove('active');
         document.body.style.overflow = '';
       }
-      
+
       settingsBtn.addEventListener('click', openSidebar);
       if (sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
       if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
-      
+
       // 分页切换
       document.querySelectorAll('.sidebar-tab').forEach(tab => {
         tab.addEventListener('click', () => {
@@ -849,28 +1035,28 @@
           if (targetContent) targetContent.classList.add('active');
         });
       });
-      
+
       // 主题选择
       document.querySelectorAll('[data-theme]').forEach(card => {
         card.addEventListener('click', () => {
           applyTheme(card.dataset.theme);
         });
       });
-      
+
       // 字体选择
       document.querySelectorAll('[data-font]').forEach(card => {
         card.addEventListener('click', () => {
           applyFont(card.dataset.font);
         });
       });
-      
+
       // 字号选择
       document.querySelectorAll('[data-size]').forEach(btn => {
         btn.addEventListener('click', () => {
           applyFontSize(btn.dataset.size);
         });
       });
-      
+
       // 自定义字号输入
       const customSizeValue = document.getElementById('customSizeValue');
       if (customSizeValue) {
@@ -880,13 +1066,13 @@
           }
         });
       }
-      
+
     });
 
     // 初始加载日志并启动自动刷新
     fetchLogs();
     startAutoRefresh();
-    
+
     // 页面可见性改变时暂停/恢复自动刷新
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
@@ -898,5 +1084,5 @@
     });
   </script>
 </body>
-</html>
 
+</html>

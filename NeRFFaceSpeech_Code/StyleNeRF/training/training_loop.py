@@ -28,7 +28,13 @@ from torch_utils import training_stats
 from torch_utils.ops import conv2d_gradfix
 from torch_utils.ops import grid_sample_gradfix
 from torch_utils.distributed_utils import gather_list_and_concat
-from metrics import metric_main
+# metrics 模块是可选的，如果不存在则跳过指标计算
+try:
+    from metrics import metric_main
+    METRICS_AVAILABLE = True
+except ImportError:
+    METRICS_AVAILABLE = False
+    metric_main = None
 from training.data_utils import save_image_grid, resize_image
 
 #----------------------------------------------------------------------------
@@ -471,14 +477,18 @@ def training_loop(
         
         # Evaluate metrics.
         if (snapshot_data is not None) and (len(metrics) > 0) and (cur_tick > 1):
-            if rank == 0:
-                print('Evaluating metrics...')
-            for metric in metrics:
-                result_dict = metric_main.calc_metric(metric=metric, G=snapshot_data['G_ema'],
-                    dataset_kwargs=training_set_kwargs, num_gpus=world_size, rank=rank, device=device)
+            if not METRICS_AVAILABLE:
                 if rank == 0:
-                    metric_main.report_metric(result_dict, run_dir=run_dir, snapshot_pkl=snapshot_pkl)
-                stats_metrics.update(result_dict.results)
+                    print('Warning: metrics module not available, skipping metric evaluation')
+            else:
+                if rank == 0:
+                    print('Evaluating metrics...')
+                for metric in metrics:
+                    result_dict = metric_main.calc_metric(metric=metric, G=snapshot_data['G_ema'],
+                        dataset_kwargs=training_set_kwargs, num_gpus=world_size, rank=rank, device=device)
+                    if rank == 0:
+                        metric_main.report_metric(result_dict, run_dir=run_dir, snapshot_pkl=snapshot_pkl)
+                    stats_metrics.update(result_dict.results)
         del snapshot_data # conserve memory
 
         # Collect statistics.

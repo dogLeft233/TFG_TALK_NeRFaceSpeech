@@ -932,6 +932,11 @@ def run_video_generation_task(unique_id: str, text: str, character: str, model_n
                     add_log(f"[转码] 使用系统 PATH 中的 ffmpeg", "warning")
                     print(f"[后端] [转码] 警告: 使用系统 PATH 中的 ffmpeg")
                 
+                # 打印实际使用的ffmpeg路径
+                actual_ffmpeg_path = shutil.which(ffmpeg_path) if ffmpeg_path == "ffmpeg" else ffmpeg_path
+                print("Using ffmpeg:", actual_ffmpeg_path)
+                add_log(f"[转码] 实际使用的ffmpeg路径: {actual_ffmpeg_path}", "info")
+                
                 # 先检查原始视频是否有视频轨道
                 try:
                     check_cmd = [

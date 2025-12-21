@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,41 +10,44 @@
       --primary: #1e40af;
       --primary-2: #3b82f6;
       --bg: #0b1020;
-      --card: rgba(255,255,255,0.08);
-      --border: rgba(255,255,255,0.15);
+      --card: rgba(255, 255, 255, 0.08);
+      --border: rgba(255, 255, 255, 0.15);
       --text: #e5e7eb;
       --muted: #9ca3af;
-      --g1: rgba(59,130,246,0.16);
-      --g2: rgba(14,165,233,0.14);
-      --g3: rgba(56,189,248,0.12);
-      --card-bg: rgba(59,130,246,0.25);
+      --g1: rgba(59, 130, 246, 0.16);
+      --g2: rgba(14, 165, 233, 0.14);
+      --g3: rgba(56, 189, 248, 0.12);
+      --card-bg: rgba(59, 130, 246, 0.25);
     }
+
     body.theme-tech {
       --primary: #1e40af;
       --primary-2: #3b82f6;
       --bg: #0b1020;
-      --card: rgba(255,255,255,0.08);
-      --border: rgba(255,255,255,0.15);
+      --card: rgba(255, 255, 255, 0.08);
+      --border: rgba(255, 255, 255, 0.15);
       --text: #e5e7eb;
       --muted: #9ca3af;
-      --g1: rgba(59,130,246,0.16);
-      --g2: rgba(14,165,233,0.14);
-      --g3: rgba(56,189,248,0.12);
-      --card-bg: rgba(59,130,246,0.25);
+      --g1: rgba(59, 130, 246, 0.16);
+      --g2: rgba(14, 165, 233, 0.14);
+      --g3: rgba(56, 189, 248, 0.12);
+      --card-bg: rgba(59, 130, 246, 0.25);
     }
+
     body.theme-warm {
       --primary: #f97316;
       --primary-2: #ea580c;
       --bg: #fff8f0;
-      --card: rgba(255,255,255,0.9);
-      --border: rgba(249,115,22,0.2);
+      --card: rgba(255, 255, 255, 0.9);
+      --border: rgba(249, 115, 22, 0.2);
       --text: #1f2937;
       --muted: #6b7280;
-      --g1: rgba(251,191,36,0.15);
-      --g2: rgba(249,115,22,0.12);
-      --g3: rgba(234,88,12,0.1);
-      --card-bg: rgba(251,191,36,0.15);
+      --g1: rgba(251, 191, 36, 0.15);
+      --g2: rgba(249, 115, 22, 0.12);
+      --g3: rgba(234, 88, 12, 0.1);
+      --card-bg: rgba(251, 191, 36, 0.15);
     }
+
     body.theme-minimal {
       --primary: #6b7280;
       --primary-2: #4b5563;
@@ -52,61 +56,113 @@
       --border: #e5e7eb;
       --text: #111827;
       --muted: #6b7280;
-      --g1: rgba(107,114,128,0.08);
-      --g2: rgba(75,85,99,0.07);
-      --g3: rgba(156,163,175,0.06);
-      --card-bg: rgba(107,114,128,0.1);
+      --g1: rgba(107, 114, 128, 0.08);
+      --g2: rgba(75, 85, 99, 0.07);
+      --g3: rgba(156, 163, 175, 0.06);
+      --card-bg: rgba(107, 114, 128, 0.1);
     }
-    * { box-sizing: border-box; }
+
+    * {
+      box-sizing: border-box;
+    }
+
     :root {
       --base-font-size: 14px;
     }
+
     html {
       font-size: var(--base-font-size);
     }
+
     body {
       margin: 0;
       font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       font-size: 1rem;
       background: radial-gradient(circle at 20% 20%, var(--g1), transparent 25%),
-                  radial-gradient(circle at 80% 30%, var(--g2), transparent 25%),
-                  radial-gradient(circle at 50% 80%, var(--g3), transparent 22%),
-                  var(--bg);
+        radial-gradient(circle at 80% 30%, var(--g2), transparent 25%),
+        radial-gradient(circle at 50% 80%, var(--g3), transparent 22%),
+        var(--bg);
       color: var(--text);
       min-height: 100vh;
     }
-    .page { max-width: 1400px; width: 94vw; margin: 0 auto; padding: 20px 24px 40px; min-height: 96vh; }
-    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-    h1 { margin: 0; font-size: 24px; letter-spacing: 0.4px; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
+
+    .page {
+      max-width: 1400px;
+      width: 94vw;
+      margin: 0 auto;
+      padding: 20px 24px 40px;
+      min-height: 96vh;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0.4px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+    }
+
     button.primary {
       background: linear-gradient(135deg, var(--primary), var(--primary-2));
       border: 1px solid var(--primary-2);
-      color: #fff; font-weight: 700; border-radius: 12px; padding: 12px 14px; cursor: pointer; width: 100%;
+      color: #fff;
+      font-weight: 700;
+      border-radius: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      width: 100%;
     }
+
     button.secondary {
-      background: rgba(255,255,255,0.08);
+      background: rgba(255, 255, 255, 0.08);
       border: 1px solid var(--border);
-      color: #e5e7eb; font-weight: 600; border-radius: 12px; padding: 12px 14px; cursor: pointer; width: 100%;
+      color: #e5e7eb;
+      font-weight: 600;
+      border-radius: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      width: 100%;
     }
-    button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     .controls {
       display: flex;
       gap: 10px;
       margin-top: 12px;
     }
+
     .controls button {
       width: auto;
       padding: 8px 16px;
     }
+
     footer {
       margin-top: 24px;
       padding: 12px;
       text-align: center;
       color: var(--muted);
       font-size: 13px;
-      border-top: 1px solid rgba(255,255,255,0.1);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
+
     .view-mode-btn {
       padding: 8px 16px;
       border-radius: 8px;
@@ -118,15 +174,18 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .view-mode-btn:hover {
       border-color: var(--primary);
       background: rgba(59, 130, 246, 0.1);
     }
+
     .view-mode-btn.active {
       border-color: var(--primary);
       background: var(--primary);
       color: #fff;
     }
+
     .database-content {
       background: var(--card);
       border: 1px solid var(--border);
@@ -140,9 +199,11 @@
       color: var(--text);
       min-height: 600px;
     }
+
     .database-table {
       margin-bottom: 24px;
     }
+
     .database-table-name {
       font-size: 16px;
       font-weight: 600;
@@ -151,9 +212,11 @@
       padding-bottom: 8px;
       border-bottom: 2px solid var(--border);
     }
+
     .database-table-content {
       overflow-x: auto;
     }
+
     table.db-table {
       width: 100%;
       border-collapse: collapse;
@@ -161,6 +224,7 @@
       border-radius: 8px;
       overflow: hidden;
     }
+
     table.db-table th {
       background: var(--card-bg);
       color: var(--text);
@@ -171,22 +235,27 @@
       position: sticky;
       top: 0;
     }
+
     table.db-table td {
       padding: 8px 12px;
       border-bottom: 1px solid var(--border);
       color: var(--text);
     }
+
     table.db-table tr:hover {
       background: var(--card-bg);
     }
+
     .db-cell-editable {
       cursor: pointer;
       padding: 2px 4px;
       border-radius: 4px;
     }
+
     .db-cell-editable:hover {
-      background: rgba(59,130,246,0.2);
+      background: rgba(59, 130, 246, 0.2);
     }
+
     .db-cell-input {
       width: 100%;
       padding: 4px 8px;
@@ -197,6 +266,7 @@
       font-size: 13px;
       font-family: inherit;
     }
+
     .settings-btn {
       position: fixed;
       top: 20px;
@@ -212,11 +282,13 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .settings-btn:hover {
       background: var(--primary);
       color: #fff;
       border-color: var(--primary);
     }
+
     .sidebar-overlay {
       display: none;
       position: fixed;
@@ -228,9 +300,11 @@
       z-index: 2000;
       transition: opacity 0.3s ease;
     }
+
     .sidebar-overlay.active {
       display: block;
     }
+
     .sidebar {
       position: fixed;
       top: 0;
@@ -244,12 +318,15 @@
       overflow-y: auto;
       box-shadow: -4px 0 20px rgba(0, 0, 0, 0.2);
     }
+
     .sidebar.active {
       right: 0;
     }
+
     .sidebar-content {
       padding: 24px;
     }
+
     .sidebar-header {
       display: flex;
       justify-content: space-between;
@@ -258,11 +335,13 @@
       padding-bottom: 16px;
       border-bottom: 1px solid var(--border);
     }
+
     .sidebar-header h2 {
       margin: 0;
       font-size: 20px;
       color: var(--text);
     }
+
     .sidebar-close {
       background: none;
       border: none;
@@ -278,16 +357,19 @@
       border-radius: 8px;
       transition: all 0.2s ease;
     }
+
     .sidebar-close:hover {
       background: var(--card-bg);
       color: var(--text);
     }
+
     .sidebar-tabs {
       display: flex;
       gap: 8px;
       margin-bottom: 20px;
       border-bottom: 1px solid var(--border);
     }
+
     .sidebar-tab {
       padding: 10px 20px;
       background: none;
@@ -299,25 +381,31 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .sidebar-tab.active {
       color: var(--primary);
       border-bottom-color: var(--primary);
     }
+
     .sidebar-tab:hover {
       color: var(--text);
     }
+
     .tab-content {
       display: none;
     }
+
     .tab-content.active {
       display: block;
     }
+
     .options-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
       gap: 12px;
       margin-bottom: 20px;
     }
+
     .option-card {
       padding: 16px;
       border: 2px solid var(--border);
@@ -327,37 +415,45 @@
       transition: all 0.2s ease;
       text-align: center;
     }
+
     .option-card:hover {
       border-color: var(--primary);
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
+
     .option-card.selected {
       border-color: var(--primary);
       background: var(--primary);
       color: #fff;
     }
+
     .option-card.selected .option-name {
       color: #fff;
     }
+
     .option-name {
       font-size: 14px;
       font-weight: 500;
       color: var(--text);
       margin-bottom: 4px;
     }
+
     .option-desc {
       font-size: 12px;
       color: var(--muted);
     }
+
     .option-card.selected .option-desc {
       color: rgba(255, 255, 255, 0.9);
     }
+
     .font-size-group {
       display: flex;
       gap: 8px;
       margin-bottom: 20px;
     }
+
     .font-size-btn {
       flex: 1;
       padding: 12px;
@@ -370,17 +466,21 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
+
     .font-size-btn:hover {
       border-color: var(--primary);
     }
+
     .font-size-btn.selected {
       border-color: var(--primary);
       background: var(--primary);
       color: #fff;
     }
+
     .font-size-custom {
       margin-top: 16px;
     }
+
     .font-size-custom input {
       width: 100%;
       padding: 10px;
@@ -393,12 +493,13 @@
   </style>
   <script src="/webui/settings.js"></script>
 </head>
+
 <body>
   <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
-  
+
   <!-- 侧边栏遮罩 -->
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
-  
+
   <!-- 设置侧边栏 -->
   <div class="sidebar" id="settingsSidebar">
     <div class="sidebar-content">
@@ -406,12 +507,12 @@
         <h2>设置</h2>
         <button class="sidebar-close" id="sidebarClose">×</button>
       </div>
-      
+
       <div class="sidebar-tabs">
         <button class="sidebar-tab active" data-tab="theme">主题</button>
         <button class="sidebar-tab" data-tab="font">字体</button>
       </div>
-      
+
       <!-- 主题设置 -->
       <div class="tab-content active" id="themeTab">
         <div class="options-grid">
@@ -429,7 +530,7 @@
           </div>
         </div>
       </div>
-      
+
       <div id="fontTab" class="tab-content">
         <div style="margin-bottom: 16px;">
           <label style="display: block; margin-bottom: 8px; color: var(--text); font-weight: 500;">字体样式</label>
@@ -460,7 +561,7 @@
             </div>
           </div>
         </div>
-        
+
         <div>
           <label style="display: block; margin-bottom: 8px; color: var(--text); font-weight: 500;">字号大小</label>
           <div class="font-size-group">
@@ -479,29 +580,30 @@
 
   <div class="page">
     <header>
-        <div style="display:flex; align-items:center; gap:12px; flex-wrap: wrap;">
-          <h1>后端输出查看 - 数据库内容</h1>
-          <div style="display: flex; gap: 8px;">
-            <a href="/webui/logs.html" style="text-decoration: none;">
-              <button class="view-mode-btn">📋 日志输出</button>
-            </a>
-            <a href="/webui/database.html" style="text-decoration: none;">
-              <button class="view-mode-btn active">💾 数据库内容</button>
-            </a>
-          </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap: wrap;">
+        <h1>后端输出查看 - 数据库内容</h1>
+        <div style="display: flex; gap: 8px;">
+          <a href="/webui/logs.html" style="text-decoration: none;">
+            <button class="view-mode-btn">📋 日志输出</button>
+          </a>
+          <a href="/webui/database.html" style="text-decoration: none;">
+            <button class="view-mode-btn active">💾 数据库内容</button>
+          </a>
         </div>
+      </div>
     </header>
 
     <div class="card">
       <div class="controls">
         <button class="primary" id="refreshDatabaseBtn">🔄 刷新</button>
-        <select id="databaseSelectBtn" style="width: auto; padding: 8px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); font-size: 14px; cursor: pointer;">
+        <select id="databaseSelectBtn"
+          style="width: auto; padding: 8px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); font-size: 14px; cursor: pointer;">
           <option value="">选择数据库...</option>
         </select>
         <button class="secondary" id="editModeBtn">✏️ 编辑: 关闭</button>
         <button class="primary" id="saveChangesBtn" disabled style="opacity: 0.5; cursor: not-allowed;">💾 保存更改</button>
       </div>
-      
+
       <div class="database-content" id="databaseTableContent">
         <div style="text-align: center; color: var(--muted); padding: 40px;">请选择数据库查看内容</div>
       </div>
@@ -520,25 +622,25 @@
       const currentPort = window.location.port;
       const currentPath = window.location.pathname;
       const currentProtocol = window.location.protocol;
-      
+
       // 如果当前端口是7860（前端服务器），则使用后端服务器（8000端口）
       if (currentPort === '7860') {
         const backendUrl = `${currentProtocol}//${currentHostname}:8000`;
         console.log('✅ 检测到前端服务器（端口7860），使用后端API服务器:', backendUrl);
         return backendUrl;
       }
-      
+
       // 如果路径包含 /webui/，说明是挂载在FastAPI下的
       if (currentPath.includes('/webui/')) {
         console.log('✅ 检测到FastAPI静态文件服务，使用当前origin:', currentOrigin);
         return currentOrigin;
       }
-      
+
       // 否则使用当前origin
       console.log('✅ 使用当前origin作为API服务器:', currentOrigin);
       return currentOrigin;
     })();
-    
+
     console.log('最终确定的API服务器地址:', FASTAPI_URL);
     let currentDatabase = '';
     let editMode = false;
@@ -612,13 +714,13 @@
         html += `<div class="database-table-name">表: ${escapeHtml(tableName)}</div>`;
         html += `<div class="database-table-content">`;
         html += `<table class="db-table">`;
-        
+
         html += '<thead><tr>';
         tableData.columns.forEach(col => {
           html += `<th>${escapeHtml(col)}</th>`;
         });
         html += '</tr></thead>';
-        
+
         html += '<tbody>';
         tableData.rows.forEach((row, rowIndex) => {
           html += '<tr>';
@@ -635,13 +737,13 @@
           html += '</tr>';
         });
         html += '</tbody>';
-        
+
         html += '</table>';
         html += '</div>';
         html += '</div>';
       }
       databaseTableContent.innerHTML = html;
-      
+
       if (editMode) {
         addEditHandlers(tables);
         checkForChanges();
@@ -710,19 +812,19 @@
       for (const input of inputs) {
         const newValue = input.value;
         const originalValue = input.dataset.original || '';
-        
+
         if (newValue !== originalValue) {
           const table = input.closest('td').dataset.table;
           const rowIndex = parseInt(input.closest('td').dataset.row);
           const column = input.closest('td').dataset.column;
-          
+
           const tableData = originalTableData[table];
           if (tableData && tableData.rows[rowIndex]) {
             const row = tableData.rows[rowIndex];
             const firstColumn = tableData.columns[0];
-            const whereClause = {[firstColumn]: row[firstColumn]};
-            const updateData = {[column]: newValue};
-            
+            const whereClause = { [firstColumn]: row[firstColumn] };
+            const updateData = { [column]: newValue };
+
             updates.push({
               table: table,
               where: whereClause,
@@ -747,7 +849,7 @@
           try {
             const response = await fetch(`${FASTAPI_URL}/api/databases/${currentDatabase}/update`, {
               method: 'POST',
-              headers: {'Content-Type': 'application/json'},
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 table: update.table,
                 operation: 'update',
@@ -798,7 +900,7 @@
           return;
         }
       }
-      
+
       editMode = !editMode;
       editModeBtn.textContent = `✏️ 编辑: ${editMode ? '开启' : '关闭'}`;
       if (currentDatabase) {
@@ -818,42 +920,48 @@
 
     // 初始化设置
     document.addEventListener('DOMContentLoaded', async () => {
-      // 应用设置（从数据库读取）
+      // 应用设置（从数据库读取）- 优化：只调用一次API，然后并行更新UI
       try {
-        await applySettingsOnly();
-        await updateThemeSelection();
-        await updateFontSelection();
-        await updateFontSizeSelection();
+        // 只调用一次 fetchSettings()，获取所有设置
+        const settings = await fetchSettings();
+
+        // 并行应用设置和更新选择状态（使用已获取的设置，避免重复API调用）
+        await Promise.all([
+          applySettingsOnly(settings),
+          updateThemeSelection(settings),
+          updateFontSelection(settings),
+          updateFontSizeSelection(settings)
+        ]);
       } catch (error) {
         console.error('应用设置失败:', error);
       }
-      
+
       const settingsBtn = document.getElementById('settingsBtn');
       const settingsSidebar = document.getElementById('settingsSidebar');
       const sidebarOverlay = document.getElementById('sidebarOverlay');
       const sidebarClose = document.getElementById('sidebarClose');
-      
+
       if (!settingsBtn || !settingsSidebar) {
         console.error('设置按钮或侧边栏元素未找到');
         return;
       }
-      
+
       function openSidebar() {
         settingsSidebar.classList.add('active');
         sidebarOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
       }
-      
+
       function closeSidebar() {
         settingsSidebar.classList.remove('active');
         sidebarOverlay.classList.remove('active');
         document.body.style.overflow = '';
       }
-      
+
       settingsBtn.addEventListener('click', openSidebar);
       if (sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
       if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
-      
+
       document.querySelectorAll('.sidebar-tab').forEach(tab => {
         tab.addEventListener('click', () => {
           const targetTab = tab.dataset.tab;
@@ -864,25 +972,25 @@
           if (targetContent) targetContent.classList.add('active');
         });
       });
-      
+
       document.querySelectorAll('[data-theme]').forEach(card => {
         card.addEventListener('click', () => {
           applyTheme(card.dataset.theme);
         });
       });
-      
+
       document.querySelectorAll('[data-font]').forEach(card => {
         card.addEventListener('click', () => {
           applyFont(card.dataset.font);
         });
       });
-      
+
       document.querySelectorAll('[data-size]').forEach(btn => {
         btn.addEventListener('click', () => {
           applyFontSize(btn.dataset.size);
         });
       });
-      
+
       const customSizeValue = document.getElementById('customSizeValue');
       if (customSizeValue) {
         customSizeValue.addEventListener('change', (e) => {
@@ -891,11 +999,11 @@
           }
         });
       }
-      
+
       // 加载数据库列表
       loadDatabaseList();
     });
   </script>
 </body>
-</html>
 
+</html>
