@@ -562,10 +562,145 @@
             font-size: 14px;
         }
 
+        /* 历史记录侧边栏 */
+        .history-sidebar {
+            position: fixed;
+            left: -320px;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: var(--bg);
+            border-right: 1px solid var(--border);
+            z-index: 1500;
+            transition: left 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .history-sidebar.active {
+            left: 0;
+        }
+
+        .history-sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-sidebar-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--text);
+        }
+
+        .history-sidebar-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--muted);
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .history-sidebar-close:hover {
+            background: var(--card-bg);
+            color: var(--text);
+        }
+
+        .history-sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .history-list-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .history-item {
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .history-item:hover {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .history-item.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .history-item-text {
+            font-weight: 500;
+            margin-bottom: 4px;
+            font-size: 14px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .history-item-time {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
+        .history-sidebar-actions {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .back-to-task-btn {
+            width: 100%;
+            padding: 10px 16px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--primary);
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .back-to-task-btn:hover {
+            background: var(--primary-2);
+            border-color: var(--primary-2);
+        }
+
+        .back-to-task-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 width: 100%;
                 right: -100%;
+            }
+
+            .history-sidebar {
+                width: 100%;
+                left: -100%;
             }
         }
     </style>
@@ -573,6 +708,22 @@
 
 <body>
     <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
+
+    <!-- 历史记录侧边栏 -->
+    <div class="history-sidebar" id="historySidebar">
+        <div class="history-sidebar-header">
+            <h3>历史记录</h3>
+            <button class="history-sidebar-close" id="historySidebarClose">×</button>
+        </div>
+        <div class="history-sidebar-content">
+            <div class="history-list-container" id="historyListContainer">
+                <div style="color: var(--muted); text-align: center; padding: 20px;">加载中...</div>
+            </div>
+        </div>
+        <div class="history-sidebar-actions">
+            <button class="back-to-task-btn" id="backToTaskBtn">🚀 开始新任务</button>
+        </div>
+    </div>
 
     <!-- 侧边栏遮罩 -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -662,7 +813,7 @@
         <header>
             <a href="index.html" class="back-btn">← 返回首页</a>
             <h1>🎬 视频生成</h1>
-            <div></div>
+            <button class="back-btn" id="historyBtn" style="margin: 0;">📋 历史记录</button>
         </header>
 
         <div class="grid">
@@ -735,6 +886,323 @@
     <script>
         let currentTaskId = null;
         let statusPollInterval = null;
+        let currentViewMode = 'task'; // 'task' 或 'history'
+        let viewingHistoryId = null; // 当前查看的历史记录ID
+        let savedTaskState = null; // 保存的当前任务状态
+
+        // ==================== 历史记录功能 ====================
+        const historyBtn = document.getElementById("historyBtn");
+        const historySidebar = document.getElementById("historySidebar");
+        const historySidebarClose = document.getElementById("historySidebarClose");
+        const historyListContainer = document.getElementById("historyListContainer");
+        const backToTaskBtn = document.getElementById("backToTaskBtn");
+
+        // 打开/关闭历史记录侧边栏
+        if (historyBtn && historySidebar) {
+            historyBtn.addEventListener("click", () => {
+                historySidebar.classList.toggle("active");
+                if (historySidebar.classList.contains("active")) {
+                    loadHistoryList();
+                }
+            });
+        }
+
+        if (historySidebarClose) {
+            historySidebarClose.addEventListener("click", () => {
+                historySidebar.classList.remove("active");
+            });
+        }
+
+        // 加载历史记录列表
+        async function loadHistoryList() {
+            try {
+                historyListContainer.innerHTML = '<div style="color: var(--muted); text-align: center; padding: 20px;">加载中...</div>';
+                const apiUrl = getApiBaseUrl();
+                const response = await fetch(`${apiUrl}/generation_records?record_type=video&limit=100`, {
+                    signal: AbortSignal.timeout(5000)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (!data.success || !data.data || data.data.length === 0) {
+                    historyListContainer.innerHTML = '<div style="color: var(--muted); text-align: center; padding: 20px;">暂无历史记录</div>';
+                    return;
+                }
+
+                const records = data.data;
+                historyListContainer.innerHTML = '';
+
+                records.forEach((record) => {
+                    const item = document.createElement("div");
+                    const isActive = viewingHistoryId === record.unique_id;
+                    item.className = `history-item ${isActive ? 'active' : ''}`;
+                    item.dataset.id = record.unique_id;
+
+                    const textDiv = document.createElement("div");
+                    textDiv.className = "history-item-text";
+                    const textPreview = (record.text || '无文本').substring(0, 30) + ((record.text && record.text.length > 30) ? '...' : '');
+                    textDiv.textContent = textPreview;
+
+                    const timeDiv = document.createElement("div");
+                    timeDiv.className = "history-item-time";
+                    const date = record.created_at ? new Date(record.created_at).toLocaleString('zh-CN') : '未知时间';
+                    timeDiv.textContent = date;
+
+                    item.appendChild(textDiv);
+                    item.appendChild(timeDiv);
+
+                    item.addEventListener("click", () => {
+                        switchToHistoryRecord(record.unique_id);
+                    });
+
+                    historyListContainer.appendChild(item);
+                });
+            } catch (error) {
+                console.error('加载历史记录失败:', error);
+                historyListContainer.innerHTML = '<div style="color: var(--muted); text-align: center; padding: 20px;">加载失败</div>';
+            }
+        }
+
+        // 切换到历史记录视图
+        async function switchToHistoryRecord(recordId) {
+            try {
+                // 保存当前任务状态
+                if (currentViewMode === 'task' && currentTaskId) {
+                    savedTaskState = {
+                        taskId: currentTaskId,
+                        text: document.getElementById('textInput').value,
+                        character: document.getElementById('characterInput').value,
+                        model: document.getElementById('modelSelect').value,
+                        statusPollInterval: statusPollInterval ? true : false
+                    };
+                }
+
+                // 禁用输入
+                setInputsDisabled(true);
+                document.getElementById('generateBtn').style.display = 'none';
+                document.getElementById('cancelBtn').style.display = 'none';
+                document.getElementById('progressContainer').style.display = 'none';
+
+                // 加载历史记录详情
+                const apiUrl = getApiBaseUrl();
+                const response = await fetch(`${apiUrl}/generation_records/${recordId}`, {
+                    signal: AbortSignal.timeout(5000)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (!data.success || !data.data) {
+                    throw new Error(data.error || '记录不存在');
+                }
+
+                const record = data.data;
+                viewingHistoryId = recordId;
+                currentViewMode = 'history';
+
+                // 设置输入框值（只读）
+                document.getElementById('textInput').value = record.text || '';
+                document.getElementById('characterInput').value = record.character || '';
+                document.getElementById('modelSelect').value = record.model_name || '';
+
+                // 显示视频
+                if (record.video_path) {
+                    // 从路径中提取文件名（例如：从 /root/.../videos/xxx.mp4 提取 xxx.mp4）
+                    const pathParts = record.video_path.replace(/\\/g, '/').split('/');
+                    const fileName = pathParts[pathParts.length - 1];
+                    if (fileName && fileName.endsWith('.mp4')) {
+                        const videoUrl = `${apiUrl}/videos/${fileName}`;
+                        displayVideo(videoUrl, {
+                            generation_time: record.generation_time,
+                            unique_id: record.unique_id
+                        });
+                    } else {
+                        console.error('无法从路径提取文件名:', record.video_path);
+                        document.getElementById('videoContainer').classList.add('hidden');
+                        document.getElementById('videoPlaceholder').classList.remove('hidden');
+                        document.getElementById('videoPlaceholder').textContent = '视频路径无效';
+                    }
+                } else {
+                    document.getElementById('videoContainer').classList.add('hidden');
+                    document.getElementById('videoPlaceholder').classList.remove('hidden');
+                    document.getElementById('videoPlaceholder').textContent = '该记录没有视频';
+                }
+
+                updateStatus(`📋 历史记录 - ${new Date(record.created_at).toLocaleString('zh-CN')}`);
+                
+                // 更新按钮状态
+                updateBackToTaskButton();
+
+                // 更新历史列表高亮
+                loadHistoryList();
+
+                // 关闭侧边栏
+                historySidebar.classList.remove("active");
+            } catch (error) {
+                console.error('加载历史记录失败:', error);
+                showToast('加载历史记录失败: ' + error.message, 'error');
+            }
+        }
+
+        // 返回当前任务
+        async function backToCurrentTask() {
+            // 首先检查是否有保存的任务状态
+            if (savedTaskState && savedTaskState.taskId) {
+                // 恢复任务状态
+                currentViewMode = 'task';
+                viewingHistoryId = null;
+
+                // 恢复输入框值
+                document.getElementById('textInput').value = savedTaskState.text || '';
+                document.getElementById('characterInput').value = savedTaskState.character || '';
+                document.getElementById('modelSelect').value = savedTaskState.model || '';
+
+                // 恢复任务ID和轮询
+                currentTaskId = savedTaskState.taskId;
+
+                // 清空视频显示（任务还在运行中，不应该显示旧的视频）
+                document.getElementById('videoContainer').classList.add('hidden');
+                document.getElementById('videoPlaceholder').classList.remove('hidden');
+                document.getElementById('videoPlaceholder').textContent = '等待生成视频...';
+                document.getElementById('videoControls').style.display = 'none';
+                document.getElementById('videoInfo').style.display = 'none';
+
+                // 恢复UI状态
+                setInputsDisabled(true);
+                document.getElementById('generateBtn').style.display = 'none';
+                document.getElementById('cancelBtn').style.display = 'block';
+                document.getElementById('progressContainer').style.display = 'block';
+
+                // 重新开始状态轮询
+                startStatusPolling(currentTaskId);
+
+                // 更新按钮状态
+                updateBackToTaskButton();
+
+                // 更新历史列表
+                loadHistoryList();
+
+                // 关闭侧边栏
+                historySidebar.classList.remove("active");
+
+                showToast('已返回当前任务', 'info');
+                return;
+            }
+
+            // 如果没有保存的任务状态，检查是否有正在运行的任务
+            await checkRunningTask();
+            
+            // 如果checkRunningTask恢复了任务（设置了savedTaskState），说明有正在运行的任务
+            if (savedTaskState && savedTaskState.taskId) {
+                // 任务已经被checkRunningTask恢复了，更新按钮状态并关闭侧边栏
+                updateBackToTaskButton();
+                historySidebar.classList.remove("active");
+                showToast('已返回当前任务', 'info');
+                return;
+            }
+
+            // 如果没有正在运行的任务，显示可以开始新任务的页面
+            currentViewMode = 'task';
+            viewingHistoryId = null;
+            
+            // 清空输入框（可选，也可以保留历史记录的输入）
+            // document.getElementById('textInput').value = '';
+            
+            // 启用所有输入框
+            setInputsDisabled(false);
+            document.getElementById('generateBtn').style.display = 'block';
+            document.getElementById('cancelBtn').style.display = 'none';
+            document.getElementById('progressContainer').style.display = 'none';
+
+            // 重置视频显示
+            document.getElementById('videoContainer').classList.add('hidden');
+            document.getElementById('videoPlaceholder').classList.remove('hidden');
+            document.getElementById('videoPlaceholder').textContent = '等待生成视频...';
+            document.getElementById('videoControls').style.display = 'none';
+            document.getElementById('videoInfo').style.display = 'none';
+
+            // 更新状态
+            updateStatus('等待开始...');
+
+            // 清除任务状态（因为没有任务）
+            savedTaskState = null;
+            currentTaskId = null;
+            
+            // 更新按钮状态（显示"开始新任务"）
+            updateBackToTaskButton();
+
+            // 更新历史列表
+            loadHistoryList();
+
+            // 关闭侧边栏
+            historySidebar.classList.remove("active");
+
+            showToast('当前没有正在执行的任务，可以开始新任务', 'info');
+        }
+
+        // 更新按钮状态（根据是否有任务显示不同的文本）
+        function updateBackToTaskButton() {
+            if (!backToTaskBtn) return;
+            
+            const hasTask = savedTaskState && savedTaskState.taskId;
+            if (hasTask) {
+                backToTaskBtn.textContent = '← 返回当前任务';
+                backToTaskBtn.disabled = false;
+            } else {
+                backToTaskBtn.textContent = '🚀 开始新任务';
+                backToTaskBtn.disabled = false;
+            }
+        }
+
+        if (backToTaskBtn) {
+            backToTaskBtn.addEventListener("click", () => {
+                const hasTask = savedTaskState && savedTaskState.taskId;
+                if (hasTask) {
+                    // 有任务，返回当前任务
+                    backToCurrentTask();
+                } else {
+                    // 没有任务，开始新任务 - 清空所有配置并等待用户填写
+                    currentViewMode = 'task';
+                    viewingHistoryId = null;
+                    historySidebar.classList.remove("active");
+                    
+                    // 清空所有输入框
+                    document.getElementById('textInput').value = '';
+                    document.getElementById('characterInput').value = '';
+                    document.getElementById('modelSelect').value = '';
+                    
+                    // 启用所有输入框
+                    setInputsDisabled(false);
+                    document.getElementById('generateBtn').style.display = 'block';
+                    document.getElementById('cancelBtn').style.display = 'none';
+                    document.getElementById('progressContainer').style.display = 'none';
+                    
+                    // 重置视频显示
+                    document.getElementById('videoContainer').classList.add('hidden');
+                    document.getElementById('videoPlaceholder').classList.remove('hidden');
+                    document.getElementById('videoPlaceholder').textContent = '等待生成视频...';
+                    document.getElementById('videoControls').style.display = 'none';
+                    document.getElementById('videoInfo').style.display = 'none';
+                    
+                    // 更新状态
+                    updateStatus('等待开始...');
+                    
+                    // 清除任务状态
+                    savedTaskState = null;
+                    currentTaskId = null;
+                    
+                    // 更新按钮状态
+                    updateBackToTaskButton();
+                    
+                    // 不调用 startGeneration()，等待用户填写后点击"开始生成视频"按钮
+                }
+            });
+        }
 
         // 页面加载时初始化
         document.addEventListener('DOMContentLoaded', async () => {
@@ -821,9 +1289,55 @@
                 }
             }
 
-            // 先加载角色和模型列表，然后再检查运行中的任务
+            // 先加载角色和模型列表
             await Promise.all([loadCharacters(), loadModels()]);
-            checkRunningTask();
+            
+            // 检查 URL 参数，如果是 mode=new，则清空配置并跳过任务检查
+            const urlParams = new URLSearchParams(window.location.search);
+            const mode = urlParams.get('mode');
+            
+            if (mode === 'new') {
+                // 新任务模式：清空所有配置
+                document.getElementById('textInput').value = '';
+                document.getElementById('characterInput').value = '';
+                document.getElementById('modelSelect').value = '';
+                
+                // 重置UI状态
+                setInputsDisabled(false);
+                document.getElementById('generateBtn').style.display = 'block';
+                document.getElementById('cancelBtn').style.display = 'none';
+                document.getElementById('progressContainer').style.display = 'none';
+                
+                // 重置视频显示
+                document.getElementById('videoContainer').classList.add('hidden');
+                document.getElementById('videoPlaceholder').classList.remove('hidden');
+                document.getElementById('videoPlaceholder').textContent = '等待生成视频...';
+                document.getElementById('videoControls').style.display = 'none';
+                document.getElementById('videoInfo').style.display = 'none';
+                
+                // 更新状态
+                updateStatus('等待开始...');
+                
+                // 清除任务状态
+                savedTaskState = null;
+                currentTaskId = null;
+                currentViewMode = 'task';
+                viewingHistoryId = null;
+                
+                // 更新按钮状态
+                updateBackToTaskButton();
+                
+                // 清除 URL 参数（可选，让 URL 更干净）
+                if (window.history.replaceState) {
+                    window.history.replaceState({}, '', 'generate.html');
+                }
+            } else {
+                // 正常模式：检查运行中的任务
+                await checkRunningTask();
+            }
+            
+            // 初始化按钮状态
+            updateBackToTaskButton();
         });
 
         // 加载角色列表（带超时处理）
@@ -951,10 +1465,26 @@
 
                     currentTaskId = task.unique_id;
 
+                    // 保存任务状态（用于历史记录切换）
+                    savedTaskState = {
+                        taskId: task.unique_id,
+                        text: task.text || '',
+                        character: task.character || 'ayanami',
+                        model: task.model_name || '',
+                        statusPollInterval: true
+                    };
+
                     // 恢复UI状态
                     document.getElementById('textInput').value = task.text || '';
                     document.getElementById('characterInput').value = task.character || 'ayanami';
                     document.getElementById('modelSelect').value = task.model_name || '';
+
+                    // 清空视频显示（任务还在运行中，不应该显示旧的视频）
+                    document.getElementById('videoContainer').classList.add('hidden');
+                    document.getElementById('videoPlaceholder').classList.remove('hidden');
+                    document.getElementById('videoPlaceholder').textContent = '等待生成视频...';
+                    document.getElementById('videoControls').style.display = 'none';
+                    document.getElementById('videoInfo').style.display = 'none';
 
                     setInputsDisabled(true);
                     document.getElementById('generateBtn').style.display = 'none';
@@ -990,6 +1520,12 @@
                     // 开始轮询状态
                     startStatusPolling(currentTaskId, task.start_time);
                     showToast('检测到正在运行的任务，已恢复', 'info');
+                    
+                    // 更新按钮状态
+                    updateBackToTaskButton();
+                } else {
+                    // 没有找到运行中的任务，更新按钮状态
+                    updateBackToTaskButton();
                 }
             } catch (error) {
                 // 静默失败，不显示错误提示（因为可能是后端未启动）
@@ -997,6 +1533,8 @@
                 if (error.name !== 'AbortError' && !error.message.includes('timeout')) {
                     console.log('检查运行任务:', error.message || '后端服务可能未启动');
                 }
+                // 即使出错也更新按钮状态（显示"开始新任务"）
+                updateBackToTaskButton();
             }
         }
 
@@ -1044,6 +1582,21 @@
                 }
 
                 currentTaskId = result.unique_id;
+                
+                // 保存任务状态（用于历史记录切换）
+                savedTaskState = {
+                    taskId: currentTaskId,
+                    text: text,
+                    character: character,
+                    model: model,
+                    statusPollInterval: true
+                };
+                
+                // 确保视图模式是任务模式
+                currentViewMode = 'task';
+                viewingHistoryId = null;
+                updateBackToTaskButton();
+
                 updateStatus(`📋 任务已提交 (ID: ${currentTaskId.substring(0, 8)}...)`);
                 showToast('任务已提交，正在后台生成中...', 'info');
 
@@ -1192,7 +1745,14 @@
                         const videoUrl = `${getApiBaseUrl()}/videos/${taskId}.mp4`;
                         displayVideo(videoUrl, task);
 
-                        resetUI();
+                        // 任务完成，清除保存的状态
+                        savedTaskState = null;
+                        updateBackToTaskButton();
+
+                        // 只在任务模式下重置UI
+                        if (currentViewMode === 'task') {
+                            resetUI();
+                        }
                         showToast('视频生成成功！', 'success');
 
                     } else if (status === 'failed' || status === 'cancelled') {
@@ -1203,7 +1763,15 @@
                         const error = task.error || (status === 'cancelled' ? '任务已取消' : '未知错误');
                         updateStatus(`❌ ${status === 'cancelled' ? '任务已取消' : '生成失败'}: ${error}`);
                         showToast(status === 'cancelled' ? '任务已取消' : ('生成失败: ' + error), 'error');
-                        resetUI();
+                        
+                        // 任务失败，清除保存的状态
+                        savedTaskState = null;
+                        updateBackToTaskButton();
+                        
+                        // 只在任务模式下重置UI
+                        if (currentViewMode === 'task') {
+                            resetUI();
+                        }
                     } else {
                         // 未知状态，记录日志但继续轮询
                         console.warn('未知任务状态:', status);
@@ -1284,6 +1852,9 @@
 
                 if (data.success) {
                     showToast('任务已终止', 'info');
+                    // 任务已终止，清除保存的状态
+                    savedTaskState = null;
+                    updateBackToTaskButton();
                 } else {
                     showToast('终止任务失败: ' + (data.error || '未知错误'), 'error');
                 }
@@ -1292,7 +1863,10 @@
                 showToast('终止任务失败: ' + error.message, 'error');
             }
 
-            resetUI();
+            // 只在任务模式下重置UI
+            if (currentViewMode === 'task') {
+                resetUI();
+            }
         }
 
         // 下载视频
@@ -1347,18 +1921,25 @@
             if (refreshCharacterBtn) refreshCharacterBtn.disabled = disabled;
         }
 
-        // 重置UI
+        // 重置UI（只在任务模式下）
         function resetUI() {
+            // 如果当前在历史记录模式，不重置UI
+            if (currentViewMode === 'history') {
+                return;
+            }
+
             if (statusPollInterval) {
                 clearInterval(statusPollInterval);
                 statusPollInterval = null;
             }
 
             currentTaskId = null;
+            savedTaskState = null;
             setInputsDisabled(false);
             document.getElementById('generateBtn').style.display = 'block';
             document.getElementById('cancelBtn').style.display = 'none';
             document.getElementById('progressContainer').style.display = 'none';
+            updateBackToTaskButton();
         }
 
         // 显示提示消息
