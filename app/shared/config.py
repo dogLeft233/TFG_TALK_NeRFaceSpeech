@@ -33,8 +33,8 @@ if not MODEL_DIR.exists():
         # 如果没有权限访问绝对路径，继续使用相对路径
         pass
 
-# WebUI 目录（前端静态文件目录，保留兼容性）
-WEBUI_DIR = PROJECT_ROOT / "fastapi_server" / "webui"
+# WebUI 目录（前端静态文件目录）
+WEBUI_DIR = Path(__file__).parent.parent / "webui"
 
 # 数据库目录（在项目根目录下，与fastapi_server平级）
 DATABASE_DIR = PROJECT_ROOT / "database"

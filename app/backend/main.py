@@ -26,7 +26,7 @@ from shared.utils.character_training import (
     get_character_training_status,
     list_characters,
 )
-from shared.config import OUTPUT_VIDEO_DIR, OUTPUT_AUDIO_DIR, MODEL_DIR, WEBUI_DIR, VIDEOS_STORAGE_DIR, AUDIOS_STORAGE_DIR, TEXTS_STORAGE_DIR, DATA_DIR, TRAINING_DATASET_DIR, API_CONDA_ENV, NERF_CONDA_ENV, LLM_CONDA_PYTHON, ASR_SERVICE_SCRIPT, ASR_SERVICE_URL
+from shared.config import OUTPUT_VIDEO_DIR, OUTPUT_AUDIO_DIR, MODEL_DIR, WEBUI_DIR, VIDEOS_STORAGE_DIR, AUDIOS_STORAGE_DIR, TEXTS_STORAGE_DIR, DATA_DIR, TRAINING_DATASET_DIR, API_CONDA_ENV, NERF_CONDA_ENV, LLM_CONDA_ENV, LLM_CONDA_PYTHON, ASR_SERVICE_SCRIPT, ASR_SERVICE_URL
 
 # 尝试导入 ASR 客户端（如果可用）
 try:
@@ -34,13 +34,20 @@ try:
         check_asr_service_health,
         transcribe_audio_via_service,
         transcribe_audio_file_via_service,
-        transcribe_base64_audio_via_service
+        transcribe_base64_audio_via_service,
+        transcribe_base64_audio_via_subprocess
     )
     from shared.config import ASR_SERVICE_URL
     ASR_SERVICE_AVAILABLE = True
 except ImportError:
     ASR_SERVICE_AVAILABLE = False
     ASR_SERVICE_URL = None
+    # 即使 ASR 服务客户端导入失败，也要尝试导入 subprocess 版本的函数
+    # 因为它不依赖 ASR 服务，而是直接调用 llm_talk 环境
+    try:
+        from shared.utils.asr_client import transcribe_base64_audio_via_subprocess
+    except ImportError:
+        transcribe_base64_audio_via_subprocess = None
     # 注意：此时 add_log 还未定义，日志将在 startup_event 中记录
 from shared.database.settings_db import get_setting, set_setting, get_all_settings, DB_DIR
 from shared.database.video_records_db import add_video_record, list_generation_records, add_generation_record, delete_generation_record, get_generation_record
@@ -204,10 +211,15 @@ def start_asr_service_background():
         add_log(f"ASR 服务脚本不存在: {ASR_SERVICE_SCRIPT}，跳过启动", "warning")
         return
     
-    # 检查 Python 环境是否存在
+    # 检查 Python 环境是否存在，优先使用 LLM conda 环境的 Python
     asr_python = LLM_CONDA_PYTHON if LLM_CONDA_PYTHON.exists() else Path(sys.executable)
     
+    # 获取 conda 环境的 bin 目录（用于 PATH）
+    llm_env_bin = LLM_CONDA_ENV / "bin" if LLM_CONDA_ENV.exists() else None
+    
     add_log(f"正在启动 ASR 服务 (使用 Python: {asr_python})...", "info")
+    if llm_env_bin:
+        add_log(f"使用 Conda 环境: {LLM_CONDA_ENV}", "info")
     
     try:
         # 构建启动命令
@@ -220,10 +232,19 @@ def start_asr_service_background():
             "--model", "base"
         ]
         
-        # 设置环境变量
+        # 设置环境变量，确保使用 conda 环境的工具
         env = os.environ.copy()
         project_root = Path(__file__).parent.parent.parent.resolve()
         env["PYTHONPATH"] = str(project_root)
+        
+        # 将 conda 环境的 bin 目录添加到 PATH 的最前面，确保优先使用环境中的工具
+        if llm_env_bin and llm_env_bin.exists():
+            conda_bin_path = str(llm_env_bin)
+            current_path = env.get("PATH", "")
+            # 将 conda 环境的 bin 目录放在 PATH 最前面（使用 os.pathsep 确保跨平台兼容）
+            path_sep = os.pathsep
+            env["PATH"] = f"{conda_bin_path}{path_sep}{current_path}" if current_path else conda_bin_path
+            add_log(f"已将 Conda 环境 bin 目录添加到 PATH: {conda_bin_path}", "info")
         
         # 启动 ASR 服务进程
         ASR_SERVICE_PROCESS = subprocess.Popen(
@@ -286,31 +307,12 @@ async def startup_event():
     setup_logging()
     # 添加启动日志
     add_log("FastAPI应用启动完成", "success")
-    
-    # 在后台启动 ASR 服务
-    asr_thread = threading.Thread(target=start_asr_service_background, daemon=True)
-    asr_thread.start()
+    add_log("[初始化] ASR 功能使用 subprocess 方式，直接调用封装好的环境", "info")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """应用关闭事件，清理资源"""
-    global ASR_SERVICE_PROCESS
-    
-    # 停止 ASR 服务进程
-    if ASR_SERVICE_PROCESS:
-        try:
-            add_log("正在停止 ASR 服务...", "info")
-            ASR_SERVICE_PROCESS.terminate()
-            ASR_SERVICE_PROCESS.wait(timeout=5)
-            add_log("ASR 服务已停止", "info")
-        except Exception as e:
-            add_log(f"停止 ASR 服务时出错: {e}", "warning")
-            try:
-                ASR_SERVICE_PROCESS.kill()
-            except:
-                pass
-        finally:
-            ASR_SERVICE_PROCESS = None
+    add_log("FastAPI应用正在关闭...", "info")
 
 
 # 允许前端跨域访问 API
@@ -1432,102 +1434,34 @@ def chat_api(request: ChatRequest):
     # 处理音频输入：如果有音频输入，先进行语音识别
     user_text = request.text
     if request.audio_base64 and not user_text:
-        add_log("[聊天] 检测到音频输入，开始语音识别...", "info")
+        add_log("[聊天] 检测到音频输入，使用 subprocess 方式进行语音识别...", "info")
         try:
-            # 优先使用 ASR 服务
-            if ASR_SERVICE_AVAILABLE:
-                try:
-                    if check_asr_service_health():
-                        add_log("[聊天] 使用 ASR 服务进行语音识别", "info")
-                        success, transcribed_text = transcribe_base64_audio_via_service(
-                            audio_base64=request.audio_base64,
-                            model_name="base",
-                            language=None,  # 自动检测语言
-                            task="transcribe"
-                        )
-                        if success and transcribed_text:
-                            user_text = transcribed_text.strip()
-                            add_log(f"[聊天] ✅ 语音识别成功: {user_text[:100]}...", "success")
-                        else:
-                            add_log("[聊天] ⚠️ 语音识别失败，尝试直接调用", "warning")
-                            # 回退到直接调用
-                            from llm_talk.asr import get_asr_response_api
-                            result = get_asr_response_api(
-                                request.audio_base64,
-                                model_name="base",
-                                language=None,
-                                task="transcribe"
-                            )
-                            if result.get("success"):
-                                user_text = result.get("data", {}).get("text", "").strip()
-                                add_log(f"[聊天] ✅ 语音识别成功（直接调用）: {user_text[:100]}...", "success")
-                            else:
-                                error_msg = result.get("error", {}).get("message", "语音识别失败")
-                                add_log(f"[聊天] ❌ 语音识别失败: {error_msg}", "error")
-                                return {
-                                    "success": False,
-                                    "error": f"语音识别失败: {error_msg}"
-                                }
-                    else:
-                        add_log("[聊天] ASR 服务不可用，尝试直接调用", "warning")
-                        # 回退到直接调用
-                        from llm_talk.asr import get_asr_response_api
-                        result = get_asr_response_api(
-                            request.audio_base64,
-                            model_name="base",
-                            language=None,
-                            task="transcribe"
-                        )
-                        if result.get("success"):
-                            user_text = result.get("data", {}).get("text", "").strip()
-                            add_log(f"[聊天] ✅ 语音识别成功（直接调用）: {user_text[:100]}...", "success")
-                        else:
-                            error_msg = result.get("error", {}).get("message", "语音识别失败")
-                            add_log(f"[聊天] ❌ 语音识别失败: {error_msg}", "error")
-                            return {
-                                "success": False,
-                                "error": f"语音识别失败: {error_msg}"
-                            }
-                except Exception as e:
-                    add_log(f"[聊天] ASR 服务调用异常: {e}，尝试直接调用", "warning")
-                    # 回退到直接调用
-                    from llm_talk.asr import get_asr_response_api
-                    result = get_asr_response_api(
-                        request.audio_base64,
-                        model_name="base",
-                        language=None,
-                        task="transcribe"
-                    )
-                    if result.get("success"):
-                        user_text = result.get("data", {}).get("text", "").strip()
-                        add_log(f"[聊天] ✅ 语音识别成功（直接调用）: {user_text[:100]}...", "success")
-                    else:
-                        error_msg = result.get("error", {}).get("message", "语音识别失败")
-                        add_log(f"[聊天] ❌ 语音识别失败: {error_msg}", "error")
-                        return {
-                            "success": False,
-                            "error": f"语音识别失败: {error_msg}"
-                        }
+            # 直接使用 subprocess 方式调用封装好的环境
+            if not transcribe_base64_audio_via_subprocess:
+                error_msg = "transcribe_base64_audio_via_subprocess 函数不可用，请检查 shared/utils/asr_client.py"
+                add_log(f"[聊天] ❌ {error_msg}", "error")
+                return {
+                    "success": False,
+                    "error": error_msg
+                }
+            
+            result = transcribe_base64_audio_via_subprocess(
+                audio_base64=request.audio_base64,
+                model_name="base",
+                language=None,  # 自动检测语言
+                task="transcribe"
+            )
+            
+            if result.get("success"):
+                user_text = result.get("data", {}).get("text", "").strip()
+                add_log(f"[聊天] ✅ 语音识别成功: {user_text[:100]}...", "success")
             else:
-                # 直接调用 ASR 模块
-                add_log("[聊天] 使用直接调用方式进行语音识别", "info")
-                from llm_talk.asr import get_asr_response_api
-                result = get_asr_response_api(
-                    request.audio_base64,
-                    model_name="base",
-                    language=None,
-                    task="transcribe"
-                )
-                if result.get("success"):
-                    user_text = result.get("data", {}).get("text", "").strip()
-                    add_log(f"[聊天] ✅ 语音识别成功: {user_text[:100]}...", "success")
-                else:
-                    error_msg = result.get("error", {}).get("message", "语音识别失败")
-                    add_log(f"[聊天] ❌ 语音识别失败: {error_msg}", "error")
-                    return {
-                        "success": False,
-                        "error": f"语音识别失败: {error_msg}"
-                    }
+                error_msg = result.get("error", {}).get("message", "语音识别失败")
+                add_log(f"[聊天] ❌ 语音识别失败: {error_msg}", "error")
+                return {
+                    "success": False,
+                    "error": f"语音识别失败: {error_msg}"
+                }
         except Exception as e:
             error_msg = f"语音识别过程中发生错误: {str(e)}"
             add_log(f"[聊天] ❌ {error_msg}", "error")
@@ -1738,54 +1672,44 @@ def asr_transcribe_api(request: ASRRequest):
         }
     
     try:
-        # 优先使用 ASR 服务
-        if ASR_SERVICE_AVAILABLE:
+        # 直接使用 subprocess 方式调用封装好的环境
+        if not transcribe_base64_audio_via_subprocess:
+            error_msg = "transcribe_base64_audio_via_subprocess 函数不可用，请检查 shared/utils/asr_client.py"
+            add_log(f"[ASR] ❌ {error_msg}", "error")
+            return {
+                "success": False,
+                "error": error_msg
+            }
+        
+        add_log("[ASR] 使用 subprocess 调用方式进行识别", "info")
+        
+        # 只支持 Base64 音频的 subprocess 调用
+        if request.audio_base64:
+            result = transcribe_base64_audio_via_subprocess(
+                audio_base64=request.audio_base64,
+                model_name=request.model_name,
+                language=request.language,
+                task=request.task
+            )
+        else:
+            # 如果是文件路径，需要先读取并转换为 Base64
+            import base64
             try:
-                if check_asr_service_health():
-                    add_log("[ASR] 使用 ASR 服务进行识别", "info")
-                    if request.audio_base64:
-                        success, text = transcribe_base64_audio_via_service(
-                            audio_base64=request.audio_base64,
-                            model_name=request.model_name,
-                            language=request.language,
-                            task=request.task
-                        )
-                    else:
-                        success, text = transcribe_audio_file_via_service(
-                            audio_path=request.audio_path,
-                            model_name=request.model_name,
-                            language=request.language,
-                            task=request.task
-                        )
-                    
-                    if success:
-                        return {
-                            "success": True,
-                            "data": {
-                                "text": text,
-                                "model_name": request.model_name,
-                                "language": request.language or "auto",
-                                "task": request.task
-                            }
-                        }
-                    else:
-                        add_log("[ASR] ASR 服务识别失败，尝试直接调用", "warning")
-                else:
-                    add_log("[ASR] ASR 服务不可用，尝试直接调用", "warning")
+                with open(request.audio_path, 'rb') as f:
+                    audio_data = f.read()
+                    audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+                result = transcribe_base64_audio_via_subprocess(
+                    audio_base64=audio_base64,
+                    model_name=request.model_name,
+                    language=request.language,
+                    task=request.task
+                )
             except Exception as e:
-                add_log(f"[ASR] ASR 服务调用异常: {e}，尝试直接调用", "warning")
-        
-        # 回退到直接调用
-        add_log("[ASR] 使用直接调用方式进行识别", "info")
-        from llm_talk.asr import get_asr_response_api
-        
-        audio_input = request.audio_base64 if request.audio_base64 else request.audio_path
-        result = get_asr_response_api(
-            audio_input=audio_input,
-            model_name=request.model_name,
-            language=request.language,
-            task=request.task
-        )
+                add_log(f"[ASR] 读取音频文件失败: {e}", "error")
+                return {
+                    "success": False,
+                    "error": f"读取音频文件失败: {str(e)}"
+                }
         
         if result.get("success"):
             data = result.get("data", {})
@@ -1819,31 +1743,31 @@ def asr_transcribe_api(request: ASRRequest):
 
 @app.get("/asr/health")
 def asr_health_check():
-    """检查 ASR 服务健康状态"""
-    if ASR_SERVICE_AVAILABLE:
-        try:
-            is_healthy = check_asr_service_health()
-            return {
-                "success": True,
-                "service_available": True,
-                "service_healthy": is_healthy,
-                "service_url": ASR_SERVICE_URL
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "service_available": True,
-                "service_healthy": False,
-                "error": str(e),
-                "service_url": ASR_SERVICE_URL
-            }
-    else:
+    """检查 ASR 功能健康状态（使用 subprocess 方式）"""
+    if not transcribe_base64_audio_via_subprocess:
         return {
-            "success": True,
-            "service_available": False,
-            "service_healthy": False,
-            "message": "ASR 客户端不可用，将使用直接调用方式"
+            "success": False,
+            "asr_available": False,
+            "method": "subprocess",
+            "error": "transcribe_base64_audio_via_subprocess 函数不可用",
+            "message": "请检查 shared/utils/asr_client.py 是否存在该函数"
         }
+    
+    # 检查 LLM_CONDA_PYTHON 是否存在
+    from shared.config import LLM_CONDA_PYTHON, LLM_CONDA_ENV
+    python_exists = LLM_CONDA_PYTHON.exists() if LLM_CONDA_PYTHON else False
+    env_exists = LLM_CONDA_ENV.exists() if LLM_CONDA_ENV else False
+    
+    return {
+        "success": True,
+        "asr_available": True,
+        "method": "subprocess",
+        "message": "ASR 功能可用（使用 subprocess 调用封装好的环境）",
+        "python_path": str(LLM_CONDA_PYTHON) if LLM_CONDA_PYTHON else None,
+        "python_exists": python_exists,
+        "env_path": str(LLM_CONDA_ENV) if LLM_CONDA_ENV else None,
+        "env_exists": env_exists
+    }
 
 # ---------------------------
 # 纯LLM问答接口（不生成音频，快速响应）

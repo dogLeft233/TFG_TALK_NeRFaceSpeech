@@ -122,7 +122,7 @@ body {
     cursor: pointer;
     transition: all 0.3s ease;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .card::before {
@@ -173,6 +173,57 @@ body {
     border-radius: 6px;
     display: inline-block;
     font-family: ui-monospace, monospace;
+    margin-bottom: 16px;
+}
+
+.card-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 16px;
+}
+
+.card-btn {
+    width: auto;
+    padding: 10px 20px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.card-btn:hover {
+    background: var(--card-bg);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.card-btn.primary {
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    border-color: var(--primary-2);
+    color: #fff;
+}
+
+.card-btn.primary:hover {
+    background: linear-gradient(135deg, var(--primary-2), var(--primary));
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+}
+
+.card-btn.secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--border);
+}
+
+.card-btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--primary-2);
 }
 
 .status {

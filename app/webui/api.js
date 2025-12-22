@@ -89,12 +89,14 @@ async function apiGet(endpoint, params = {}) {
  * POST 请求
  * @param {string} endpoint - API 端点
  * @param {object} data - 请求体数据
+ * @param {object} options - 额外的请求选项（可选）
  * @returns {Promise<any>} JSON 响应数据
  */
-async function apiPost(endpoint, data = {}) {
+async function apiPost(endpoint, data = {}, options = {}) {
     const response = await apiRequest(endpoint, {
         method: 'POST',
         body: JSON.stringify(data),
+        ...options, // 允许覆盖默认选项，如超时时间
     });
 
     if (!response.ok) {
@@ -234,7 +236,10 @@ async function chat(params) {
  * @returns {Promise<object>} 识别结果
  */
 async function transcribeAudio(params) {
-    return await apiPost('/asr/transcribe', params);
+    // 语音识别可能需要较长时间，特别是首次加载模型时，设置5分钟超时
+    return await apiPost('/asr/transcribe', params, {
+        signal: AbortSignal.timeout(300000) // 5分钟超时（300秒）
+    });
 }
 
 /**

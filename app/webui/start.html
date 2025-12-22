@@ -105,11 +105,14 @@
 
         <div class="cards">
             <!-- 后端入口 -->
-            <div class="card" onclick="openBackend()">
+            <div class="card" onclick="openBackendLogs()">
                 <div class="card-icon">🖥️</div>
-                <h2>后端 API 文档</h2>
-                <p>查看后端 API 文档和调试信息<br>监控系统运行状态</p>
+                <h2>后端管理</h2>
+                <p>查看后端输出日志和系统状态<br>监控系统运行状态</p>
                 <div class="card-url" id="backendUrl">http://localhost:8000/</div>
+                <div class="card-actions" onclick="event.stopPropagation()">
+                    <button class="card-btn secondary" onclick="openBackendDocs()">📖 API 文档</button>
+                </div>
             </div>
 
             <!-- 前端应用入口 -->
@@ -360,10 +363,22 @@
                 }
             }
 
+            // 打开后端输出日志（默认）
+            window.openBackendLogs = function () {
+                window.open('logs.html', '_blank');
+            };
+
             // 打开后端 API 文档
-            window.openBackend = function () {
+            window.openBackendDocs = function (e) {
+                if (e) e.stopPropagation(); // 阻止事件冒泡
                 const currentApiUrl = getApiUrl();
                 window.open(`${currentApiUrl}/docs`, '_blank');
+            };
+
+            // 打开数据库页面
+            window.openDatabase = function (e) {
+                if (e) e.stopPropagation(); // 阻止事件冒泡
+                window.open('database.html', '_blank');
             };
 
             // 打开前端应用
