@@ -165,3 +165,65 @@
   - `metrics/scores_LSE/syncnet_python/data/syncnet_v2.model`
   - `metrics/scores_LSE/syncnet_python/detectors/s3fd/weights/sfd_face.pth`
   - （可选但推荐）`eval_pipline/FFHQFaceAlignment/lib/sfd/s3fd-619a316812.pth`
+
+---
+
+## 6. 使用 assets 统一打包 / 恢复模型权重
+
+为方便在不同机器 / Docker 环境中迁移模型权重，本仓库提供了一个简单的资产管理脚本：
+
+- 脚本位置：`tools/manage_assets.py`
+- 设计思路：
+  - **真实权重文件** 统一放在 `assets/` 目录下（例如 `assets/models/...`）
+  - 代码中原有的权重路径（如 `NeRFFaceSpeech_Code/pretrained_networks/ffhq_1024.pkl`）  
+    会被替换为指向 `assets/` 中真实文件的 **软链接**
+  - 所有「原始路径 → assets 中位置」的映射记录在 `assets/model_manifest.json` 中
+
+### 6.1 在当前环境中收集并软链接到 `assets/`
+
+> 前提：你已经按本文件前面的说明，把所有必需权重下载到各自原始路径。
+
+在仓库根目录执行：
+
+```bash
+python tools/manage_assets.py collect
+```
+
+效果：
+
+- 将本清单中涉及的模型权重：
+  - 复制到 `assets/` 下（例如 `assets/models/...`）
+  - 删除原始文件，改为在原路径创建指向 `assets/` 的软链接
+- 生成或更新 `assets/model_manifest.json`，记录每个权重的映射关系
+
+此时你可以直接打包：
+
+```bash
+tar czf assets.tar.gz assets
+```
+
+将 `assets.tar.gz` 与代码仓库一同分发即可。
+
+### 6.2 在新环境中从 `assets` 恢复权重位置
+
+在一台新机器上，推荐流程：
+
+```bash
+git clone <this-repo>
+cd TFG_TALK_NeRFaceSpeech
+
+# 解压你之前打包好的 assets
+tar xzf /path/to/assets.tar.gz
+
+# 恢复所有模型权重到原始路径（以软链接形式）
+python tools/manage_assets.py restore
+```
+
+效果：
+
+- 脚本会读取 `assets/model_manifest.json`
+- 为其中每个条目在原路径创建软链接，指向 `assets/` 中对应的真实文件
+- 不会覆盖已经存在的实体文件，只在目标不存在时创建链接（如需强制覆盖，可按需手动删除后重跑）
+
+完成以上步骤后，只要环境依赖安装正确，项目即可像当前机器一样加载和使用所有核心模型权重。
+
