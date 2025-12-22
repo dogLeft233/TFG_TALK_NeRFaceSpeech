@@ -7,6 +7,7 @@
     <title>NeRFFaceSpeech - 选择模块</title>
     <link rel="stylesheet" href="style.css">
     <script src="settings.js"></script>
+    <script src="api.js"></script>
     <style>
         .page {
             max-width: 800px;
@@ -230,7 +231,7 @@
         </header>
 
         <div class="options">
-            <a href="generate.html">
+            <a href="javascript:void(0)" onclick="openGeneratePage()">
                 <div class="card">
                     <span class="tag">视频生成</span>
                     <h3>文本 → LLM+TTS → NeRF 视频</h3>
@@ -256,6 +257,36 @@
     </div>
 
     <script>
+        // 打开视频生成页面，检查是否有运行中的任务
+        async function openGeneratePage() {
+            try {
+                // 检查是否有运行中的任务
+                const apiUrl = getApiBaseUrl();
+                const response = await fetch(`${apiUrl}/generate_video/running`, {
+                    signal: AbortSignal.timeout(3000) // 3秒超时
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.data) {
+                        const task = data.data;
+                        const status = task.status;
+                        // 如果有正在运行的任务（pending 或 running），直接跳转（会自动恢复任务）
+                        if (status === 'pending' || status === 'running') {
+                            window.location.href = 'generate.html';
+                            return;
+                        }
+                    }
+                }
+                // 如果没有运行中的任务，跳转到新任务页面（清空配置）
+                window.location.href = 'generate.html?mode=new';
+            } catch (error) {
+                // 如果检查失败（可能是后端未启动），也跳转到新任务页面
+                console.log('检查任务状态失败，跳转到新任务页面:', error.message);
+                window.location.href = 'generate.html?mode=new';
+            }
+        }
+
         // 等待DOM加载完成后再初始化设置事件绑定
         document.addEventListener('DOMContentLoaded', async () => {
             // 应用设置（从数据库读取）- 优化：只调用一次API，然后并行更新UI

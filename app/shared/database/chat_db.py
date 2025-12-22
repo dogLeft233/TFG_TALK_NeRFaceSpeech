@@ -54,15 +54,24 @@ def init_database():
                     message_id TEXT NOT NULL PRIMARY KEY,
                     session_id TEXT NOT NULL,
                     message_type TEXT NOT NULL,  -- 'user' 或 'assistant'
-                    content_type TEXT NOT NULL,  -- 'text', 'audio', 'text+audio'
+                    content_type TEXT NOT NULL,  -- 'text', 'text+audio', 'text+audio+video'
                     text_content TEXT,  -- 文本内容（如果是文本消息）
                     text_path TEXT,  -- 文本文件路径（如果文本保存在文件中）
                     audio_path TEXT,  -- 音频文件路径（如果音频保存在文件中）
                     audio_base64 TEXT,  -- 音频base64（可选，用于小音频文件）
+                    video_path TEXT,  -- 视频文件路径（如果视频保存在文件中）
                     created_at TEXT NOT NULL,
                     FOREIGN KEY (session_id) REFERENCES chat_sessions(session_id) ON DELETE CASCADE
                 )
             """)
+            
+            # 添加video_path字段（如果不存在）
+            try:
+                cursor.execute("ALTER TABLE chat_messages ADD COLUMN video_path TEXT")
+                logger.info("[数据库] 已添加 video_path 字段到 chat_messages 表")
+            except sqlite3.OperationalError as e:
+                if "duplicate column" not in str(e).lower() and "already exists" not in str(e).lower():
+                    raise
             
             # 创建索引以提高查询性能
             cursor.execute("""
@@ -103,11 +112,12 @@ def init_database():
                 message_id TEXT NOT NULL PRIMARY KEY,
                 session_id TEXT NOT NULL,
                 message_type TEXT NOT NULL,  -- 'user' 或 'assistant'
-                content_type TEXT NOT NULL,  -- 'text', 'audio', 'text+audio'
+                content_type TEXT NOT NULL,  -- 'text', 'text+audio', 'text+audio+video'
                 text_content TEXT,  -- 文本内容（如果是文本消息）
                 text_path TEXT,  -- 文本文件路径（如果文本保存在文件中）
                 audio_path TEXT,  -- 音频文件路径（如果音频保存在文件中）
                 audio_base64 TEXT,  -- 音频base64（可选，用于小音频文件）
+                video_path TEXT,  -- 视频文件路径（如果视频保存在文件中）
                 created_at TEXT NOT NULL,
                 FOREIGN KEY (session_id) REFERENCES chat_sessions(session_id) ON DELETE CASCADE
             )
@@ -169,7 +179,7 @@ def create_chat_session(session_id: str, title: Optional[str] = None,
 def add_chat_message(session_id: str, message_id: str, message_type: str, 
                     content_type: str, text_content: Optional[str] = None,
                     text_path: Optional[str] = None, audio_path: Optional[str] = None,
-                    audio_base64: Optional[str] = None) -> bool:
+                    audio_base64: Optional[str] = None, video_path: Optional[str] = None) -> bool:
     """
     添加聊天消息
     
@@ -177,11 +187,12 @@ def add_chat_message(session_id: str, message_id: str, message_type: str,
         session_id: 会话ID
         message_id: 消息ID
         message_type: 'user' 或 'assistant'
-        content_type: 'text', 'audio', 'text+audio'
+        content_type: 'text', 'text+audio', 'text+audio+video'
         text_content: 文本内容
         text_path: 文本文件路径
         audio_path: 音频文件路径
         audio_base64: 音频base64（可选）
+        video_path: 视频文件路径（可选）
     """
     logger = logging.getLogger()
     try:
@@ -200,10 +211,10 @@ def add_chat_message(session_id: str, message_id: str, message_type: str,
         cursor.execute("""
             INSERT OR REPLACE INTO chat_messages 
             (message_id, session_id, message_type, content_type, text_content, 
-             text_path, audio_path, audio_base64, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             text_path, audio_path, audio_base64, video_path, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (message_id, session_id, message_type, content_type, text_content,
-              text_path, audio_path, audio_base64, created_at))
+              text_path, audio_path, audio_base64, video_path, created_at))
         
         conn.commit()
         conn.close()

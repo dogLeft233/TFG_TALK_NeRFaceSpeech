@@ -935,11 +935,49 @@
                 const records = data.data;
                 historyListContainer.innerHTML = '';
 
-                records.forEach((record) => {
+                // 对于每个记录，检查是否是运行中的任务
+                const checkTasks = records.map(async (record) => {
                     const item = document.createElement("div");
                     const isActive = viewingHistoryId === record.unique_id;
-                    item.className = `history-item ${isActive ? 'active' : ''}`;
-                    item.dataset.id = record.unique_id;
+                    
+                    // 检查是否是当前运行中的任务（通过查询任务状态）
+                    let isCurrentTask = false;
+                    let taskStatus = null;
+                    const recordTaskId = record.unique_id;
+                    
+                    // 如果这个记录的任务ID匹配当前任务ID或保存的任务ID，查询状态
+                    if (currentTaskId === recordTaskId || savedTaskState?.taskId === recordTaskId) {
+                        try {
+                            // 快速查询任务状态
+                            const statusResponse = await getVideoGenerationStatus(recordTaskId);
+                            if (statusResponse.success && statusResponse.data) {
+                                taskStatus = statusResponse.data.status;
+                                if (taskStatus === 'pending' || taskStatus === 'running') {
+                                    isCurrentTask = true;
+                                    // 更新 currentTaskId 和 savedTaskState（如果还没有设置）
+                                    if (!currentTaskId) {
+                                        currentTaskId = recordTaskId;
+                                    }
+                                    if (!savedTaskState) {
+                                        savedTaskState = {
+                                            taskId: recordTaskId,
+                                            text: record.text || '',
+                                            character: record.character || '',
+                                            model: record.model_name || '',
+                                            statusPollInterval: false,
+                                            taskStartTime: statusResponse.data.start_time || null
+                                        };
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            // 查询失败，忽略（可能是任务已完成或不存在）
+                            console.log('查询任务状态失败:', e);
+                        }
+                    }
+                    
+                    item.className = `history-item ${isActive || isCurrentTask ? 'active' : ''}`;
+                    item.dataset.id = recordTaskId;
 
                     const textDiv = document.createElement("div");
                     textDiv.className = "history-item-text";
@@ -948,18 +986,38 @@
 
                     const timeDiv = document.createElement("div");
                     timeDiv.className = "history-item-time";
+                    let timeText = '';
+                    if (isCurrentTask && (taskStatus === 'pending' || taskStatus === 'running')) {
+                        timeText = '生成中...';
+                    } else {
                     const date = record.created_at ? new Date(record.created_at).toLocaleString('zh-CN') : '未知时间';
-                    timeDiv.textContent = date;
+                        timeText = date;
+                    }
+                    timeDiv.textContent = timeText;
 
                     item.appendChild(textDiv);
                     item.appendChild(timeDiv);
 
                     item.addEventListener("click", () => {
-                        switchToHistoryRecord(record.unique_id);
+                        // 如果是运行中的任务，返回任务界面；否则查看历史记录
+                        if (isCurrentTask) {
+                            backToCurrentTask();
+                        } else {
+                            switchToHistoryRecord(recordTaskId);
+                        }
                     });
 
+                    return item;
+                });
+                
+                // 等待所有任务状态查询完成后再添加到DOM
+                const items = await Promise.all(checkTasks);
+                items.forEach(item => {
                     historyListContainer.appendChild(item);
                 });
+                
+                // 更新按钮状态（可能在查询过程中发现了运行中的任务）
+                updateBackToTaskButton();
             } catch (error) {
                 console.error('加载历史记录失败:', error);
                 historyListContainer.innerHTML = '<div style="color: var(--muted); text-align: center; padding: 20px;">加载失败</div>';
@@ -1062,7 +1120,7 @@
                 document.getElementById('characterInput').value = savedTaskState.character || '';
                 document.getElementById('modelSelect').value = savedTaskState.model || '';
 
-                // 恢复任务ID和轮询
+                // 恢复任务ID
                 currentTaskId = savedTaskState.taskId;
 
                 // 清空视频显示（任务还在运行中，不应该显示旧的视频）
@@ -1072,14 +1130,80 @@
                 document.getElementById('videoControls').style.display = 'none';
                 document.getElementById('videoInfo').style.display = 'none';
 
-                // 恢复UI状态
+                // 禁用输入（不支持修改）
                 setInputsDisabled(true);
                 document.getElementById('generateBtn').style.display = 'none';
                 document.getElementById('cancelBtn').style.display = 'block';
                 document.getElementById('progressContainer').style.display = 'block';
 
-                // 重新开始状态轮询
-                startStatusPolling(currentTaskId);
+                // 先查询当前任务状态，同步进度条
+                try {
+                    const response = await getVideoGenerationStatus(currentTaskId);
+                    if (response.success && response.data) {
+                        const task = response.data;
+                        const status = task.status;
+                        
+                        // 根据任务状态更新UI
+                        if (status === 'pending') {
+                            updateProgress(10, '任务排队中...');
+                            updateStatus('📋 任务排队中...');
+                        } else if (status === 'running') {
+                            // 计算进度
+                            let progress = 30;
+                            if (task.start_time) {
+                                try {
+                                    const startTime = new Date(task.start_time).getTime();
+                                    const elapsedSeconds = (Date.now() - startTime) / 1000;
+                                    if (elapsedSeconds <= 30) {
+                                        progress = 30 + Math.floor((elapsedSeconds / 30) * 10);
+                                    } else if (elapsedSeconds <= 90) {
+                                        progress = 40 + Math.floor(((elapsedSeconds - 30) / 60) * 10);
+                                    } else if (elapsedSeconds <= 150) {
+                                        progress = 50 + Math.floor(((elapsedSeconds - 90) / 60) * 10);
+                                    } else if (elapsedSeconds <= 210) {
+                                        progress = 60 + Math.floor(((elapsedSeconds - 150) / 60) * 10);
+                                    } else if (elapsedSeconds <= 270) {
+                                        progress = 70 + Math.floor(((elapsedSeconds - 210) / 60) * 10);
+                                    } else {
+                                        progress = Math.min(80 + Math.floor(((elapsedSeconds - 270) / 60) * 10), 90);
+                                    }
+                                } catch (e) {
+                                    console.warn('无法解析任务开始时间:', e);
+                                }
+                            }
+                            updateProgress(progress, '生成中...');
+                            updateStatus('📋 任务生成中...');
+                        } else if (status === 'completed') {
+                            // 任务已完成，显示视频
+                            updateProgress(100, '生成完成！');
+                            updateStatus('✅ 视频生成成功！');
+                            const videoUrl = `${getApiBaseUrl()}/videos/${currentTaskId}.mp4`;
+                            displayVideo(videoUrl, task);
+                            // 任务完成，清除保存的状态
+                            savedTaskState = null;
+                            setInputsDisabled(false);
+                            document.getElementById('generateBtn').style.display = 'block';
+                            document.getElementById('cancelBtn').style.display = 'none';
+                            document.getElementById('progressContainer').style.display = 'none';
+                        } else if (status === 'failed' || status === 'cancelled') {
+                            // 任务失败或已取消
+                            const error = task.error || (status === 'cancelled' ? '任务已取消' : '未知错误');
+                            updateStatus(`❌ ${status === 'cancelled' ? '任务已取消' : '生成失败'}: ${error}`);
+                            // 任务失败，清除保存的状态
+                            savedTaskState = null;
+                            setInputsDisabled(false);
+                            document.getElementById('generateBtn').style.display = 'block';
+                            document.getElementById('cancelBtn').style.display = 'none';
+                            document.getElementById('progressContainer').style.display = 'none';
+                        }
+                    }
+                } catch (error) {
+                    console.error('查询任务状态失败:', error);
+                    updateStatus('📋 正在恢复任务状态...');
+                }
+
+                // 重新开始状态轮询（准备接受任务返回）
+                startStatusPolling(currentTaskId, savedTaskState.taskStartTime);
 
                 // 更新按钮状态
                 updateBackToTaskButton();
@@ -1333,11 +1457,18 @@
                 }
             } else {
                 // 正常模式：检查运行中的任务
-                await checkRunningTask();
+            await checkRunningTask();
             }
             
             // 初始化按钮状态
             updateBackToTaskButton();
+            
+            // 定期刷新历史记录列表（确保运行中的任务能显示在历史记录中）
+            setInterval(() => {
+                if (historySidebar.classList.contains('active')) {
+                    loadHistoryList();
+                }
+            }, 5000); // 每5秒刷新一次历史记录列表（仅当侧边栏打开时）
         });
 
         // 加载角色列表（带超时处理）
@@ -1589,7 +1720,8 @@
                     text: text,
                     character: character,
                     model: model,
-                    statusPollInterval: true
+                    statusPollInterval: true,
+                    taskStartTime: null // 任务刚提交，还没有开始时间
                 };
                 
                 // 确保视图模式是任务模式
@@ -1678,8 +1810,14 @@
                         if (consecutiveFailures >= 5) {
                             clearInterval(statusPollInterval);
                             statusPollInterval = null;
-                            updateStatus('❌ 任务不存在，已停止监控');
-                            resetUI();
+                            updateStatus('❌ 任务不存在，已停止监控。任务可能在后台运行，可在历史记录中查看。');
+                            // 不清除 savedTaskState，保留任务信息
+                            // 刷新历史记录，确保任务出现在历史记录中
+                            loadHistoryList();
+                            // 只在任务模式下显示错误提示
+                            if (currentViewMode === 'task') {
+                                showToast('任务不存在，已停止监控。任务可能在后台运行，可在历史记录中查看。', 'warning');
+                            }
                         }
                         return;
                     }
@@ -1749,6 +1887,9 @@
                         savedTaskState = null;
                         updateBackToTaskButton();
 
+                        // 刷新历史记录列表（任务已完成，应该出现在历史记录中）
+                        loadHistoryList();
+
                         // 只在任务模式下重置UI
                         if (currentViewMode === 'task') {
                             resetUI();
@@ -1768,6 +1909,9 @@
                         savedTaskState = null;
                         updateBackToTaskButton();
                         
+                        // 刷新历史记录列表（任务已失败，应该出现在历史记录中）
+                        loadHistoryList();
+                        
                         // 只在任务模式下重置UI
                         if (currentViewMode === 'task') {
                             resetUI();
@@ -1784,9 +1928,14 @@
                         // 如果连续失败多次，停止轮询
                         clearInterval(statusPollInterval);
                         statusPollInterval = null;
-                        updateStatus('❌ 状态查询失败，已停止监控');
-                        resetUI();
-                        showToast('状态查询失败，请检查后端服务', 'error');
+                        updateStatus('❌ 状态查询失败，已停止监控。任务仍在后台运行，可在历史记录中查看。');
+                        // 不清除 savedTaskState，保留任务信息，用户可以通过历史记录查看
+                        // 刷新历史记录，确保任务出现在历史记录中
+                        loadHistoryList();
+                        // 只在任务模式下显示错误提示
+                        if (currentViewMode === 'task') {
+                            showToast('状态查询失败，请检查后端服务。任务仍在后台运行，可在历史记录中查看。', 'error');
+                        }
                     }
                 }
             }, 2000); // 每2秒轮询一次

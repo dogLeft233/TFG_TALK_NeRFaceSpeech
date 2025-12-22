@@ -282,7 +282,7 @@
       font-size: 14px;
     }
     
-    .page { max-width: 1400px; width: 94vw; margin: 0 auto; padding: 20px 24px 40px; min-height: 96vh; }
+    .page { max-width: 1400px; width: 94vw; margin: 0 auto; padding: 20px 24px 40px; min-height: 100vh; }
     header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
     h1 { margin: 0; font-size: 24px; letter-spacing: 0.4px; }
     .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 12px; background: rgba(59,130,246,0.2); color: #c7d2fe; font-size: 12px; border: 1px solid rgba(96,165,250,0.5); }
@@ -308,6 +308,59 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       min-height: 120px; white-space: pre-wrap; word-break: break-all;
     }
+    
+    /* 进度条样式 */
+    .progress-container {
+      margin-top: 12px;
+      margin-bottom: 12px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--primary-2));
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 4px;
+    }
+    .progress-text {
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .step-indicator {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .step-item {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      transition: all 0.3s ease;
+    }
+    .step-item.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .step-item.completed {
+      background: rgba(34,197,94,0.2);
+      color: #4ade80;
+      border-color: rgba(34,197,94,0.4);
+    }
     a { color: #bfdbfe; text-decoration: none; }
     footer {
       margin-top: 24px;
@@ -322,9 +375,9 @@
     .chat-container {
       display: flex;
       flex-direction: column;
-      height: calc(100vh - 200px);
-      max-height: 800px;
-      min-height: 600px;
+      height: calc(100vh - 160px);
+      max-height: 900px;
+      min-height: 700px;
     }
     .chat-messages {
       flex: 1;
@@ -964,8 +1017,8 @@
     
     /* 视频框样式（小正方形） */
     .video-preview-box {
-      width: 150px;
-      height: 150px;
+      width: 350px;
+      height: 350px;
       border-radius: 12px;
       background: rgba(0, 0, 0, 0.3);
       border: 2px solid var(--border);
@@ -1178,6 +1231,17 @@
             <button class="primary" id="sendBtn" style="width: auto; padding: 10px 20px;">发送</button>
           </div>
         </div>
+        
+        <!-- 进度显示区域 -->
+        <div class="progress-container" id="chatProgressContainer" style="display: none; margin-top: 12px;">
+          <div class="progress-bar">
+            <div class="progress-fill" id="chatProgressFill"></div>
+      </div>
+          <div class="progress-text">
+            <span id="chatProgressText">准备中...</span>
+            <span id="chatProgressPercent">0%</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1187,95 +1251,6 @@
   </footer>
 
   <script>
-    // 等待DOM加载完成后再初始化设置事件绑定
-    document.addEventListener('DOMContentLoaded', async () => {
-      // 应用设置（从数据库读取）
-      try {
-        await applySettingsOnly();
-        await updateThemeSelection();
-        await updateFontSelection();
-        await updateFontSizeSelection();
-      } catch (error) {
-        console.error('应用设置失败:', error);
-      }
-      
-      // 侧边栏控制
-      const settingsBtn = document.getElementById('settingsBtn');
-      const settingsSidebar = document.getElementById('settingsSidebar');
-      const sidebarOverlay = document.getElementById('sidebarOverlay');
-      const sidebarClose = document.getElementById('sidebarClose');
-      
-      if (!settingsBtn || !settingsSidebar) {
-        console.error('设置按钮或侧边栏元素未找到', {
-          settingsBtn: !!settingsBtn,
-          settingsSidebar: !!settingsSidebar
-        });
-        return;
-      }
-      
-      function openSidebar() {
-        settingsSidebar.classList.add('active');
-        sidebarOverlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
-      }
-      
-      function closeSidebar() {
-        settingsSidebar.classList.remove('active');
-        sidebarOverlay.classList.remove('active');
-        document.body.style.overflow = '';
-      }
-      
-      settingsBtn.addEventListener('click', openSidebar);
-      if (sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
-      if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
-      
-      // 分页切换
-      document.querySelectorAll('.sidebar-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-          const targetTab = tab.dataset.tab;
-          document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
-          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-          tab.classList.add('active');
-          const targetContent = document.getElementById(targetTab + 'Tab');
-          if (targetContent) targetContent.classList.add('active');
-        });
-      });
-      
-      // 主题选择
-      document.querySelectorAll('[data-theme]').forEach(card => {
-        card.addEventListener('click', () => {
-          applyTheme(card.dataset.theme);
-        });
-      });
-      
-      // 字体选择
-      document.querySelectorAll('[data-font]').forEach(card => {
-        card.addEventListener('click', () => {
-          applyFont(card.dataset.font);
-        });
-      });
-      
-      // 字号选择
-      document.querySelectorAll('[data-size]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          applyFontSize(btn.dataset.size);
-        });
-      });
-      
-      // 自定义字号输入
-      const customSizeValue = document.getElementById('customSizeValue');
-      if (customSizeValue) {
-        customSizeValue.addEventListener('change', (e) => {
-          if (customSizeValue.value) {
-            applyFontSize('custom');
-          }
-        });
-      }
-    });
-    
-    const volumeSlider = document.getElementById("volumeSlider");
-    const volumeControl = document.getElementById("volumeControl");
-    
     let mediaRecorder = null;
     let audioChunks = [];
     let isRecording = false;
@@ -1290,7 +1265,109 @@
     let chatHistory = {}; // 存储所有对话历史 {chatId: {messages: [], title: "", time: "", sessionId: null, character: "", model: ""}}
     let isWaitingForAudio = false; // 是否正在等待音频返回
     let isWaitingForVideo = false; // 是否正在等待视频生成
+    let isTranscribing = false; // 是否正在处理语音识别
     let abortController = null; // 用于取消正在进行的请求
+    let logPollInterval = null; // 日志轮询间隔ID
+    let currentStage = null; // 当前阶段：'llm', 'tts', 'video'
+    let stageStartTime = null; // 当前阶段开始时间
+
+    // ==================== 对话管理功能 ====================
+    const chatManageBtn = document.getElementById("chatManageBtn");
+    const chatSidebar = document.getElementById("chatSidebar");
+    const chatSidebarClose = document.getElementById("chatSidebarClose");
+    const newChatBtn = document.getElementById("newChatBtn");
+    const exportChatBtn = document.getElementById("exportChatBtn");
+    const clearChatBtn = document.getElementById("clearChatBtn");
+
+    // 打开/关闭对话管理侧边栏
+    if (chatManageBtn && chatSidebar) {
+        chatManageBtn.addEventListener("click", () => {
+            chatSidebar.classList.toggle("active");
+            if (chatSidebar.classList.contains("active")) {
+                updateHistoryList();
+            }
+        });
+    }
+
+    if (chatSidebarClose) {
+        chatSidebarClose.addEventListener("click", () => {
+            chatSidebar.classList.remove("active");
+        });
+    }
+
+    // 新建对话
+    if (newChatBtn) {
+        newChatBtn.addEventListener("click", () => {
+            const newChatId = `chat-${Date.now()}`;
+            chatHistory[newChatId] = {
+                messages: [],
+                title: "新对话",
+                time: new Date().toISOString()
+            };
+            saveChatHistory();
+            switchChat(newChatId);
+            // 显示角色和模型选择弹窗
+            setTimeout(() => {
+                showCharacterModelModal();
+            }, 300);
+        });
+    }
+
+    // 清空当前对话
+    if (clearChatBtn) {
+        clearChatBtn.addEventListener("click", () => {
+            if (confirm("确定要清空当前对话吗？")) {
+                if (chatHistory[currentChatId]) {
+                    chatHistory[currentChatId].messages = [];
+                    chatHistory[currentChatId].title = "当前对话";
+                    chatHistory[currentChatId].time = new Date().toISOString();
+                    saveChatHistory();
+                }
+                const chatMessages = document.getElementById("chatMessages");
+                if (chatMessages) {
+                    chatMessages.innerHTML = '<div class="empty-state"><p>👋 开始对话吧！输入文字或录制语音与AI交流</p></div>';
+                }
+                updateHistoryList();
+            }
+        });
+    }
+
+    // 导出对话记录
+    if (exportChatBtn) {
+        exportChatBtn.addEventListener("click", () => {
+            if (!chatHistory[currentChatId] || chatHistory[currentChatId].messages.length === 0) {
+                alert("当前对话为空，无法导出");
+                return;
+            }
+            
+            const messages = chatHistory[currentChatId].messages;
+            let exportText = `对话记录 - ${new Date().toLocaleString('zh-CN')}\n`;
+            exportText += "=".repeat(50) + "\n\n";
+            
+            messages.forEach(msg => {
+                const role = msg.isUser ? "用户" : "AI";
+                const time = new Date(msg.time).toLocaleString('zh-CN');
+                exportText += `[${time}] ${role}:\n${msg.text}\n\n`;
+            });
+            
+            // 创建下载链接
+            const blob = new Blob([exportText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `对话记录_${new Date().toISOString().slice(0, 10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    // 音量控制元素（如果存在）
+    const volumeSlider = document.getElementById("volumeSlider");
+    const volumeControl = document.getElementById("volumeControl");
+    const volumeBtn = document.getElementById("volumeBtn");
+    const volumeValue = document.getElementById("volumeValue");
     
     // 后端API地址 - 自动检测服务器地址
     // 自动检测服务器地址
@@ -1322,6 +1399,92 @@
     console.log('最终确定的API服务器地址:', FASTAPI_URL);
     let isStreaming = false; // 是否正在流式输出
     let streamingMessageId = null; // 正在流式输出的消息ID
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 应用设置（从数据库读取）
+      try {
+            const settings = await fetchSettings();
+            await Promise.all([
+                applySettingsOnly(settings),
+                updateThemeSelection(settings),
+                updateFontSelection(settings),
+                updateFontSizeSelection(settings)
+            ]);
+      } catch (error) {
+        console.error('应用设置失败:', error);
+      }
+      
+        // 设置侧边栏控制
+      const settingsBtn = document.getElementById('settingsBtn');
+      const settingsSidebar = document.getElementById('settingsSidebar');
+      const sidebarOverlay = document.getElementById('sidebarOverlay');
+      const sidebarClose = document.getElementById('sidebarClose');
+      
+        if (settingsBtn && settingsSidebar) {
+            const openSidebar = () => {
+        settingsSidebar.classList.add('active');
+        sidebarOverlay.classList.add('active');
+            };
+      
+            const closeSidebar = () => {
+        settingsSidebar.classList.remove('active');
+        sidebarOverlay.classList.remove('active');
+            };
+      
+      settingsBtn.addEventListener('click', openSidebar);
+      if (sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
+      if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+      
+            // 标签切换
+      document.querySelectorAll('.sidebar-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          const targetTab = tab.dataset.tab;
+          document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+          tab.classList.add('active');
+          const targetContent = document.getElementById(targetTab + 'Tab');
+          if (targetContent) targetContent.classList.add('active');
+        });
+      });
+      
+      // 主题选择
+      document.querySelectorAll('[data-theme]').forEach(card => {
+        card.addEventListener('click', () => {
+          applyTheme(card.dataset.theme);
+        });
+      });
+      
+      // 字体选择
+      document.querySelectorAll('[data-font]').forEach(card => {
+        card.addEventListener('click', () => {
+          applyFont(card.dataset.font);
+        });
+      });
+      
+      // 字号选择
+      document.querySelectorAll('[data-size]').forEach(btn => {
+        btn.addEventListener('click', () => {
+                    if (btn.dataset.size === 'custom') {
+                        const customInput = document.getElementById('customSizeInput');
+                        if (customInput) customInput.style.display = 'block';
+                    } else {
+                        const customInput = document.getElementById('customSizeInput');
+                        if (customInput) customInput.style.display = 'none';
+          applyFontSize(btn.dataset.size);
+                    }
+        });
+      });
+      
+      // 自定义字号输入
+            const customSizeInput = document.getElementById('customSizeValue');
+            if (customSizeInput) {
+                customSizeInput.addEventListener('change', () => {
+            applyFontSize('custom');
+                });
+            }
+        }
+    });
     
     // 从数据库加载对话历史
     async function loadChatHistoryFromDatabase() {
@@ -1346,18 +1509,33 @@
               const messagesData = await messagesResponse.json();
               if (messagesData.success && messagesData.data && messagesData.data.length > 0) {
                 // 只加载有消息的会话（过滤空会话）
-                const messages = messagesData.data.map(msg => ({
-                  text: msg.text_content || '',
-                  isUser: msg.message_type === 'user',
-                  audioBase64: msg.audio_base64 || null,
-                  audioUrl: msg.audio_url || null,
-                  audioDuration: 0,
-                  messageId: msg.message_id,
-                  status: 'sent',
-                  time: msg.created_at,
-                  videoUrl: msg.video_url || null,
-                  videoTaskId: msg.video_task_id || null
-                }));
+                const messages = messagesData.data.map(msg => {
+                  // 根据content_type推断responseMode
+                  let responseMode = null;
+                  if (!msg.isUser && msg.content_type) {
+                    if (msg.content_type === 'text') {
+                      responseMode = 'text';
+                    } else if (msg.content_type === 'text+audio' || msg.content_type === 'audio') {
+                      responseMode = 'audio';
+                    } else if (msg.content_type === 'text+audio+video' || msg.content_type === 'video+audio' || msg.content_type === 'video') {
+                      responseMode = 'video';
+                    }
+                  }
+                  
+                  return {
+                    text: msg.text_content || '',
+                    isUser: msg.message_type === 'user',
+                    audioBase64: msg.audio_base64 || null,
+                    audioUrl: msg.audio_url || null,
+                    audioDuration: 0,
+                    messageId: msg.message_id,
+                    status: 'sent',
+                    time: msg.created_at,
+                    videoUrl: msg.video_url || null,
+                    videoTaskId: msg.video_task_id || null,
+                    responseMode: responseMode
+                  };
+                });
                 
                 chatHistory[frontendChatId] = {
                   messages: messages,
@@ -1603,7 +1781,7 @@
         // 用户消息或没有指定响应模式：显示文本
         bubble.textContent = text;
       } else if (responseMode === "audio" && !isUser) {
-        // 语音模式：显示语音气泡（不显示文本）
+        // 语音模式：直接使用audio-bubble替换message-bubble，不要外层边框
         const audioBubble = document.createElement("div");
         audioBubble.className = "audio-bubble";
         
@@ -1647,11 +1825,17 @@
           }
         });
         
+        // 直接替换bubble的内容，使用audio-bubble
+        bubble.innerHTML = "";
+        bubble.className = ""; // 清除message-bubble的样式
         bubble.appendChild(audioBubble);
         bubble.appendChild(audio);
       } else if (responseMode === "video" && !isUser) {
         // 视频模式：显示视频预览框（不显示文本）
-        if (messageData && messageData.videoUrl) {
+        if (messageData && messageData.videoTaskId) {
+          // 视频任务ID模式：显示"视频生成中"
+          bubble.textContent = "视频生成中...";
+        } else if (messageData && messageData.videoUrl) {
           const videoPreviewBox = document.createElement("div");
           videoPreviewBox.className = "video-preview-box";
           
@@ -1672,9 +1856,10 @@
           videoPreviewBox.addEventListener("click", () => {
             const fullVideo = document.createElement("video");
             fullVideo.controls = true;
-            fullVideo.style.width = "100%";
-            fullVideo.style.maxWidth = "500px";
-            fullVideo.style.borderRadius = "8px";
+            fullVideo.style.width = "350px";
+            fullVideo.style.height = "350px";
+            fullVideo.style.borderRadius = "12px";
+            fullVideo.style.objectFit = "cover";
             fullVideo.src = messageData.videoUrl + '?t=' + Date.now();
             fullVideo.muted = false;
             
@@ -1693,9 +1878,6 @@
           }, { once: true });
           
           bubble.appendChild(videoPreviewBox);
-        } else if (messageData && messageData.videoTaskId) {
-          // 视频任务ID模式：显示"视频生成中"
-          bubble.textContent = "视频生成中...";
         } else {
           bubble.textContent = text || "视频加载中...";
         }
@@ -1715,7 +1897,9 @@
         const audio = document.createElement("audio");
         audio.className = "audio-player";
         audio.controls = true;
+        if (volumeSlider) {
         audio.volume = isMuted ? 0 : volumeSlider.value / 100;
+        }
         
         // 优先使用URL，如果不存在则使用base64
         if (messageData && messageData.audioUrl) {
@@ -1731,7 +1915,9 @@
         currentAudio = audio;
         
         // 设置初始音量
+        if (volumeSlider) {
         audio.volume = isMuted ? 0 : volumeSlider.value / 100;
+        }
         
         // 自动播放（如果未静音）
         if (!isMuted) {
@@ -1903,6 +2089,180 @@
       }
     }
     
+    // 更新进度显示
+    function updateProgress(step, progress, resetStage = false) {
+      const progressContainer = document.getElementById('chatProgressContainer');
+      const progressFill = document.getElementById('chatProgressFill');
+      const progressText = document.getElementById('chatProgressText');
+      const progressPercent = document.getElementById('chatProgressPercent');
+      
+      if (!progressContainer || !progressFill || !progressText || !progressPercent) {
+        return;
+      }
+      
+      // 显示进度容器
+      if (progressContainer.style.display === 'none') {
+        progressContainer.style.display = 'block';
+      }
+      
+      // 更新进度条
+      progressFill.style.width = progress + '%';
+      progressPercent.textContent = Math.round(progress) + '%';
+      
+      // 更新进度文本
+      const stageNames = {
+        'llm': 'LLM 文本生成',
+        'tts': 'TTS 音频生成',
+        'nerf': 'NeRF 视频生成',
+        'video': 'NeRF 视频生成'  // 兼容video名称
+      };
+      const stageName = stageNames[step] || '处理中';
+      
+      if (resetStage) {
+        progressText.textContent = '准备中...';
+      } else {
+        progressText.textContent = `${stageName}中...`;
+      }
+    }
+    
+    // 从日志中检测当前阶段和完成状态
+    function detectStageFromLogs(logs) {
+      if (!logs || !Array.isArray(logs)) {
+        return { stage: null, stageCompleted: false };
+      }
+      
+      let llmCompleted = false;
+      let ttsCompleted = false;
+      let videoCompleted = false;
+      let currentStage = null;
+      
+      // 从最新的日志开始查找（倒序）
+      for (let i = logs.length - 1; i >= 0; i--) {
+        const log = logs[i];
+        const message = log.message || '';
+        
+        // 检查阶段完成标记
+        if (message.includes('阶段1完成') && message.includes('LLM')) {
+          llmCompleted = true;
+          if (!currentStage) currentStage = 'tts';
+        } else if (message.includes('阶段2完成') && message.includes('TTS')) {
+          ttsCompleted = true;
+          if (!currentStage) currentStage = 'video';
+        } else if (message.includes('阶段3完成') || message.includes('视频生成任务提交完成')) {
+          videoCompleted = true;
+          if (!currentStage) currentStage = 'video';
+        }
+        
+        // 检查当前阶段标记（如果没有完成标记）
+        if (!currentStage) {
+          if (message.includes('阶段1') && message.includes('LLM')) {
+            currentStage = 'llm';
+          } else if (message.includes('阶段2') && message.includes('TTS')) {
+            currentStage = 'tts';
+          } else if (message.includes('阶段3') && (message.includes('视频') || message.includes('NeRF'))) {
+            currentStage = 'video';
+          }
+        }
+      }
+      
+      return { 
+        stage: currentStage, 
+        llmCompleted, 
+        ttsCompleted, 
+        videoCompleted 
+      };
+    }
+    
+    // 开始日志轮询
+    function startLogPolling() {
+      // 清除之前的轮询
+      stopLogPolling();
+      
+      // 重置阶段状态
+      currentStage = null;
+      stageStartTime = null;
+      
+      // 显示进度容器并初始化
+      updateProgress('llm', 0, true);
+      
+      // 开始轮询日志
+      logPollInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`${FASTAPI_URL}/logs/full?debug=false`);
+          if (!response.ok) {
+            return;
+          }
+          
+          const data = await response.json();
+          if (data.success && data.logs) {
+            // 检测当前阶段和完成状态
+            const stageInfo = detectStageFromLogs(data.logs);
+            
+            if (stageInfo.stage && stageInfo.stage !== currentStage) {
+              // 阶段变化
+              currentStage = stageInfo.stage;
+              stageStartTime = Date.now();
+            }
+            
+            // 根据阶段完成状态和当前阶段计算进度
+            let progress = 0;
+            let activeStep = 'llm';
+            
+            if (stageInfo.llmCompleted) {
+              progress = 33;
+              activeStep = 'tts';
+              
+              if (stageInfo.ttsCompleted) {
+                progress = 66;
+                activeStep = 'video';
+                
+                if (stageInfo.videoCompleted) {
+                  progress = 100;
+                } else if (currentStage === 'video') {
+                  // 视频阶段进行中：66-100%
+                  const elapsed = stageStartTime ? (Date.now() - stageStartTime) / 1000 : 0;
+                  progress = 66 + Math.min(34, Math.floor(elapsed / 60 * 34)); // 假设60秒内完成
+                }
+              } else if (currentStage === 'tts') {
+                // TTS阶段进行中：33-66%
+                const elapsed = stageStartTime ? (Date.now() - stageStartTime) / 1000 : 0;
+                progress = 33 + Math.min(33, Math.floor(elapsed / 15 * 33)); // 假设15秒内完成
+              }
+            } else if (currentStage === 'llm') {
+              // LLM阶段进行中：0-33%
+              const elapsed = stageStartTime ? (Date.now() - stageStartTime) / 1000 : 0;
+              progress = Math.min(33, Math.floor(elapsed / 10 * 33)); // 假设10秒内完成
+            } else {
+              // 如果还没检测到阶段，显示较小的初始进度
+              progress = 5;
+            }
+            
+            updateProgress(activeStep, progress);
+          }
+        } catch (error) {
+          console.error('日志轮询失败:', error);
+        }
+      }, 1000); // 每秒轮询一次
+    }
+    
+    // 停止日志轮询
+    function stopLogPolling() {
+      if (logPollInterval) {
+        clearInterval(logPollInterval);
+        logPollInterval = null;
+      }
+      
+      // 隐藏进度容器
+      const progressContainer = document.getElementById('chatProgressContainer');
+      if (progressContainer) {
+        progressContainer.style.display = 'none';
+      }
+      
+      // 重置阶段状态
+      currentStage = null;
+      stageStartTime = null;
+    }
+    
     // 简单的toast提示函数
     function showToast(message, type = 'info') {
       // 创建一个简单的toast元素
@@ -1974,8 +2334,16 @@
       // 禁用发送按钮（不再修改文本）
       sendBtn.disabled = true;
       
+      // 启动日志轮询以显示进度
+      startLogPolling();
+      
       // 创建AbortController用于取消请求
+      // 视频模式需要更长的超时时间（15分钟），因为视频生成可能需要很长时间
+      const timeoutDuration = responseMode === "video" ? 900000 : 300000; // 视频模式15分钟，其他5分钟
       abortController = new AbortController();
+      const timeoutId = setTimeout(() => {
+        abortController.abort();
+      }, timeoutDuration);
       
       try {
         const response = await fetch(`${FASTAPI_URL}/chat`, {
@@ -1991,6 +2359,8 @@
           }),
           signal: abortController.signal  // 支持取消请求
         });
+        
+        clearTimeout(timeoutId);  // 清除超时定时器
         
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -2022,29 +2392,40 @@
           const assistantMessageId = data.data.assistant_message_id || `assistant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           
           // 根据响应模式处理不同的显示逻辑
+          // 对于非视频模式，停止日志轮询（LLM和TTS已完成）
+          if (responseMode !== "video") {
+            stopLogPolling();
+          }
+          // 对于视频模式，继续日志轮询直到视频生成完成
+          
           if (responseMode === "text") {
             // 文本模式：只显示文本
-            streamingMessageId = assistantMessageId;
-            isStreaming = true;
-            
-            // 先创建空消息
-            addMessage("", false, null, 0, assistantMessageId, 'sent', {
-              responseMode: "text"
-            });
-            
-            // 逐字显示文本
-            let currentText = "";
-            for (let i = 0; i < answer.length; i++) {
-              if (!isStreaming) break;
-              currentText += answer[i];
-              updateMessageText(assistantMessageId, currentText, false);
-              await new Promise(resolve => setTimeout(resolve, 30));
+            if (!answer || answer.length === 0) {
+              addMessage("AI回复为空", false, null, 0, assistantMessageId, 'sent');
+              sendBtn.disabled = false;
+            } else {
+              streamingMessageId = assistantMessageId;
+              isStreaming = true;
+          
+          // 先创建空消息
+              addMessage("", false, null, 0, assistantMessageId, 'sent', {
+                responseMode: "text"
+              });
+              
+              // 逐字显示文本
+              let currentText = "";
+              for (let i = 0; i < answer.length; i++) {
+                if (!isStreaming) break;
+                currentText += answer[i];
+                updateMessageText(assistantMessageId, currentText, false);
+                await new Promise(resolve => setTimeout(resolve, 30));
+              }
+              
+              updateMessageText(assistantMessageId, answer, true);
+              isStreaming = false;
+              streamingMessageId = null;
+              sendBtn.disabled = false;
             }
-            
-            updateMessageText(assistantMessageId, answer, true);
-            isStreaming = false;
-            streamingMessageId = null;
-            sendBtn.disabled = false;
             
             // 保存消息到历史记录
             if (chatHistory[currentChatId]) {
@@ -2097,7 +2478,7 @@
                 if (audioUrl) {
                   audio.src = `${FASTAPI_URL}${audioUrl}`;
                 } else if (audioBase64) {
-                  audio.src = `data:audio/wav;base64,${audioBase64}`;
+                audio.src = `data:audio/wav;base64,${audioBase64}`;
                 }
                 
                 // 点击气泡播放音频
@@ -2113,7 +2494,9 @@
                   }
                 });
                 
+                // 直接替换bubble的内容，使用audio-bubble，清除message-bubble样式
                 bubble.innerHTML = "";
+                bubble.className = ""; // 清除message-bubble的样式
                 bubble.appendChild(audioBubble);
                 bubble.appendChild(audio);
                 
@@ -2138,8 +2521,10 @@
             }
             sendBtn.disabled = false;
           } else if (responseMode === "video") {
-            // 视频模式：需要调用视频生成接口
-            // 先创建消息占位符
+            // 视频模式：按照generate.html的方式，直接调用 /generate_video API
+            isWaitingForVideo = true;
+            
+            // 先显示"视频生成中"的占位符
             addMessage("", false, null, 0, assistantMessageId, 'sent', {
               responseMode: "video"
             });
@@ -2152,155 +2537,237 @@
               }
             }
             
-            // 调用视频生成接口
-            isWaitingForVideo = true;
+            // 直接调用 /generate_video API（就像generate.html那样）
             try {
-              // 需要获取model，从当前对话配置中获取
-              if (!model) {
-                showToast("视频生成需要选择模型", "error");
-                sendBtn.disabled = false;
-                isWaitingForVideo = false;
-                return;
-              }
-              
               const videoResult = await generateVideo({
-                text: answer,
+                text: answer,  // 使用LLM生成的回答作为输入
                 character: character,
-                model_name: model
+                model_name: model  // 使用模型名（和generate.html完全一致）
               });
               
-              if (videoResult.success && videoResult.data) {
-                const videoTaskId = videoResult.data.task_id;
-                
-                // 轮询视频生成状态
-                const checkVideoStatus = async () => {
-                  try {
-                    const statusResult = await getVideoGenerationStatus(videoTaskId);
-                    
-                    if (statusResult.success) {
-                      const status = statusResult.data.status;
-                      
-                      if (status === 'completed') {
-                        const finalVideoUrl = `${FASTAPI_URL}/videos/${videoTaskId}.mp4`;
-                        
-                        // 更新消息，显示视频预览框
-                        const messageDiv = document.querySelector(`[data-message-id="${assistantMessageId}"]`);
-                        if (messageDiv) {
-                          const bubble = messageDiv.querySelector('.message-bubble');
-                          if (bubble) {
-                            const videoPreviewBox = document.createElement("div");
-                            videoPreviewBox.className = "video-preview-box";
-                            
-                            const video = document.createElement("video");
-                            video.src = finalVideoUrl + '?t=' + Date.now();
-                            video.muted = true;
-                            video.loop = true;
-                            video.playsInline = true;
-                            
-                            const playIcon = document.createElement("div");
-                            playIcon.className = "video-play-icon";
-                            playIcon.textContent = "▶";
-                            
-                            videoPreviewBox.appendChild(video);
-                            videoPreviewBox.appendChild(playIcon);
-                            
-                            videoPreviewBox.addEventListener("click", () => {
-                              const fullVideo = document.createElement("video");
-                              fullVideo.controls = true;
-                              fullVideo.style.width = "100%";
-                              fullVideo.style.maxWidth = "500px";
-                              fullVideo.style.borderRadius = "8px";
-                              fullVideo.src = finalVideoUrl + '?t=' + Date.now();
-                              fullVideo.muted = false;
-                              
-                              bubble.innerHTML = "";
-                              bubble.appendChild(fullVideo);
-                              
-                              fullVideo.play().catch(e => {
-                                console.error("播放视频失败:", e);
-                                showToast("播放视频失败", "error");
-                              });
-                            });
-                            
-                            video.addEventListener('loadeddata', () => {
-                              video.currentTime = 0.1;
-                            }, { once: true });
-                            
-                            bubble.innerHTML = "";
-                            bubble.appendChild(videoPreviewBox);
-                          }
-                        }
-                        
-                        // 更新历史记录
-                        if (chatHistory[currentChatId]) {
-                          const message = chatHistory[currentChatId].messages.find(m => m.messageId === assistantMessageId);
-                          if (message) {
-                            message.videoUrl = finalVideoUrl;
-                            message.videoTaskId = videoTaskId;
-                            message.responseMode = "video";
-                          }
-                        }
-                        
-                        isWaitingForVideo = false;
-                        sendBtn.disabled = false;
-                      } else if (status === 'running' || status === 'pending') {
-                        setTimeout(checkVideoStatus, 2000);
-                      } else {
-                        showToast("视频生成失败", "error");
-                        const messageDiv = document.querySelector(`[data-message-id="${assistantMessageId}"]`);
-                        if (messageDiv) {
-                          const bubble = messageDiv.querySelector('.message-bubble');
-                          if (bubble) {
-                            bubble.textContent = "视频生成失败";
-                          }
-                        }
-                        isWaitingForVideo = false;
-                        sendBtn.disabled = false;
-                      }
-                    } else {
-                      showToast("查询视频状态失败", "error");
-                      isWaitingForVideo = false;
-                      sendBtn.disabled = false;
-                    }
-                  } catch (error) {
-                    console.error("查询视频状态失败:", error);
-                    showToast("查询视频状态失败", "error");
-                    isWaitingForVideo = false;
-                    sendBtn.disabled = false;
-                  }
-                };
-                
-                setTimeout(checkVideoStatus, 2000);
-              } else {
-                showToast("视频生成任务提交失败", "error");
-                const messageDiv = document.querySelector(`[data-message-id="${assistantMessageId}"]`);
-                if (messageDiv) {
-                  const bubble = messageDiv.querySelector('.message-bubble');
-                  if (bubble) {
-                    bubble.textContent = "视频生成失败";
+              if (!videoResult.success) {
+                throw new Error(videoResult.error || '视频任务提交失败');
+              }
+              
+              const videoTaskId = videoResult.unique_id;
+              
+              // 更新消息，添加videoTaskId
+              if (messageDiv) {
+                const bubble = messageDiv.querySelector('.message-bubble');
+                if (bubble) {
+                  const messageData = chatHistory[currentChatId]?.messages?.find(m => m.messageId === assistantMessageId);
+                  if (messageData) {
+                    messageData.videoTaskId = videoTaskId;
                   }
                 }
-                isWaitingForVideo = false;
-                sendBtn.disabled = false;
               }
-            } catch (error) {
-              console.error("生成视频失败:", error);
-              showToast("生成视频失败: " + error.message, "error");
+              
+              // 开始轮询视频生成状态（完全按照generate.html的逻辑）
+              let pollCount = 0;
+              let lastProgress = 0;
+              let consecutiveFailures = 0;
+              const startTime = Date.now();
+              const MAX_RUNTIME_SECONDS = 1800;
+              
+              const checkVideoStatus = async () => {
+                try {
+                  pollCount++;
+                  const elapsedSeconds = (Date.now() - startTime) / 1000;
+                  
+                  if (elapsedSeconds > MAX_RUNTIME_SECONDS) {
+                    stopLogPolling();
+                    isWaitingForVideo = false;
+                      sendBtn.disabled = false;
+                    const messageDiv = document.querySelector(`[data-message-id="${assistantMessageId}"]`);
+                    if (messageDiv) {
+                      const bubble = messageDiv.querySelector('.message-bubble');
+                      if (bubble) {
+                        bubble.textContent = "视频生成超时";
+                      }
+                    }
+                    showToast('视频生成时间过长，已停止监控', 'warning');
+                    return;
+                  }
+                  
+                  const statusResult = await getVideoGenerationStatus(videoTaskId);
+                  
+                  if (!statusResult.success) {
+                    consecutiveFailures++;
+                    if (consecutiveFailures >= 5) {
+                      stopLogPolling();
+                      isWaitingForVideo = false;
+                      sendBtn.disabled = false;
+                      showToast("视频状态查询失败，已停止监控", "error");
+                      return;
+                    }
+                    setTimeout(checkVideoStatus, 2000);
+                    return;
+                  }
+                  
+                  if (!statusResult.data) {
+                    consecutiveFailures++;
+                    if (consecutiveFailures >= 5) {
+                      stopLogPolling();
+                      isWaitingForVideo = false;
+                      sendBtn.disabled = false;
+                      showToast("视频任务不存在，已停止监控", "error");
+                      return;
+                    }
+                    setTimeout(checkVideoStatus, 2000);
+                    return;
+                  }
+                  
+                  consecutiveFailures = 0;
+                  const task = statusResult.data;
+                  const status = task.status;
+                  
+                  // 更新进度（完全按照generate.html的逻辑）
+                  if (status === 'pending') {
+                    updateProgress('video', 10, false);
+                  } else if (status === 'running') {
+                    let progress = 30;
+                    if (elapsedSeconds <= 30) {
+                      progress = 30 + Math.floor((elapsedSeconds / 30) * 10);
+                    } else if (elapsedSeconds <= 90) {
+                      progress = 40 + Math.floor(((elapsedSeconds - 30) / 60) * 10);
+                    } else if (elapsedSeconds <= 150) {
+                      progress = 50 + Math.floor(((elapsedSeconds - 90) / 60) * 10);
+                    } else if (elapsedSeconds <= 210) {
+                      progress = 60 + Math.floor(((elapsedSeconds - 150) / 60) * 10);
+                    } else if (elapsedSeconds <= 270) {
+                      progress = 70 + Math.floor(((elapsedSeconds - 210) / 60) * 10);
+                    } else {
+                      progress = Math.min(80 + Math.floor(((elapsedSeconds - 270) / 60) * 10), 90);
+                    }
+                    
+                    if (progress < lastProgress) {
+                      progress = lastProgress;
+                    } else if (progress === lastProgress && elapsedSeconds > 60) {
+                      progress = Math.min(lastProgress + 0.5, 90);
+                    }
+                    
+                    lastProgress = progress;
+                    updateProgress('video', progress, false);
+                    setTimeout(checkVideoStatus, 2000);
+                  } else if (status === 'completed') {
+                                  // 视频生成完成
+                    updateProgress('video', 100, false);
+                    stopLogPolling();
+                                  
+                    const finalVideoUrl = `${FASTAPI_URL}/videos/${videoTaskId}.mp4`;
+                    
+                    // 更新消息，显示视频预览框
+                                  const messageDiv = document.querySelector(`[data-message-id="${assistantMessageId}"]`);
+                                  if (messageDiv) {
+                                    const bubble = messageDiv.querySelector('.message-bubble');
+                                    if (bubble) {
+                        const videoPreviewBox = document.createElement("div");
+                        videoPreviewBox.className = "video-preview-box";
+                                      
+                                        const video = document.createElement("video");
+                        video.src = finalVideoUrl + '?t=' + Date.now();
+                        video.muted = true;
+                        video.loop = true;
+                        video.playsInline = true;
+                        
+                        const playIcon = document.createElement("div");
+                        playIcon.className = "video-play-icon";
+                        playIcon.textContent = "▶";
+                        
+                        videoPreviewBox.appendChild(video);
+                        videoPreviewBox.appendChild(playIcon);
+                        
+                        videoPreviewBox.addEventListener("click", () => {
+                          const fullVideo = document.createElement("video");
+                          fullVideo.controls = true;
+                          fullVideo.style.width = "350px";
+                          fullVideo.style.height = "350px";
+                          fullVideo.style.borderRadius = "12px";
+                          fullVideo.style.objectFit = "cover";
+                          fullVideo.src = finalVideoUrl + '?t=' + Date.now();
+                          fullVideo.muted = false;
+                          
+                          bubble.innerHTML = "";
+                          bubble.appendChild(fullVideo);
+                          
+                          fullVideo.play().catch(e => {
+                            console.error("播放视频失败:", e);
+                            showToast("播放视频失败", "error");
+                          });
+                        });
+                        
+                        video.addEventListener('loadeddata', () => {
+                          video.currentTime = 0.1;
+                        }, { once: true });
+                        
+                        bubble.innerHTML = "";
+                        bubble.appendChild(videoPreviewBox);
+                      }
+                    }
+                                      
+                                      // 更新历史记录
+                                      if (chatHistory[currentChatId]) {
+                                        const message = chatHistory[currentChatId].messages.find(m => m.messageId === assistantMessageId);
+                                        if (message) {
+                        message.videoUrl = finalVideoUrl;
+                                          message.videoTaskId = videoTaskId;
+                                    }
+                                  }
+                                  
+                                  isWaitingForVideo = false;
+                                  sendBtn.disabled = false;
+                    showToast('视频生成成功！', 'success');
+                  } else if (status === 'failed' || status === 'cancelled') {
+                    stopLogPolling();
+                                  isWaitingForVideo = false;
+                                  sendBtn.disabled = false;
+                    const error = task.error || (status === 'cancelled' ? '任务已取消' : '未知错误');
+                    const messageDiv = document.querySelector(`[data-message-id="${assistantMessageId}"]`);
+                    if (messageDiv) {
+                      const bubble = messageDiv.querySelector('.message-bubble');
+                      if (bubble) {
+                        bubble.textContent = `视频生成失败: ${error}`;
+                      }
+                    }
+                    showToast(status === 'cancelled' ? '任务已取消' : ('生成失败: ' + error), 'error');
+                              } else {
+                    setTimeout(checkVideoStatus, 2000);
+                              }
+                            } catch (error) {
+                              console.error("查询视频状态失败:", error);
+                  consecutiveFailures++;
+                  if (consecutiveFailures >= 5) {
+                    stopLogPolling();
+                              isWaitingForVideo = false;
+                              sendBtn.disabled = false;
+                    showToast("查询视频状态失败，已停止监控", "error");
+                  } else {
+                    setTimeout(checkVideoStatus, 2000);
+                  }
+                            }
+                          };
+                          
+                          // 开始轮询
+                          setTimeout(checkVideoStatus, 2000);
+                      } catch (error) {
+              console.error("视频任务提交失败:", error);
+              stopLogPolling();
+                        isWaitingForVideo = false;
+                        sendBtn.disabled = false;
               const messageDiv = document.querySelector(`[data-message-id="${assistantMessageId}"]`);
               if (messageDiv) {
                 const bubble = messageDiv.querySelector('.message-bubble');
                 if (bubble) {
-                  bubble.textContent = "视频生成失败";
+                  bubble.textContent = `视频任务提交失败: ${error.message || error}`;
                 }
               }
-              isWaitingForVideo = false;
-              sendBtn.disabled = false;
+              showToast("视频任务提交失败: " + (error.message || error), "error");
             }
           }
           
           // 保存消息到历史记录（数据库已自动保存，这里不需要额外操作）
           saveChatHistory();
-        } else {
+          } else {
           // 错误处理（兼容旧逻辑，用于非responseMode的情况）
           // 这部分代码保留用于向后兼容
           if (false) { // 这个分支暂时不使用
@@ -2334,9 +2801,10 @@
                   videoPreviewBox.addEventListener("click", () => {
                     const fullVideo = document.createElement("video");
                     fullVideo.controls = true;
-                    fullVideo.style.width = "100%";
-                    fullVideo.style.maxWidth = "500px";
-                    fullVideo.style.borderRadius = "8px";
+                    fullVideo.style.width = "350px";
+                    fullVideo.style.height = "350px";
+                    fullVideo.style.borderRadius = "12px";
+                    fullVideo.style.objectFit = "cover";
                     fullVideo.src = videoUrl + '?t=' + Date.now();
                     fullVideo.muted = false;
                     
@@ -2356,22 +2824,22 @@
                   
                   bubble.innerHTML = "";
                   bubble.appendChild(videoPreviewBox);
-                  
-                  // 保存消息到历史记录
-                  if (chatHistory[currentChatId]) {
-                    const existingMessage = chatHistory[currentChatId].messages.find(m => m.messageId === assistantMessageId);
-                    if (!existingMessage) {
-                      chatHistory[currentChatId].messages.push({
+          
+          // 保存消息到历史记录
+          if (chatHistory[currentChatId]) {
+            const existingMessage = chatHistory[currentChatId].messages.find(m => m.messageId === assistantMessageId);
+            if (!existingMessage) {
+              chatHistory[currentChatId].messages.push({
                         text: "", // 视频模式不保存文本
-                        isUser: false,
-                        messageId: assistantMessageId,
-                        status: 'sent',
+                isUser: false,
+                messageId: assistantMessageId,
+                status: 'sent',
                         time: new Date().toISOString(),
                         responseMode: "video",
                         videoUrl: videoUrl
-                      });
-                    }
-                  }
+              });
+            }
+          }
                 }
               }
               sendBtn.disabled = false;
@@ -2428,9 +2896,10 @@
                           videoPreviewBox.addEventListener("click", () => {
                             const fullVideo = document.createElement("video");
                             fullVideo.controls = true;
-                            fullVideo.style.width = "100%";
-                            fullVideo.style.maxWidth = "500px";
-                            fullVideo.style.borderRadius = "8px";
+                            fullVideo.style.width = "350px";
+                            fullVideo.style.height = "350px";
+                            fullVideo.style.borderRadius = "12px";
+                            fullVideo.style.objectFit = "cover";
                             fullVideo.src = finalVideoUrl + '?t=' + Date.now();
                             fullVideo.muted = false;
                             
@@ -2461,12 +2930,15 @@
                         }
                       }
                       
+                      // 视频生成完成，停止日志轮询
+                      stopLogPolling();
                       isWaitingForVideo = false;
                       sendBtn.disabled = false;
                     } else if (status === 'running' || status === 'pending') {
                       setTimeout(checkVideoStatus, 2000);
                     } else {
                       showToast("视频生成失败", "error");
+                      stopLogPolling();
                       const messageDiv = document.querySelector(`[data-message-id="${assistantMessageId}"]`);
                       if (messageDiv) {
                         const bubble = messageDiv.querySelector('.message-bubble');
@@ -2479,12 +2951,14 @@
                     }
                   } else {
                     showToast("查询视频状态失败", "error");
+                    stopLogPolling();
                     isWaitingForVideo = false;
                     sendBtn.disabled = false;
                   }
                 } catch (error) {
                   console.error("查询视频状态失败:", error);
                   showToast("查询视频状态失败", "error");
+                  stopLogPolling();
                   isWaitingForVideo = false;
                   sendBtn.disabled = false;
                 }
@@ -2493,6 +2967,7 @@
               setTimeout(checkVideoStatus, 2000);
             } else {
               // 视频模式但没有视频数据，显示错误
+              stopLogPolling();
               addMessage("视频生成失败：未返回视频数据", false, null, 0, assistantMessageId, 'sent');
               sendBtn.disabled = false;
             }
@@ -2500,10 +2975,13 @@
           
           // 保存消息到历史记录（数据库已自动保存，这里不需要额外操作）
           saveChatHistory();
-        } 
-              catch (error) {
+      } catch (error) {
         hideTypingIndicator();
         isWaitingForAudio = false;
+        isWaitingForVideo = false;
+        
+        // 停止日志轮询
+        stopLogPolling();
         
         // 如果是取消请求，不显示错误
         if (error.name === 'AbortError') {
@@ -2554,8 +3032,11 @@
         // 更新用户消息状态为错误
         updateMessageStatus(userMessageId, 'error');
       } finally {
+        // 确保停止日志轮询
+        stopLogPolling();
+        
         // 如果不在等待音频，恢复发送按钮
-        if (!isWaitingForAudio) {
+        if (!isWaitingForAudio && !isWaitingForVideo) {
         sendBtn.disabled = false;
         }
         abortController = null;
@@ -2569,14 +3050,51 @@
     
     // Enter发送，Shift+Enter换行
     chatInput.addEventListener("keydown", (e) => {
+      // 如果正在处理语音识别，禁止发送
+      if (isTranscribing) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          showToast("请等待语音识别完成", "warning");
+        }
+        return;
+      }
+      
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         sendMessage(chatInput.value.trim());
       }
     });
     
+    // ==================== 禁用/启用输入控件 ====================
+    function setInputControlsDisabled(disabled) {
+      const chatInput = document.getElementById("chatInput");
+      const recordBtn = document.getElementById("recordBtn");
+      const uploadBtn = document.getElementById("uploadBtn");
+      const sendBtn = document.getElementById("sendBtn");
+      
+      if (chatInput) {
+        chatInput.disabled = disabled;
+      }
+      if (recordBtn) {
+        recordBtn.disabled = disabled;
+      }
+      if (uploadBtn) {
+        uploadBtn.disabled = disabled;
+      }
+      // sendBtn 在语音识别期间也禁用，识别完成后恢复
+      if (sendBtn) {
+        sendBtn.disabled = disabled;
+      }
+    }
+    
     // ==================== 语音录制功能 ====================
     async function startRecording() {
+      // 如果正在处理语音识别，禁止录制
+      if (isTranscribing) {
+        showToast("请等待语音识别完成", "warning");
+        return;
+      }
+      
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
@@ -2598,13 +3116,30 @@
             const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
             currentAudioBase64 = base64;
             
-            // 自动进行语音识别
-            const text = await performTranscription();
-            if (text) {
-              // 将识别到的文本填入输入框
-              chatInput.value = text;
-              // 可选：自动发送消息
-              // sendMessage(text);
+            // 禁用输入控件，开始语音识别
+            isTranscribing = true;
+            setInputControlsDisabled(true);
+            showToast("正在识别语音...", "info");
+            
+            try {
+              // 自动进行语音识别
+              const text = await performTranscription();
+              if (text) {
+                // 将识别到的文本填入输入框
+                chatInput.value = text;
+                showToast("语音识别完成", "success");
+                // 可选：自动发送消息
+                // sendMessage(text);
+              } else {
+                showToast("语音识别失败", "error");
+              }
+            } catch (error) {
+              console.error('语音识别出错:', error);
+              showToast("语音识别失败: " + (error.message || "未知错误"), "error");
+            } finally {
+              // 恢复输入控件
+              isTranscribing = false;
+              setInputControlsDisabled(false);
             }
           };
           reader.readAsArrayBuffer(audioBlob);
@@ -2653,7 +3188,7 @@
     // 语音识别
     async function performTranscription() {
       if (!currentAudioBase64) {
-        alert('没有可识别的音频');
+        showToast('没有可识别的音频', "error");
         return null;
       }
 
@@ -2675,12 +3210,17 @@
       } catch (error) {
         console.error('语音识别失败:', error);
         const errorMsg = error.message || '识别失败';
-        alert('语音识别失败: ' + errorMsg);
-        return null;
+        throw error; // 抛出错误，让调用者处理
       }
     }
     
     recordBtn.addEventListener("click", () => {
+      // 如果正在处理语音识别，禁止录制
+      if (isTranscribing) {
+        showToast("请等待语音识别完成", "warning");
+        return;
+      }
+      
       if (isRecording) {
         stopRecording();
       } else {
@@ -2690,6 +3230,11 @@
     
     // ==================== 音频上传功能 ====================
     uploadBtn.addEventListener("click", () => {
+      // 如果正在处理语音识别，禁止上传
+      if (isTranscribing) {
+        showToast("请等待语音识别完成", "warning");
+        return;
+      }
       audioUpload.click();
     });
     
@@ -2697,8 +3242,16 @@
       const file = e.target.files[0];
       if (!file) return;
       
+      // 如果正在处理语音识别，禁止上传
+      if (isTranscribing) {
+        showToast("请等待语音识别完成", "warning");
+        audioUpload.value = "";
+        return;
+      }
+      
       if (!file.type.startsWith('audio/')) {
         alert("请选择音频文件！");
+        audioUpload.value = "";
         return;
       }
       
@@ -2711,30 +3264,56 @@
             const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
             currentAudioBase64 = base64;
             
-            // 自动进行语音识别
-            const text = await performTranscription();
-            if (text) {
-              // 将识别到的文本填入输入框
-              chatInput.value = text;
-              // 可选：自动发送消息
-              // sendMessage(text);
+            // 禁用输入控件，开始语音识别
+            isTranscribing = true;
+            setInputControlsDisabled(true);
+            showToast("正在识别语音...", "info");
+            
+            try {
+              // 自动进行语音识别
+              const text = await performTranscription();
+              if (text) {
+                // 将识别到的文本填入输入框
+                chatInput.value = text;
+                showToast("语音识别完成", "success");
+                // 可选：自动发送消息
+                // sendMessage(text);
+              } else {
+                showToast("语音识别失败", "error");
+              }
+            } catch (error) {
+              console.error('语音识别出错:', error);
+              showToast("语音识别失败: " + (error.message || "未知错误"), "error");
+            } finally {
+              // 恢复输入控件
+              isTranscribing = false;
+              setInputControlsDisabled(false);
             }
           } catch (error) {
             console.error('Base64转换失败:', error);
-            alert('音频文件处理失败: ' + error.message);
+            showToast('音频文件处理失败: ' + error.message, "error");
             currentAudioBase64 = null;
+            // 恢复输入控件
+            isTranscribing = false;
+            setInputControlsDisabled(false);
           }
         };
         reader.onerror = (error) => {
           console.error('文件读取错误:', error);
-          alert('读取音频文件失败');
+          showToast('读取音频文件失败', "error");
           currentAudioBase64 = null;
+          // 恢复输入控件
+          isTranscribing = false;
+          setInputControlsDisabled(false);
         };
         reader.readAsArrayBuffer(file);
       } catch (error) {
         console.error('读取文件失败:', error);
-        alert('读取音频文件失败: ' + error.message);
+        showToast('读取音频文件失败: ' + error.message, "error");
         currentAudioBase64 = null;
+        // 恢复输入控件
+        isTranscribing = false;
+        setInputControlsDisabled(false);
       }
       
       // 重置文件输入
@@ -2743,6 +3322,7 @@
     
     // ==================== 音量控制 ====================
     function updateAllAudioVolumes() {
+      if (!volumeSlider) return;
       const allAudios = document.querySelectorAll('.audio-player');
       const volume = isMuted ? 0 : volumeSlider.value / 100;
       allAudios.forEach(audio => {
@@ -2750,12 +3330,15 @@
       });
     }
     
+    if (volumeSlider && volumeValue) {
     volumeSlider.addEventListener("input", (e) => {
       const volume = e.target.value;
       volumeValue.textContent = volume + "%";
       updateAllAudioVolumes();
     });
+    }
     
+    if (volumeBtn && volumeControl) {
     volumeBtn.addEventListener("click", () => {
       isMuted = !isMuted;
       
@@ -2768,24 +3351,10 @@
       }
       updateAllAudioVolumes();
     });
+    }
     
     // ==================== 对话管理功能 ====================
-    const chatManageBtn = document.getElementById("chatManageBtn");
-    const chatSidebar = document.getElementById("chatSidebar");
-    const chatSidebarClose = document.getElementById("chatSidebarClose");
-    const newChatBtn = document.getElementById("newChatBtn");
-    const exportChatBtn = document.getElementById("exportChatBtn");
-    const clearChatBtn = document.getElementById("clearChatBtn");
-    const historyList = document.getElementById("historyList");
-    
-    // 打开/关闭对话管理侧边栏
-    chatManageBtn.addEventListener("click", () => {
-      chatSidebar.classList.toggle("active");
-    });
-    
-    chatSidebarClose.addEventListener("click", () => {
-      chatSidebar.classList.remove("active");
-    });
+    // 注意：对话管理按钮的事件监听器已在 DOMContentLoaded 外部绑定
     
     // 编辑对话名称
     function editChatName(chatId, titleSpan, editBtn) {
@@ -2832,6 +3401,8 @@
     
     // 更新历史列表
     function updateHistoryList() {
+      const historyList = document.getElementById("historyList");
+      if (!historyList) return;
       historyList.innerHTML = '';
       
       // 添加当前对话
@@ -2856,10 +3427,15 @@
         editChatName('current', currentTitleSpan, currentEditBtn);
       };
       
-      // 双击标题也可以编辑
+      // 双击标题也可以编辑（不影响单击切换对话）
       currentTitleSpan.ondblclick = (e) => {
         e.stopPropagation();
         editChatName('current', currentTitleSpan, currentEditBtn);
+      };
+      
+      // 单击标题区域时切换对话（不阻止事件冒泡）
+      currentTitleSpan.onclick = (e) => {
+        // 不阻止事件传播，让item的click事件触发
       };
       
       currentTitleDiv.appendChild(currentTitleSpan);
@@ -2871,7 +3447,15 @@
       
       currentItem.appendChild(currentTitleDiv);
       currentItem.appendChild(currentTimeDiv);
-      currentItem.addEventListener("click", () => switchChat('current'));
+      
+      // 确保点击item的任何位置都能切换对话
+      currentItem.addEventListener("click", (e) => {
+        // 如果点击的是编辑按钮，不切换对话
+        if (e.target === currentEditBtn || currentEditBtn.contains(e.target)) {
+          return;
+        }
+        switchChat('current');
+      });
       historyList.appendChild(currentItem);
       
       // 添加历史对话（过滤掉空的会话）
@@ -2902,10 +3486,15 @@
           editChatName(chatId, titleSpan, editBtn);
         };
         
-        // 双击标题也可以编辑
+        // 双击标题也可以编辑（不影响单击切换对话）
         titleSpan.ondblclick = (e) => {
           e.stopPropagation();
           editChatName(chatId, titleSpan, editBtn);
+        };
+        
+        // 单击标题区域时切换对话（不阻止事件冒泡）
+        titleSpan.onclick = (e) => {
+          // 不阻止事件传播，让item的click事件触发
         };
         
         titleDiv.appendChild(titleSpan);
@@ -2917,7 +3506,15 @@
         
         item.appendChild(titleDiv);
         item.appendChild(timeDiv);
-        item.addEventListener("click", () => switchChat(chatId));
+        
+        // 确保点击item的任何位置都能切换对话
+        item.addEventListener("click", (e) => {
+          // 如果点击的是编辑按钮，不切换对话
+          if (e.target === editBtn || editBtn.contains(e.target)) {
+            return;
+          }
+          switchChat(chatId);
+        });
         historyList.appendChild(item);
       });
     }
@@ -2962,18 +3559,15 @@
         isStreaming = true;
         
         messages.forEach(msg => {
+          // 历史记录只显示文本，不显示音频和视频
           const messageDiv = addMessage(
             msg.text,
             msg.isUser,
-            msg.audioBase64,
-            msg.audioDuration,
+            null,  // 不传递音频数据
+            0,     // 不传递音频时长
             msg.messageId,
             msg.status || 'sent',
-            { 
-              audioUrl: msg.audioUrl,
-              videoUrl: msg.videoUrl,
-              videoTaskId: msg.videoTaskId
-            }
+            null   // 不传递messageData（包括responseMode），这样会只显示文本
           );
           
           // 如果是错误消息，添加重试按钮
@@ -3004,64 +3598,7 @@
       chatSidebar.classList.remove("active");
     }
     
-    // 新建对话
-    newChatBtn.addEventListener("click", () => {
-      const newChatId = `chat-${Date.now()}`;
-      chatHistory[newChatId] = {
-        messages: [],
-        title: "新对话",
-        time: new Date().toISOString()
-      };
-      saveChatHistory();
-      switchChat(newChatId);
-      // 显示角色和模型选择弹窗
-      setTimeout(() => {
-        showCharacterModelModal();
-      }, 300);
-    });
-    
-    // 清空当前对话
-    clearChatBtn.addEventListener("click", () => {
-      if (confirm("确定要清空当前对话吗？")) {
-        if (chatHistory[currentChatId]) {
-          chatHistory[currentChatId].messages = [];
-          chatHistory[currentChatId].title = "当前对话";
-          chatHistory[currentChatId].time = new Date().toISOString();
-          saveChatHistory();
-        }
-        chatMessages.innerHTML = '<div class="empty-state"><p>👋 开始对话吧！输入文字或录制语音与AI交流</p></div>';
-        updateHistoryList();
-      }
-    });
-    
-    // 导出对话记录
-    exportChatBtn.addEventListener("click", () => {
-      if (!chatHistory[currentChatId] || chatHistory[currentChatId].messages.length === 0) {
-        alert("当前对话为空，无法导出");
-        return;
-      }
-      
-      const messages = chatHistory[currentChatId].messages;
-      let exportText = `对话记录 - ${new Date().toLocaleString('zh-CN')}\n`;
-      exportText += "=".repeat(50) + "\n\n";
-      
-      messages.forEach(msg => {
-        const role = msg.isUser ? "用户" : "AI";
-        const time = new Date(msg.time).toLocaleString('zh-CN');
-        exportText += `[${time}] ${role}:\n${msg.text}\n\n`;
-      });
-      
-      // 创建下载链接
-      const blob = new Blob([exportText], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `对话记录_${new Date().toISOString().slice(0, 10)}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    });
+    // 注意：新建对话、清空对话、导出对话的事件监听器已在 DOMContentLoaded 中绑定
     
     // 页面加载时自动加载历史聊天记录
     initChatHistory().then(() => {
@@ -3078,4 +3615,5 @@
   </script>
 </body>
 </html>
+
 

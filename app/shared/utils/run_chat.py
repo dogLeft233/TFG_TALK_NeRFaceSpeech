@@ -172,13 +172,19 @@ def chat_with_llm(user_input: str, character: str = "ayanami", enable_audio: boo
             # 如果配置中没有，使用默认路径
             audio_prompt_path = None
         
+        # 根据 enable_audio 决定使用哪个模式
+        # 如果 enable_audio=False，使用 llm_only 模式（只生成文本，不生成音频）
+        # 如果 enable_audio=True，使用 talk 模式（生成文本和音频）
+        mode = "llm_only" if not enable_audio else "talk"
+        
         # 通过 subprocess 调用 API
+        # 注意：llm_only 模式会忽略 character、enable_audio 和 audio_prompt_path 参数
         result = _call_llm_api_bridge(
-            mode="talk",
+            mode=mode,
             user_input=user_input,
             character=character,
             enable_audio=enable_audio,
-            audio_prompt_path=audio_prompt_path
+            audio_prompt_path=audio_prompt_path if enable_audio else None
         )
         
         if result.get('success'):

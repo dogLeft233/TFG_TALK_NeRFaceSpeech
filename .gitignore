@@ -3,8 +3,12 @@ output/*
 
 scripts
 
-database/*
-!database/.gitkeep
+database/audios/
+database/texts/
+database/videos/
+database/chat_records.db
+database/settings.db
+database/video_records.db
 
 assets/*
 !assets/.gitkeep

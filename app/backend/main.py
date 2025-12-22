@@ -1407,6 +1407,8 @@ class ChatRequest(BaseModel):
     audio_base64: Optional[str] = None
     character: str = "ayanami"
     enable_audio: bool = True
+    enable_video: bool = False  # 是否生成视频
+    response_mode: Optional[str] = None  # 响应模式: "text", "audio", "video"
     session_id: Optional[str] = None  # 会话ID，如果不存在则创建新会话
 
 @app.post("/chat")
@@ -1502,6 +1504,24 @@ def chat_api(request: ChatRequest):
             config={"enable_audio": request.enable_audio}
         )
     
+    # 根据response_mode确定需要生成的内容
+    response_mode = request.response_mode or "text"
+    
+    # 根据response_mode设置enable_audio和enable_video
+    if response_mode == "text":
+        enable_audio = True   # 文本模式：使用语音生成的逻辑（enable_audio=True），但获取文本后终止，只返回文本
+        enable_video = False
+    elif response_mode == "audio":
+        enable_audio = True   # 音频模式：生成文本+音频
+        enable_video = False
+    elif response_mode == "video":
+        enable_audio = True   # 视频模式：生成文本+音频+视频
+        enable_video = True
+    else:
+        # 兼容旧代码：使用request中的参数
+        enable_audio = request.enable_audio
+        enable_video = request.enable_video
+    
     # 保存用户消息
     user_message_id = f"user-{uuid.uuid4()}"
     # 确定内容类型
@@ -1521,24 +1541,52 @@ def chat_api(request: ChatRequest):
     )
     
     # 调用聊天函数
-    add_log(f"[聊天] 开始调用LLM API: session_id={session_id}, user_input={user_text[:100]}...", "info")
+    add_log(f"[聊天] 开始调用LLM API: session_id={session_id}, user_input={user_text[:100]}..., response_mode={response_mode}, enable_audio={enable_audio}, enable_video={enable_video}", "info")
+    
+    # 阶段1: LLM文本生成
+    add_log("=== [聊天] 阶段1: LLM 文本生成 ===", "info")
     result = chat_with_llm(
         user_input=user_text,
         character=request.character,
-        enable_audio=request.enable_audio
+        enable_audio=enable_audio  # 使用处理后的enable_audio
     )
     
     if not result.get("success"):
         error_msg = result.get("error", "未知错误")
-        add_log(f"[聊天] LLM API调用失败: {error_msg}", "error")
+        add_log(f"[聊天] 阶段1失败: {error_msg}", "error")
         return result
     
-    add_log(f"[聊天] LLM API调用成功", "success")
+    # 确保正确获取llm_answer
+    llm_answer = result.get("data", {}).get("llm_answer", "") if result.get("data") else ""
+    
+    # 根据response_mode决定是否在日志中输出文本内容
+    if response_mode == "text":
+        if llm_answer:
+            add_log(f"=== [聊天] 阶段1完成: LLM 文本生成成功，回答: {llm_answer[:200]}... ===", "success")
+        else:
+            add_log(f"=== [聊天] 阶段1完成: LLM 文本生成成功，但回答为空 ===", "warning")
+    else:
+        add_log(f"=== [聊天] 阶段1完成: LLM 文本生成成功（回答长度: {len(llm_answer) if llm_answer else 0}，模式: {response_mode}，不显示内容） ===", "success")
+    
+    # 如果启用了音频，说明阶段2（TTS音频生成）也在chat_with_llm中完成了
+    if enable_audio:
+        audio_base64 = result.get("data", {}).get("audio_base64")
+        if audio_base64:
+            if response_mode == "text":
+                add_log("=== [聊天] 阶段2完成: TTS 音频生成成功（文本模式：已生成但仅返回文本） ===", "success")
+            else:
+                add_log("=== [聊天] 阶段2完成: TTS 音频生成成功 ===", "success")
+        else:
+            add_log("=== [聊天] 阶段2警告: TTS 音频生成失败或无音频数据 ===", "warning")
+    elif not enable_audio:
+        add_log("=== [聊天] 跳过阶段2: 未启用音频生成 ===", "info")
     
     # 如果聊天成功，保存AI回复到数据库
     if result.get("success") and result.get("data"):
         try:
-            llm_answer = result["data"].get("llm_answer", "")
+            # 确保llm_answer不为空（如果之前获取的为空，再次尝试获取）
+            if not llm_answer and result.get("data", {}).get("llm_answer"):
+                llm_answer = result["data"]["llm_answer"]
             audio_base64 = result["data"].get("audio_base64")
             
             # 确保audio_base64是字符串而不是bytes
@@ -1548,9 +1596,16 @@ def chat_api(request: ChatRequest):
                 # 如果不是字符串也不是bytes，尝试转换为字符串
                 audio_base64 = str(audio_base64)
             
-            add_log(f"[聊天] LLM回答长度: {len(llm_answer) if llm_answer else 0}, 音频base64长度: {len(audio_base64) if audio_base64 else 0}", "info")
+            # 根据response_mode决定是否在日志中输出文本内容（response_mode已在前面定义）
+            if response_mode == "text":
+                add_log(f"[聊天] LLM回答长度: {len(llm_answer) if llm_answer else 0}", "info")
+            elif response_mode == "audio":
+                add_log(f"[聊天] LLM回答长度: {len(llm_answer) if llm_answer else 0}, 音频base64长度: {len(audio_base64) if audio_base64 else 0}", "info")
+                # 语音模式不打印文本内容，只显示长度
+            elif response_mode == "video":
+                add_log(f"[聊天] LLM回答长度: {len(llm_answer) if llm_answer else 0}, 音频base64长度: {len(audio_base64) if audio_base64 else 0} (视频模式：文本用于TTS，不显示)", "info")
             
-            # 保存AI回复文本文件（使用统一的texts目录）
+            # 根据response_mode决定是否保存文本文件（所有模式都保存文本，用于数据库记录）
             assistant_text_path = None
             if llm_answer:
                 try:
@@ -1562,9 +1617,10 @@ def chat_api(request: ChatRequest):
                 except Exception as e:
                     add_log(f"[文件存储] 保存AI回复文本文件失败: {e}", "warning")
             
-            # 保存AI回复音频文件（如果启用音频且生成了音频，使用统一的audios目录）
+            # 保存AI回复音频文件（仅音频模式和视频模式保存音频，文本模式不保存）
             assistant_audio_path = None
-            if request.enable_audio and audio_base64:
+            if enable_audio and audio_base64 and response_mode != "text":
+                # 文本模式虽然调用了enable_audio=True，但不保存音频文件
                 try:
                     audio_file = AUDIOS_STORAGE_DIR / f"{user_message_id}.wav"
                     
@@ -1577,23 +1633,55 @@ def chat_api(request: ChatRequest):
                     add_log(f"[文件存储] AI回复音频文件保存成功: {audio_file}", "info")
                 except Exception as e:
                     add_log(f"[文件存储] 保存AI回复音频文件失败: {e}", "warning")
+            elif response_mode == "text" and audio_base64:
+                # 文本模式：生成了音频但不保存，记录日志
+                add_log(f"[文件存储] 文本模式：已生成音频但未保存（仅返回文本）", "info")
+            elif response_mode == "text" and audio_base64:
+                # 文本模式：生成了音频但不保存，记录日志
+                add_log(f"[文件存储] 文本模式：已生成音频但未保存（仅返回文本）", "info")
             
-            # 确定内容类型
-            content_type = "text"
-            if request.enable_audio and audio_base64:
-                content_type = "text+audio"
+            # 根据response_mode确定数据库存储的内容类型
+            if response_mode == "text":
+                content_type = "text"  # 文本模式：只存储文本（虽然生成了音频但不存储）
+            elif response_mode == "audio":
+                content_type = "text+audio"  # 音频模式：存储文本+音频
+            elif response_mode == "video":
+                content_type = "text+audio+video"  # 视频模式：存储文本+音频+视频
+            else:
+                # 默认行为（兼容旧代码）
+                content_type = "text"
+                if enable_audio and audio_base64 and response_mode != "text":
+                    content_type = "text+audio"
+            
+            # 阶段3: 视频生成（仅视频模式）- 对于视频模式，chat API不处理视频生成
+            # 视频生成应该在聊天完成后，由前端直接调用 /generate_video API（就像generate.html那样）
+            # 但是为了保持一致性，我们仍然需要返回video_task_id，这里返回None，让前端自己调用generate_video API
+            video_task_id = None
+            assistant_video_path = None  # 初始化视频路径（文本和音频模式下为None）
+            if enable_video:
+                add_log("=== [聊天] 阶段3: 视频模式，前端将直接调用 /generate_video API ===", "info")
+                # 视频模式：chat API只负责生成文本和音频，视频生成由前端调用 /generate_video API完成
+                # 这样就和generate.html的方式完全一致了
             
             # 保存AI回复消息
             assistant_message_id = f"assistant-{uuid.uuid4()}"
+            # 所有模式都存储文本内容（数据库格式要求）
+            # 文本模式下，audio_path和audio_base64都为None（虽然生成了音频但不保存）
+            audio_base64_to_store = None
+            if response_mode != "text":
+                # 非文本模式：如果保存了文件，不存储base64；否则存储base64
+                audio_base64_to_store = audio_base64 if not assistant_audio_path else None
+            # 文本模式：不存储音频，即使生成了也不存储
             add_chat_message(
                 session_id=session_id,
                 message_id=assistant_message_id,
                 message_type="assistant",
-                content_type=content_type,
-                text_content=llm_answer,
+                content_type=content_type,  # text, text+audio, text+audio+video
+                text_content=llm_answer,  # 所有模式都存储文本
                 text_path=assistant_text_path,
-                audio_path=assistant_audio_path,
-                audio_base64=audio_base64 if not assistant_audio_path else None  # 如果保存了文件，不存储base64
+                audio_path=assistant_audio_path,  # 文本模式下为None
+                audio_base64=audio_base64_to_store,  # 文本模式下为None
+                video_path=assistant_video_path  # 视频路径（仅视频模式，其他模式为None）
             )
             
             add_log(f"[数据库] 聊天消息已保存: session_id={session_id}, user_message_id={user_message_id}, assistant_message_id={assistant_message_id}", "info")
@@ -1603,12 +1691,47 @@ def chat_api(request: ChatRequest):
             result["data"]["user_message_id"] = user_message_id
             result["data"]["assistant_message_id"] = assistant_message_id
             
-            # 如果音频已保存为文件，返回URL而不是base64（节省带宽）
-            if assistant_audio_path:
-                result["data"]["audio_url"] = f"/audios/{user_message_id}.wav"
-                # 移除base64数据，避免在响应中传输大量数据
+            # 根据响应模式过滤返回的数据
+            if response_mode == "text":
+                # 文本模式：只返回文本，不返回音频和视频
+                # 确保llm_answer存在且不为空（使用保存的llm_answer变量，确保有值）
+                result["data"]["llm_answer"] = llm_answer if llm_answer else result["data"].get("llm_answer", "")
                 if "audio_base64" in result["data"]:
                     del result["data"]["audio_base64"]
+                if "audio_url" in result["data"]:
+                    del result["data"]["audio_url"]
+                if "video_url" in result["data"]:
+                    del result["data"]["video_url"]
+                if "video_task_id" in result["data"]:
+                    del result["data"]["video_task_id"]
+            elif response_mode == "audio":
+                # 音频模式：只返回音频，不返回文本和视频
+                if "llm_answer" in result["data"]:
+                    del result["data"]["llm_answer"]  # 不返回文本
+                if assistant_audio_path:
+                    result["data"]["audio_url"] = f"/audios/{Path(assistant_audio_path).name}"
+                    if "audio_base64" in result["data"]:
+                        del result["data"]["audio_base64"]
+                if "video_url" in result["data"]:
+                    del result["data"]["video_url"]
+                if "video_task_id" in result["data"]:
+                    del result["data"]["video_task_id"]
+            elif response_mode == "video":
+                # 视频模式：返回文本和音频，但不返回视频（视频由前端调用 /generate_video API生成）
+                # 保留llm_answer和audio_url，供前端调用generate_video API时使用
+                # 删除video相关字段（因为还没有生成视频）
+                if "video_url" in result["data"]:
+                    del result["data"]["video_url"]
+                if "video_task_id" in result["data"]:
+                    del result["data"]["video_task_id"]
+                # 不删除llm_answer和audio_url，因为前端需要这些数据来调用generate_video API
+            else:
+                # 默认行为：如果音频已保存为文件，返回URL而不是base64（节省带宽）
+                if assistant_audio_path:
+                    result["data"]["audio_url"] = f"/audios/{Path(assistant_audio_path).name}"
+                    # 移除base64数据，避免在响应中传输大量数据
+                    if "audio_base64" in result["data"]:
+                        del result["data"]["audio_base64"]
             
             add_log(f"[聊天] 响应准备完成: session_id={session_id}", "success")
         except Exception as e:
