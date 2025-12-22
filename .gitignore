@@ -14,6 +14,7 @@ environment/*
 !environment/llm_talk.yaml
 !environment/nerffacespeech.yaml
 !environment/api.yaml
+!environment/syncnet.yaml
 
 data/*
 !data/.gitkeep
