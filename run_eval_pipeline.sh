@@ -1,6 +1,5 @@
 #!/bin/bash
-# 运行评估流程的 Docker 启动脚本
-# 使用 syncnet 环境运行 eval_pipline
+# 本地运行 eval_pipline 的启动脚本（不依赖 Docker，不修改系统全局路径）
 
 set -e
 
@@ -15,18 +14,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 
 echo "==========================================="
-echo "NeRFFaceSpeech 评估流程启动脚本"
+echo "NeRFFaceSpeech 本地评估流程启动脚本"
+echo "（使用本机 conda 的 syncnet 环境）"
 echo "==========================================="
 echo ""
 
-# 配置参数
+# 基本配置
 INPUT_DIR="$PROJECT_ROOT/data/geneface_datasets/data/raw/videos"
 OUTPUT_DIR="$PROJECT_ROOT/output/eval_$(date +%Y%m%d_%H%M%S)"
 MODEL_PATH="$PROJECT_ROOT/NeRFFaceSpeech_Code/pretrained_networks/ffhq_1024.pkl"
 SEGMENT_SEC=8
 MAX_SEGMENTS=8
-DOCKER_IMAGE="nerffacespeech:latest"
-CONTAINER_NAME="nerffacespeech-eval"
+CONDA_ENV_NAME="environment/syncnet"
 
 # 检查输入目录
 if [ ! -d "$INPUT_DIR" ]; then
@@ -50,62 +49,6 @@ mkdir -p "$OUTPUT_DIR"
 echo -e "${GREEN}✓${NC} 输出目录: $OUTPUT_DIR"
 echo ""
 
-# 检查 Docker 镜像是否存在
-if ! docker images | grep -q "^${DOCKER_IMAGE%:*}"; then
-    echo -e "${YELLOW}⚠️  警告: Docker 镜像 $DOCKER_IMAGE 不存在${NC}"
-    echo "正在尝试构建镜像..."
-    cd "$PROJECT_ROOT/docker"
-    docker build -t "$DOCKER_IMAGE" ..
-    cd "$PROJECT_ROOT"
-    echo -e "${GREEN}✓${NC} Docker 镜像构建完成"
-    echo ""
-fi
-
-# 检查容器是否已存在
-if docker ps -a | grep -q "$CONTAINER_NAME"; then
-    echo -e "${YELLOW}⚠️  检测到已存在的容器: $CONTAINER_NAME${NC}"
-    read -p "是否删除并重新创建? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
-        echo -e "${GREEN}✓${NC} 已删除旧容器"
-    else
-        echo "使用现有容器"
-    fi
-fi
-
-# 启动容器（如果不存在）
-if ! docker ps | grep -q "$CONTAINER_NAME"; then
-    echo "启动 Docker 容器..."
-    docker run -d \
-        --name "$CONTAINER_NAME" \
-        --gpus all \
-        -v "$PROJECT_ROOT/data:/app/data:ro" \
-        -v "$PROJECT_ROOT/output:/app/output:rw" \
-        -v "$PROJECT_ROOT/NeRFFaceSpeech_Code:/app/NeRFFaceSpeech_Code:ro" \
-        -v "$PROJECT_ROOT/eval_pipline:/app/eval_pipline:ro" \
-        -v "$PROJECT_ROOT/weights:/app/weights:rw" \
-        -v "$PROJECT_ROOT/Hugging_Face:/app/Hugging_Face:rw" \
-        -e PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
-        -e TORCH_HOME=/app/weights \
-        -e HF_ENDPOINT=https://hf-mirror.com \
-        -e HF_HOME=/app/Hugging_Face \
-        -e CUDA_VISIBLE_DEVICES=0 \
-        "$DOCKER_IMAGE" \
-        tail -f /dev/null
-    
-    echo -e "${GREEN}✓${NC} 容器已启动: $CONTAINER_NAME"
-    echo ""
-    
-    # 等待容器就绪
-    sleep 2
-fi
-
-# 在容器内运行评估流程
-echo "==========================================="
-echo "开始运行评估流程"
-echo "==========================================="
-echo ""
 echo "配置参数:"
 echo "  输入目录: $INPUT_DIR"
 echo "  输出目录: $OUTPUT_DIR"
@@ -113,57 +56,65 @@ echo "  模型文件: $MODEL_PATH"
 echo "  每段时长: ${SEGMENT_SEC}秒"
 echo "  每视频段数: ${MAX_SEGMENTS}段（随机选择）"
 echo "  对齐方式: FFHQFaceAlignment"
+echo "  使用环境: $CONDA_ENV_NAME"
 echo ""
 
-# 激活 syncnet 环境并运行评估流程
-OUTPUT_DIR_BASENAME=$(basename "$OUTPUT_DIR")
-docker exec -it "$CONTAINER_NAME" bash -c "
-    set -e
-    
-    # 激活 syncnet 环境
-    source /opt/conda/etc/profile.d/conda.sh
-    
-    # 检查 syncnet 环境是否存在
-    if [ -d '/app/environment/syncnet' ]; then
-        echo '[INFO] 激活 syncnet 环境...'
-        conda activate /app/environment/syncnet
+# 激活本地 conda 环境（仅在当前脚本进程生效，不修改系统配置）
+activate_conda() {
+    # 优先使用已安装的 conda.sh
+    if [ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]; then
+        # shellcheck source=/dev/null
+        source "$HOME/miniconda3/etc/profile.d/conda.sh"
+    elif [ -f "/opt/conda/etc/profile.d/conda.sh" ]; then
+        # shellcheck source=/dev/null
+        source "/opt/conda/etc/profile.d/conda.sh"
+    elif command -v conda >/dev/null 2>&1; then
+        # 通用方式：只在当前 shell 中注入，不改系统配置文件
+        eval "$(conda shell.bash hook)"
     else
-        echo '[WARNING] syncnet 环境不存在，使用 base 环境'
-        conda activate base
+        echo -e "${RED}❌ 未找到 conda 命令，请确认已安装 Anaconda/Miniconda 并在 PATH 中${NC}"
+        exit 1
     fi
-    
-    # 设置工作目录
-    cd /app
-    
-    # 运行评估流程
-    python -m eval_pipline \\
-        --input-dir /app/data/geneface_datasets/data/raw/videos \\
-        --output-dir /app/output/$OUTPUT_DIR_BASENAME \\
-        --network /app/NeRFFaceSpeech_Code/pretrained_networks/ffhq_1024.pkl \\
-        --segment-sec $SEGMENT_SEC \\
-        --max-segments $MAX_SEGMENTS \\
-        --random-segments \\
-        --ffhq-alignment \\
-        --device cuda
-    
-    echo ''
-    echo '==========================================='
-    echo '评估流程完成！'
-    echo '==========================================='
-    echo ''
-    echo '结果保存在: /app/output/$OUTPUT_DIR_BASENAME'
-    echo '  - 切分视频: /app/output/$OUTPUT_DIR_BASENAME/videos_split/'
-    echo '  - 裁剪视频: /app/output/$OUTPUT_DIR_BASENAME/videos_cropped/'
-    echo '  - 推理结果: /app/output/$OUTPUT_DIR_BASENAME/videos_infer/'
-    echo '  - 指标结果: /app/output/$OUTPUT_DIR_BASENAME/metrics.json'
-"
+
+    # 激活指定环境
+    if ! conda activate "$CONDA_ENV_NAME" 2>/dev/null; then
+        echo -e "${RED}❌ 无法激活 conda 环境: $CONDA_ENV_NAME${NC}"
+        echo "请先创建该环境，或修改脚本中的 CONDA_ENV_NAME。"
+        exit 1
+    fi
+}
+
+echo "激活 conda 环境: $CONDA_ENV_NAME ..."
+activate_conda
+echo -e "${GREEN}✓${NC} 已激活 conda 环境: $CONDA_ENV_NAME"
+echo ""
+
+# 进入项目根目录并运行评估流程
+cd "$PROJECT_ROOT"
+
+echo "==========================================="
+echo "开始运行本地评估流程（不使用 Docker）"
+echo "==========================================="
+echo ""
+
+set -x
+python -m eval_pipline \
+    --input-dir "$INPUT_DIR" \
+    --output-dir "$OUTPUT_DIR" \
+    --network "$MODEL_PATH" \
+    --segment-sec "$SEGMENT_SEC" \
+    --max-segments "$MAX_SEGMENTS" \
+    --random-segments \
+    --ffhq-alignment \
+    --device cuda
+set +x
 
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 0 ]; then
     echo ""
     echo "==========================================="
-    echo -e "${GREEN}✅ 评估流程执行成功！${NC}"
+    echo -e "${GREEN}✅ 本地评估流程执行成功！${NC}"
     echo "==========================================="
     echo ""
     echo "结果保存在: $OUTPUT_DIR"
@@ -173,18 +124,16 @@ if [ $EXIT_CODE -eq 0 ]; then
     echo "  - 指标结果: $OUTPUT_DIR/metrics.json"
     echo ""
     echo "查看结果:"
-    echo "  ls -lh $OUTPUT_DIR/"
+    echo "  ls -lh \"$OUTPUT_DIR\"/"
     echo ""
 else
     echo ""
     echo "==========================================="
-    echo -e "${RED}❌ 评估流程执行失败！${NC}"
+    echo -e "${RED}❌ 本地评估流程执行失败！${NC}"
     echo "==========================================="
     echo ""
     echo "退出码: $EXIT_CODE"
-    echo "请检查容器日志:"
-    echo "  docker logs $CONTAINER_NAME"
+    echo "请检查上面的 Python 错误信息。"
     echo ""
     exit $EXIT_CODE
 fi
-

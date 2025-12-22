@@ -1,6 +1,6 @@
-torch==2.6.0+cu126
-torchvision==0.21.0+cu126
-torchaudio==2.6.0+cu126
+torch==2.6.0
+torchvision==0.21.0
+torchaudio==2.6.0
 triton==3.2.0
 
 
