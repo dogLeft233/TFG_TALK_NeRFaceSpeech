@@ -17,6 +17,7 @@ environment/api/
 environment/syncnet/
 environment/llm_talk/
 environment/nerffacespeech/
+environment/env_tar/
 
 
 data/*

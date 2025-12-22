@@ -81,7 +81,7 @@ platformdirs==4.4.0
 pooch==1.8.2
 portalocker==2.10.0
 prompt_toolkit==3.0.52
-protobuf==4.24.4
+protobuf
 psutil==6.0.0
 ptyprocess==0.7.0
 pure_eval==0.2.3
