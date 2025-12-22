@@ -1162,6 +1162,9 @@
     let mediaRecorder = null;
     let audioChunks = [];
     let isRecording = false;
+    let currentAudioBase64 = null;
+    let recordingTimer = null;
+    let recordingStartTime = null;
     let isMuted = false;
     let character = null; // 当前对话的角色（从聊天历史中获取）
     let model = null; // 当前对话的模型（从聊天历史中获取）
@@ -2186,15 +2189,31 @@
         audioChunks = [];
         
         mediaRecorder.ondataavailable = (event) => {
-          audioChunks.push(event.data);
+          if (event.data.size > 0) {
+            audioChunks.push(event.data);
+          }
         };
         
         mediaRecorder.onstop = async () => {
           const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
           
-          // 将音频转换为文本（这里需要语音识别API，暂时提示用户）
-          // 目前先提示用户语音录制功能需要语音识别支持
-          alert("语音录制完成！\n注意：语音转文本功能需要后端语音识别API支持，当前版本请使用文本输入。");
+          // 转换为Base64
+          const reader = new FileReader();
+          reader.onload = async () => {
+            const arrayBuffer = reader.result;
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            currentAudioBase64 = base64;
+            
+            // 自动进行语音识别
+            const text = await performTranscription();
+            if (text) {
+              // 将识别到的文本填入输入框
+              chatInput.value = text;
+              // 可选：自动发送消息
+              // sendMessage(text);
+            }
+          };
+          reader.readAsArrayBuffer(audioBlob);
           
           // 停止所有音频轨道
           stream.getTracks().forEach(track => track.stop());
@@ -2205,7 +2224,18 @@
         recordBtn.classList.add("recording");
         recordBtn.textContent = "⏹️";
         recordBtn.title = "停止录制";
+        
+        // 显示录音时间（如果有recordingTime元素）
+        recordingStartTime = Date.now();
+        if (recordingTimer) clearInterval(recordingTimer);
+        recordingTimer = setInterval(() => {
+          const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+          const minutes = Math.floor(elapsed / 60);
+          const seconds = elapsed % 60;
+          // 可以在这里更新录音时间显示
+        }, 1000);
       } catch (error) {
+        console.error('录音失败:', error);
         alert("无法访问麦克风: " + error.message);
       }
     }
@@ -2217,6 +2247,42 @@
         recordBtn.classList.remove("recording");
         recordBtn.textContent = "🎤";
         recordBtn.title = "录制语音";
+        
+        // 清除录音计时器
+        if (recordingTimer) {
+          clearInterval(recordingTimer);
+          recordingTimer = null;
+        }
+      }
+    }
+    
+    // 语音识别
+    async function performTranscription() {
+      if (!currentAudioBase64) {
+        alert('没有可识别的音频');
+        return null;
+      }
+
+      try {
+        // 使用api.js中的函数，支持超时处理
+        const result = await transcribeAudio({
+          audio_base64: currentAudioBase64,
+          model_name: 'base',
+          language: null,
+          task: 'transcribe'
+        });
+
+        if (result.success && result.data) {
+          const text = result.data.text || '';
+          return text;
+        } else {
+          throw new Error(result.error?.message || result.error || '识别失败');
+        }
+      } catch (error) {
+        console.error('语音识别失败:', error);
+        const errorMsg = error.message || '识别失败';
+        alert('语音识别失败: ' + errorMsg);
+        return null;
       }
     }
     
@@ -2242,9 +2308,40 @@
         return;
       }
       
-      // 这里需要语音识别API将音频转为文本
-      // 目前先提示用户
-      alert("音频上传成功！\n注意：语音转文本功能需要后端语音识别API支持，当前版本请使用文本输入。");
+      try {
+        // 读取文件并转换为Base64
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const arrayBuffer = reader.result;
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            currentAudioBase64 = base64;
+            
+            // 自动进行语音识别
+            const text = await performTranscription();
+            if (text) {
+              // 将识别到的文本填入输入框
+              chatInput.value = text;
+              // 可选：自动发送消息
+              // sendMessage(text);
+            }
+          } catch (error) {
+            console.error('Base64转换失败:', error);
+            alert('音频文件处理失败: ' + error.message);
+            currentAudioBase64 = null;
+          }
+        };
+        reader.onerror = (error) => {
+          console.error('文件读取错误:', error);
+          alert('读取音频文件失败');
+          currentAudioBase64 = null;
+        };
+        reader.readAsArrayBuffer(file);
+      } catch (error) {
+        console.error('读取文件失败:', error);
+        alert('读取音频文件失败: ' + error.message);
+        currentAudioBase64 = null;
+      }
       
       // 重置文件输入
       audioUpload.value = "";

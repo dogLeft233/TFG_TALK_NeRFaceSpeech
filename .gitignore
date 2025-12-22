@@ -9,12 +9,11 @@ database/*
 assets/*
 !assets/.gitkeep
 
-environment/*
-!environment/.gitkeep
-!environment/llm_talk.yaml
-!environment/nerffacespeech.yaml
-!environment/api.yaml
-!environment/syncnet.yaml
+environment/api/
+environment/syncnet/
+environment/llm_talk/
+environment/nerffacespeech/
+
 
 data/*
 !data/.gitkeep
