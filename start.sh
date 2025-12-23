@@ -12,10 +12,10 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# 获取脚本所在目录
+# 获取脚本所在目录（现位于项目根目录）
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-APP_DIR="$SCRIPT_DIR"
+PROJECT_ROOT="$SCRIPT_DIR"
+APP_DIR="$PROJECT_ROOT/app"
 
 # 环境配置
 CONDA_ENV="api"

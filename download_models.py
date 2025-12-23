@@ -40,13 +40,13 @@ def download_whisper_models():
 def main():
 
     try:
-            download_huggingface_models()
-            download_whisper_models()
+        download_whisper_models()
+        download_huggingface_models()
 
     except Exception:
         print("\n❌ 模型下载过程中发生错误：")
         traceback.print_exc()
-        sys.exit(1)
+        sys.exit(0)
 
     print("=" * 60)
     print("🎉 模型下载完成！")

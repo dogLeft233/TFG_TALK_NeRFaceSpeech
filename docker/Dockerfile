@@ -1,324 +1,155 @@
-# NeRFFaceSpeech Docker 配置
-# 支持 GPU (CUDA 11.7)
-# 所有下载使用国内镜像源
-# 注意：PyTorch 版本与 CUDA 11.7 匹配（torch 2.0.1 cu117）
-FROM nvidia/cuda:11.7.1-devel-ubuntu20.04
+# ==================== 基础镜像 ====================
+FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
 
-# 设置工作目录
-WORKDIR /app
-
-# 设置环境变量
+# ==================== 环境变量 ====================
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
-    TORCH_HOME=/app/weights \
-    HF_ENDPOINT=https://hf-mirror.com \
-    HF_HOME=/app/Hugging_Face \
+    TORCH_HOME=/app/assets/.cache/torch \
+    XDG_CACHE_HOME=/app/assets/.cache \
+    HF_HOME=/app/assets/.cache/huggingface \
     CONDA_DIR=/opt/conda \
-    PATH=/opt/conda/bin:$PATH
+    PATH=/opt/conda/bin:$PATH \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+    SSL_CERT_DIR=/etc/ssl/certs
 
-# ==================== 配置 APT 镜像源（清华源）====================
+# ==================== Ubuntu 镜像源 ====================
 RUN sed -i 's|http://archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list && \
-    sed -i 's|http://security.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list && \
-    sed -i 's|http://ports.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list || true
+    sed -i 's|http://security.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
 
-# 安装系统依赖
+# ==================== 系统依赖 ====================
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    curl \
-    git \
-    build-essential \
-    cmake \
-    ffmpeg \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libglib2.0-0 \
-    libgl1-mesa-glx \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+        wget curl git build-essential cmake \
+        ffmpeg libsm6 libxext6 libxrender-dev \
+        libglib2.0-0 libgl1-mesa-glx \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# ==================== 安装 Miniconda（使用清华镜像）====================
-RUN wget --quiet https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
-    bash /tmp/miniconda.sh -b -p /opt/conda && \
-    rm /tmp/miniconda.sh && \
-    /opt/conda/bin/conda clean --all -y && \
-    ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh
+# ==================== 安装 Miniconda ====================
+RUN wget -q https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+        -O /tmp/miniconda.sh \
+    && bash /tmp/miniconda.sh -b -p /opt/conda \
+    && rm /tmp/miniconda.sh \
+    && conda clean --all -y \
+    && ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh
 
-# ==================== 配置 conda 镜像源（清华源）====================
-RUN /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/ && \
-    /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/ && \
-    /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/pytorch/ && \
-    /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge/ && \
-    /opt/conda/bin/conda config --set show_channel_urls yes && \
-    /opt/conda/bin/conda config --set channel_priority strict
+# ==================== Conda 镜像源 ====================
+RUN /opt/conda/bin/conda config --remove-key channels || true \
+    && /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/ \
+    && /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/ \
+    && /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/pytorch/ \
+    && /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge/ \
+    && /opt/conda/bin/conda config --set channel_priority strict \
+    && /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main \
+    && /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
 
-# ==================== 接受 Conda Terms of Service ====================
-# 新版本的 conda 需要接受 ToS 才能使用某些频道
-RUN /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main 2>/dev/null || true && \
-    /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r 2>/dev/null || true
+# ==================== 工作目录 ====================
+WORKDIR /app
 
-# ==================== 配置 pip 镜像源（已在环境变量中设置）====================
-# PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+# ==================== 只复制环境定义（缓存关键点） ====================
+COPY environment/package/ /app/environment/package/
+COPY environment/*.yaml /app/environment/
 
-# ==================== 先复制环境文件（便于缓存优化）====================
-# 只复制环境定义文件，不复制整个项目代码
-# 这样环境文件变化时，只需要重新构建环境层，不需要重新安装系统依赖
-# 注意：COPY 指令不支持 shell 重定向，需要先复制整个目录或使用 RUN 命令
-COPY environment/ /app/environment/
-
-# 创建必要的目录
+# ==================== 创建目录 ====================
 RUN mkdir -p \
-    /app/weights \
-    /app/Hugging_Face \
+    /app/assets/.cache/{torch,huggingface} \
+    /app/assets/models \
     /app/database/videos \
-    /app/outputs/video \
-    /app/outputs/audio \
-    /app/NeRFFaceSpeech_Code/pretrained_networks
+    /app/outputs/{audio,video} \
+    /app/NeRFFaceSpeech_Code/pretrained_networks \
+    /app/environment/{nerffacespeech,api,syncnet,llm_talk}
 
-# ==================== 安装 Python 环境 ====================
-# 安装 llm_talk 环境（两步：从 tar 恢复，然后用 yaml 更新）
-RUN set -e; \
-    if [ ! -f "environment/env_tar/llm_talk_init.tar" ]; then \
-        echo "错误: 未找到 environment/env_tar/llm_talk_init.tar"; \
-        exit 1; \
-    fi; \
-    if [ ! -f "environment/llm_talk.yaml" ]; then \
-        echo "错误: 未找到 environment/llm_talk.yaml"; \
-        exit 1; \
-    fi; \
-    \
-    echo "===========================================" && \
-    echo "步骤 1/2: 从 tar 文件恢复 llm_talk 环境..." && \
-    echo "===========================================" && \
-    mkdir -p /app/environment/llm_talk && \
-    echo "解压环境文件..." && \
-    tar -xf environment/env_tar/llm_talk_init.tar -C /app/environment/llm_talk && \
-    echo "修复环境路径..." && \
-    cd /app/environment/llm_talk && \
-    ./bin/conda-unpack && \
-    echo "llm_talk 环境恢复完成！"; \
-    \
-    echo "===========================================" && \
-    echo "步骤 2/2: 使用 yaml 文件更新环境..." && \
-    echo "===========================================" && \
-    cd /app && \
-    /opt/conda/bin/conda env update -f /app/environment/llm_talk.yaml --prefix /app/environment/llm_talk --prune || \
-    (echo "警告: conda env update 失败，尝试使用 create（强制覆盖）..." && \
-     rm -rf /app/environment/llm_talk && \
-     /opt/conda/bin/conda env create -f /app/environment/llm_talk.yaml --prefix /app/environment/llm_talk); \
-    echo "llm_talk 环境构建完成！"
+# ==================== 声明挂载卷（与 Dockerfile_ 对齐，提升缓存可复用） ====================
+VOLUME ["/app/assets/.cache", "/app/assets/models", "/app/outputs", "/app/database"]
 
-# 安装 nerffacespeech 环境（如果环境文件存在）
-RUN if [ -f "environment/nerffacespeech.yaml" ]; then \
-        echo "===========================================" && \
-        echo "安装 nerffacespeech 环境..." && \
-        echo "===========================================" && \
-        /opt/conda/bin/conda env create -f environment/nerffacespeech.yaml --prefix environment/nerffacespeech; \
-    else \
-        echo "警告: environment/nerffacespeech.yaml 不存在，跳过 nerffacespeech 环境安装"; \
-    fi
+# =====================================================================
+# ==================== nerffacespeech 环境 =============================
+# =====================================================================
 
-# 安装 syncnet 环境（如果环境文件存在）
-RUN if [ -f "environment/syncnet.yaml" ]; then \
-        echo "===========================================" && \
-        echo "安装 syncnet 环境..." && \
-        echo "===========================================" && \
-        /opt/conda/bin/conda env create -f environment/syncnet.yaml --prefix environment/syncnet; \
-    else \
-        echo "警告: environment/syncnet.yaml 不存在，跳过 syncnet 环境安装"; \
-    fi
+# 1. 只创建 conda 环境（最稳定层）
+RUN conda env create \
+    -f /app/environment/package/nerffacespeech/environment.min.yaml \
+    -p /app/environment/nerffacespeech
 
-# ==================== 下载 SyncNet 模型（用于 LSE） ====================
-RUN if [ -f "metrics/scores_LSE/syncnet_python/download_model.sh" ]; then \
-        echo "下载 SyncNet 模型和示例数据..." && \
-        cd metrics/scores_LSE/syncnet_python && \
-        bash download_model.sh || \
-        echo "警告: SyncNet 模型下载失败，请在容器内手动运行 download_model.sh"; \
-    else \
-        echo "警告: 未找到 metrics/scores_LSE/syncnet_python/download_model.sh，跳过 SyncNet 模型下载"; \
-    fi
+RUN conda env create \
+    -f /app/environment/package/api/environment.min.yaml \
+    -p /app/environment/api
 
-# ==================== 安装 nvdiffrast ====================
-RUN cd NeRFFaceSpeech_Code/Deep3DFaceRecon_pytorch && \
-    if [ ! -d "nvdiffrast" ]; then \
-        echo "克隆 nvdiffrast 仓库..." && \
-        git clone https://github.com/NVlabs/nvdiffrast || \
-        (echo "警告: nvdiffrast clone 失败，尝试使用 gitee 镜像..." && \
-         git clone https://gitee.com/mirrors/nvdiffrast.git || echo "nvdiffrast clone 失败"); \
-    fi && \
-    if [ -d "nvdiffrast" ]; then \
-        cd nvdiffrast && \
-        echo "安装 nvdiffrast..." && \
-        /opt/conda/bin/pip install . || echo "警告: nvdiffrast 安装失败"; \
-    fi
+RUN conda env create \
+    -f /app/environment/package/syncnet/environment.min.yaml \
+    -p /app/environment/syncnet
 
-# ==================== 安装 API 环境依赖 ====================
-# API 依赖变化频率较低，单独一层便于缓存
-RUN echo "安装 FastAPI 等 API 依赖..." && \
-    /opt/conda/bin/pip install --no-cache-dir \
-    fastapi==0.119.1 \
-    uvicorn==0.38.0 \
-    python-multipart==0.0.20 \
-    aiofiles==24.1.0 \
-    requests==2.32.5 \
-    pydantic==2.11.10 \
-    tqdm || \
-    echo "警告: API 依赖安装失败"
+RUN conda env create \
+    -f /app/environment/package/llm_talk/environment.min.yaml \
+    -p /app/environment/llm_talk
 
-# ==================== 复制项目代码（放在依赖安装之后，最大化缓存）====================
-# 代码变化最频繁，放在最后，使用 .dockerignore 排除不必要的文件
+# =====================================================================
+# ==================== api 环境 =======================================
+# =====================================================================
+
+# =====================================================================
+# ==================== syncnet 环境 ===================================
+# =====================================================================
+
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh \
+    && conda activate /app/environment/syncnet \
+    && pip install -r /app/environment/package/syncnet/requirements.torch.txt"
+
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh \
+    && conda activate /app/environment/syncnet \
+    && pip install -r /app/environment/package/syncnet/requirements.txt \
+    && pip install face-alignment"
+
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh \
+    && conda activate /app/environment/api \
+    && pip install -r /app/environment/package/api/requirements.torch.txt"
+
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh \
+    && conda activate /app/environment/api \
+    && pip install -r /app/environment/package/api/requirements.txt"
+
+# 2. torch / cuda pip 依赖
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh \
+    && conda activate /app/environment/nerffacespeech \
+    && pip install -r /app/environment/package/nerffacespeech/requirements.torch.txt"
+
+# 3. pytorch3d（高风险，单独层）
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh \
+    && conda activate /app/environment/nerffacespeech \
+    && conda install -y \
+        https://anaconda.org/pytorch3d/pytorch3d/0.7.8/download/linux-64/pytorch3d-0.7.8-py39_cu121_pyt222.tar.bz2"
+
+# 4. 其余 Python 依赖
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh \
+    && conda activate /app/environment/nerffacespeech \
+    && pip install -r /app/environment/package/nerffacespeech/requirements.txt"
+
+# 5. pytorch3d / nvdiffrast 编译依赖
+
+# =====================================================================
+# ==================== llm_talk 环境 ==================================
+# =====================================================================
+
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh \
+    && conda activate /app/environment/llm_talk \
+    && pip install -r /app/environment/package/llm_talk/requirements.torch.txt"
+
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh \
+    && conda activate /app/environment/llm_talk \
+    && pip install -r /app/environment/package/llm_talk/requirements.txt \
+    && pip install pkuseg==0.0.25 --no-build-isolation \
+    && pip install chatterbox-tts==0.1.3"
+
+
+RUN /bin/bash -c "set -e \
+    && source /opt/conda/etc/profile.d/conda.sh \
+    && conda activate /app/environment/nerffacespeech \
+    && pip install -r /app/environment/package/nerffacespeech/requirements.pytorch3d.txt --no-build-isolation"
+# =====================================================================
+# ==================== 复制项目代码（最后） ============================
+# =====================================================================
+
 COPY . /app/
 
-# 如果 requirements.txt 存在，安装其中的依赖
-RUN if [ -f "requirements.txt" ]; then \
-        echo "安装 requirements.txt 中的依赖..." && \
-        /opt/conda/bin/pip install --no-cache-dir -r requirements.txt || \
-        echo "警告: requirements.txt 安装失败"; \
-    fi
-
-# 运行预下载脚本
-RUN if [ -f "docker/preload_models.py" ]; then \
-        echo "预下载模型文件..." && \
-        export HF_ENDPOINT=https://hf-mirror.com && \
-        export HF_HOME=/app/Hugging_Face && \
-        export TORCH_HOME=/app/weights && \
-        /opt/conda/bin/python docker/preload_models.py || \
-        echo "警告: 模型预下载失败，将在运行时自动下载"; \
-    else \
-        echo "警告: docker/preload_models.py 不存在，跳过模型预下载"; \
-    fi
-
-# ==================== 创建模型检查脚本 ====================
-RUN echo '#!/bin/bash\n\
-# 检查模型文件是否存在\n\
-MODEL_DIR="/app/NeRFFaceSpeech_Code/pretrained_networks"\n\
-MISSING_MODELS=()\n\
-\n\
-echo "==========================================="\n\
-echo "检查模型文件..."\n\
-echo "==========================================="\n\
-\n\
-# 检查主要模型文件\n\
-if [ ! -f "$MODEL_DIR/ffhq_1024.pkl" ]; then\n\
-    MISSING_MODELS+=("ffhq_1024.pkl")\n\
-fi\n\
-\n\
-if [ ! -f "$MODEL_DIR/seg.pth" ]; then\n\
-    MISSING_MODELS+=("seg.pth")\n\
-fi\n\
-\n\
-if [ ! -f "$MODEL_DIR/LipaintNet.pt" ]; then\n\
-    MISSING_MODELS+=("LipaintNet.pt")\n\
-fi\n\
-\n\
-# 检查目录\n\
-if [ ! -d "$MODEL_DIR/sad_talker_pretrained" ]; then\n\
-    MISSING_MODELS+=("sad_talker_pretrained/")\n\
-fi\n\
-\n\
-if [ ! -d "$MODEL_DIR/BFM_for_3DMM-Fitting-Pytorch" ]; then\n\
-    MISSING_MODELS+=("BFM_for_3DMM-Fitting-Pytorch/")\n\
-fi\n\
-\n\
-if [ ! -d "$MODEL_DIR/Deep3DFaceRecon_pytorch" ]; then\n\
-    MISSING_MODELS+=("Deep3DFaceRecon_pytorch/")\n\
-fi\n\
-\n\
-if [ ${#MISSING_MODELS[@]} -gt 0 ]; then\n\
-    echo ""\n\
-    echo "❌ 缺少以下模型文件："\n\
-    for model in "${MISSING_MODELS[@]}"; do\n\
-        echo "   - $model"\n\
-    done\n\
-    echo ""\n\
-    echo "==========================================="\n\
-    echo "请下载模型文件到以下目录："\n\
-    echo "$MODEL_DIR"\n\
-    echo "==========================================="\n\
-    echo ""\n\
-    echo "模型下载地址："\n\
-    echo "https://drive.google.com/drive/folders/1W3TGSh5ufmT3T1XPwU7LRB_y4bcbmm9i"\n\
-    echo ""\n\
-    echo "需要的模型文件："\n\
-    echo "1. ffhq_1024.pkl (184.3 MB)"\n\
-    echo "2. seg.pth (50.8 MB)"\n\
-    echo "3. LipaintNet.pt (12.4 MB)"\n\
-    echo "4. sad_talker_pretrained/ (目录)"\n\
-    echo "5. BFM_for_3DMM-Fitting-Pytorch/ (目录)"\n\
-    echo "6. Deep3DFaceRecon_pytorch/ (目录)"\n\
-    echo ""\n\
-    echo "下载后，请将文件放置到："\n\
-    echo "NeRFFaceSpeech_Code/pretrained_networks/"\n\
-    echo ""\n\
-    echo "或者使用 Docker volume 挂载："\n\
-    echo "docker run -v /path/to/pretrained_networks:/app/NeRFFaceSpeech_Code/pretrained_networks:ro ..."\n\
-    echo "==========================================="\n\
-    exit 1\n\
-else\n\
-    echo "✅ 所有必需的模型文件都存在"\n\
-    echo "==========================================="\n\
-fi\n\
-' > /app/check_models.sh && chmod +x /app/check_models.sh
-
-# ==================== 创建启动脚本 ====================
-RUN echo '#!/bin/bash\n\
-set -e\n\
-\n\
-# 设置环境变量\n\
-export PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple\n\
-export TORCH_HOME=/app/weights\n\
-export HF_ENDPOINT=https://hf-mirror.com\n\
-export HF_HOME=/app/Hugging_Face\n\
-\n\
-# 激活 conda base 环境\n\
-source /opt/conda/etc/profile.d/conda.sh\n\
-conda activate base\n\
-\n\
-# 检查模型文件（可选，如果挂载了模型目录则跳过）\n\
-# 如果模型目录是通过 volume 挂载的，则检查挂载的目录\n\
-if [ -f "/app/check_models.sh" ]; then\n\
-    /app/check_models.sh || echo "警告: 模型文件检查失败，但继续启动服务..."\n\
-fi\n\
-\n\
-# 启动后端服务器\n\
-cd /app/fastapi_server\n\
-echo "启动后端服务器..."\n\
-if [ -f "/app/environment/api/bin/python" ]; then\n\
-    echo "使用 API 环境启动后端..."\n\
-    /app/environment/api/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000 &\n\
-else\n\
-    echo "使用 base 环境启动后端..."\n\
-    python -m uvicorn main:app --host 0.0.0.0 --port 8000 &\n\
-fi\n\
-\n\
-# 等待后端启动\n\
-sleep 3\n\
-\n\
-# 启动前端服务器\n\
-echo "启动前端服务器..."\n\
-python simple_web.py &\n\
-\n\
-# 等待服务启动\n\
-sleep 2\n\
-\n\
-echo ""\n\
-echo "==========================================="\n\
-echo "NeRFFaceSpeech 服务已启动"\n\
-echo "后端地址: http://localhost:8000/"\n\
-echo "前端地址: http://localhost:7860/"\n\
-echo "API 文档: http://localhost:8000/docs"\n\
-echo "==========================================="\n\
-echo ""\n\
-\n\
-# 保持容器运行\n\
-wait\n\
-' > /app/start.sh && chmod +x /app/start.sh
-
-# 暴露端口
-EXPOSE 8000 7860
-
-# 设置默认命令
-CMD ["/app/start.sh"]
-
+# ==================== 默认命令 ====================
+CMD ["/bin/bash"]

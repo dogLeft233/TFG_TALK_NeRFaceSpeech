@@ -2,7 +2,7 @@
 # 安装命令：
 # pip install -r requirements.torch.txt --index-url https://download.pytorch.org/whl/cu118
 
-torch==2.1.2+cu118
-torchvision==0.16.2+cu118
-torchaudio==2.1.2+cu118
+torch==2.1.2
+torchvision==0.16.2
+torchaudio==2.1.2
 
