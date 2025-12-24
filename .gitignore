@@ -23,6 +23,8 @@ environment/env_tar/
 data/*
 !data/.gitkeep
 
+docs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
