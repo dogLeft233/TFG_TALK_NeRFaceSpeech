@@ -966,20 +966,20 @@ def run_video_generation_task(unique_id: str, text: str, character: str, model_n
                     end_time=end_time_str,
                     generation_time=generation_time_val
                 )
-                # 在数据库中记录失败状态
-                add_generation_record(
-                    unique_id=unique_id,
-                    text=text,
-                    character=character,
-                    model_name=model_name,
-                    video_path=None,
-                    audio_path=None,
-                    text_path=None,
-                    llm_response=None,
-                    generation_time=generation_time_val,
-                    config={"text": text, "character": character, "model_name": model_name},
-                    status='failed'
-                )
+            # 在数据库中记录失败状态
+            add_generation_record(
+                unique_id=unique_id,
+                text=text,
+                character=character,
+                model_name=model_name,
+                video_path=None,
+                audio_path=None,
+                text_path=None,
+                llm_response=None,
+                generation_time=generation_time_val,
+                config={"text": text, "character": character, "model_name": model_name},
+                status='failed'
+            )
             return
         
         if llm_response:
@@ -1020,20 +1020,20 @@ def run_video_generation_task(unique_id: str, text: str, character: str, model_n
                     end_time=end_time_str,
                     generation_time=generation_time_val
                 )
-                # 在数据库中记录失败状态
-                add_generation_record(
-                    unique_id=unique_id,
-                    text=text,
-                    character=character,
-                    model_name=model_name,
-                    video_path=None,
-                    audio_path=None,
-                    text_path=None,
-                    llm_response=llm_response if 'llm_response' in locals() else None,
-                    generation_time=generation_time_val,
-                    config={"text": text, "character": character, "model_name": model_name},
-                    status='failed'
-                )
+            # 在数据库中记录失败状态
+            add_generation_record(
+                unique_id=unique_id,
+                text=text,
+                character=character,
+                model_name=model_name,
+                video_path=None,
+                audio_path=None,
+                text_path=None,
+                llm_response=llm_response if 'llm_response' in locals() else None,
+                generation_time=generation_time_val,
+                config={"text": text, "character": character, "model_name": model_name},
+                status='failed'
+            )
             return
         add_log("=== 阶段2完成: 视频生成成功 ===", "success")
 
@@ -1251,24 +1251,24 @@ def run_video_generation_task(unique_id: str, text: str, character: str, model_n
                 end_time=end_time_str,
                 generation_time=generation_time_val
             )
-            
-            # 在数据库中记录失败状态
-            try:
-                add_generation_record(
-                    unique_id=unique_id,
-                    text=text,
-                    character=character,
-                    model_name=model_name,
-                    video_path=None,
-                    audio_path=None,
-                    text_path=None,
-                    llm_response=None,
-                    generation_time=generation_time_val,
-                    config={"text": text, "character": character, "model_name": model_name},
-                    status='failed'
-                )
-            except:
-                pass
+        
+        # 在数据库中记录失败状态
+        try:
+            add_generation_record(
+                unique_id=unique_id,
+                text=text,
+                character=character,
+                model_name=model_name,
+                video_path=None,
+                audio_path=None,
+                text_path=None,
+                llm_response=None,
+                generation_time=generation_time_val,
+                config={"text": text, "character": character, "model_name": model_name},
+                status='failed'
+            )
+        except:
+            pass
 
 
 @app.get("/generate_video/status/{unique_id}")
@@ -2670,7 +2670,7 @@ def clear_logs(keep_count: int = 0):
         return {
             "success": False,
             "error": str(e)
-        }
+    }
 
 
 def add_log(message: str, level: str = "info", is_debug: bool = False):
