@@ -53,7 +53,8 @@ from shared.database.settings_db import get_setting, set_setting, get_all_settin
 from shared.database.video_records_db import add_video_record, list_generation_records, add_generation_record, delete_generation_record, get_generation_record
 from shared.database.chat_db import (
     create_chat_session, add_chat_message, get_chat_session,
-    list_chat_sessions, get_chat_messages, delete_chat_session
+    list_chat_sessions, get_chat_messages, delete_chat_session,
+    update_chat_message_video_path
 )
 from shared.database.video_records_db import (
     create_or_update_task, get_task, get_running_task,
@@ -736,12 +737,16 @@ def generate_video_api(
     text: str = Body(..., embed=True),
     character: str = Body(..., embed=True),
     model_name: str = Body(..., embed=True),
+    is_from_chat: bool = Body(False, embed=True),
 ):
     """
     提交视频生成任务，立即返回任务ID
     实际生成在后台进行，可以通过 /generate_video/status/{unique_id} 查询状态
     
     【推荐使用此接口】异步模式，不会超时，可以显示进度
+    
+    Args:
+        is_from_chat: 如果为True，表示来自聊天对话，视频将只保存到chat_messages表，不保存到video_records数据库
     """
     unique_id = str(uuid.uuid4())
     start_time_str = datetime.now().isoformat()
@@ -753,24 +758,26 @@ def generate_video_api(
             "start_time": time.time(),
             "text": text,
             "character": character,
-            "model_name": model_name
+            "model_name": model_name,
+            "is_from_chat": is_from_chat  # 保存标识，用于后续判断
         }
     
-    # 保存任务到数据库
-    create_or_update_task(
-        task_id=unique_id,
-        status="pending",
-        text=text,
-        character=character,
-        model_name=model_name,
-        config={"text": text, "character": character, "model_name": model_name},
-        start_time=start_time_str
-    )
+    # 如果不是来自聊天，才保存任务到video_records数据库
+    if not is_from_chat:
+        create_or_update_task(
+            task_id=unique_id,
+            status="pending",
+            text=text,
+            character=character,
+            model_name=model_name,
+            config={"text": text, "character": character, "model_name": model_name},
+            start_time=start_time_str
+        )
     
     # 在后台运行生成任务
-    background_tasks.add_task(run_video_generation_task, unique_id, text, character, model_name)
+    background_tasks.add_task(run_video_generation_task, unique_id, text, character, model_name, is_from_chat)
     
-    add_log(f"[任务] {unique_id}: 视频生成任务已提交", "info")
+    add_log(f"[任务] {unique_id}: 视频生成任务已提交 (is_from_chat={is_from_chat})", "info")
     
     # 立即返回任务ID
     return {
@@ -885,9 +892,12 @@ def generate_video_sync_api(
         }
 
 
-def run_video_generation_task(unique_id: str, text: str, character: str, model_name: str):
+def run_video_generation_task(unique_id: str, text: str, character: str, model_name: str, is_from_chat: bool = False):
     """
     在后台线程中运行视频生成任务
+    
+    Args:
+        is_from_chat: 如果为True，表示来自聊天对话，不保存到video_records数据库
     """
     start_time = time.time()
     
@@ -898,19 +908,21 @@ def run_video_generation_task(unique_id: str, text: str, character: str, model_n
             "start_time": start_time,
             "text": text,
             "character": character,
-            "model_name": model_name
+            "model_name": model_name,
+            "is_from_chat": is_from_chat
         }
     
-    # 更新数据库中的任务状态
-    create_or_update_task(
-        task_id=unique_id,
-        status="running",
-        text=text,
-        character=character,
-        model_name=model_name,
-        config={"text": text, "character": character, "model_name": model_name},
-        start_time=datetime.fromtimestamp(start_time).isoformat()
-    )
+    # 如果不是来自聊天，才更新video_records数据库中的任务状态
+    if not is_from_chat:
+        create_or_update_task(
+            task_id=unique_id,
+            status="running",
+            text=text,
+            character=character,
+            model_name=model_name,
+            config={"text": text, "character": character, "model_name": model_name},
+            start_time=datetime.fromtimestamp(start_time).isoformat()
+        )
     
     try:
         add_log(f"[任务] {unique_id}: 开始生成视频任务", "info")
@@ -940,33 +952,34 @@ def run_video_generation_task(unique_id: str, text: str, character: str, model_n
                 if unique_id in TASKS:
                     TASKS[unique_id]["status"] = "failed"
                     TASKS[unique_id]["error"] = error_msg
-            # 更新数据库中的任务状态
-            create_or_update_task(
-                task_id=unique_id,
-                status="failed",
-                text=text,
-                character=character,
-                model_name=model_name,
-                config={"text": text, "character": character, "model_name": model_name},
-                error_message=error_msg,
-                start_time=datetime.fromtimestamp(start_time).isoformat(),
-                end_time=end_time_str,
-                generation_time=generation_time_val
-            )
-            # 在数据库中记录失败状态
-            add_generation_record(
-                unique_id=unique_id,
-                text=text,
-                character=character,
-                model_name=model_name,
-                video_path=None,
-                audio_path=None,
-                text_path=None,
-                llm_response=None,
-                generation_time=generation_time_val,
-                config={"text": text, "character": character, "model_name": model_name},
-                status='failed'
-            )
+            # 如果不是来自聊天，才更新video_records数据库
+            if not is_from_chat:
+                create_or_update_task(
+                    task_id=unique_id,
+                    status="failed",
+                    text=text,
+                    character=character,
+                    model_name=model_name,
+                    config={"text": text, "character": character, "model_name": model_name},
+                    error_message=error_msg,
+                    start_time=datetime.fromtimestamp(start_time).isoformat(),
+                    end_time=end_time_str,
+                    generation_time=generation_time_val
+                )
+                # 在数据库中记录失败状态
+                add_generation_record(
+                    unique_id=unique_id,
+                    text=text,
+                    character=character,
+                    model_name=model_name,
+                    video_path=None,
+                    audio_path=None,
+                    text_path=None,
+                    llm_response=None,
+                    generation_time=generation_time_val,
+                    config={"text": text, "character": character, "model_name": model_name},
+                    status='failed'
+                )
             return
         
         if llm_response:
@@ -993,33 +1006,34 @@ def run_video_generation_task(unique_id: str, text: str, character: str, model_n
                 if unique_id in TASKS:
                     TASKS[unique_id]["status"] = "failed"
                     TASKS[unique_id]["error"] = error_msg
-            # 更新数据库中的任务状态
-            create_or_update_task(
-                task_id=unique_id,
-                status="failed",
-                text=text,
-                character=character,
-                model_name=model_name,
-                config={"text": text, "character": character, "model_name": model_name},
-                error_message=error_msg,
-                start_time=datetime.fromtimestamp(start_time).isoformat(),
-                end_time=end_time_str,
-                generation_time=generation_time_val
-            )
-            # 在数据库中记录失败状态
-            add_generation_record(
-                unique_id=unique_id,
-                text=text,
-                character=character,
-                model_name=model_name,
-                video_path=None,
-                audio_path=None,
-                text_path=None,
-                llm_response=llm_response if 'llm_response' in locals() else None,
-                generation_time=generation_time_val,
-                config={"text": text, "character": character, "model_name": model_name},
-                status='failed'
-            )
+            # 如果不是来自聊天，才更新video_records数据库
+            if not is_from_chat:
+                create_or_update_task(
+                    task_id=unique_id,
+                    status="failed",
+                    text=text,
+                    character=character,
+                    model_name=model_name,
+                    config={"text": text, "character": character, "model_name": model_name},
+                    error_message=error_msg,
+                    start_time=datetime.fromtimestamp(start_time).isoformat(),
+                    end_time=end_time_str,
+                    generation_time=generation_time_val
+                )
+                # 在数据库中记录失败状态
+                add_generation_record(
+                    unique_id=unique_id,
+                    text=text,
+                    character=character,
+                    model_name=model_name,
+                    video_path=None,
+                    audio_path=None,
+                    text_path=None,
+                    llm_response=llm_response if 'llm_response' in locals() else None,
+                    generation_time=generation_time_val,
+                    config={"text": text, "character": character, "model_name": model_name},
+                    status='failed'
+                )
             return
         add_log("=== 阶段2完成: 视频生成成功 ===", "success")
 
@@ -1079,19 +1093,20 @@ def run_video_generation_task(unique_id: str, text: str, character: str, model_n
                     if unique_id in TASKS:
                         TASKS[unique_id]["status"] = "failed"
                         TASKS[unique_id]["error"] = error_msg
-                # 更新数据库中的任务状态
-                create_or_update_task(
-                    task_id=unique_id,
-                    status="failed",
-                    text=text,
-                    character=character,
-                    model_name=model_name,
-                    config={"text": text, "character": character, "model_name": model_name},
-                    error_message=error_msg,
-                    start_time=datetime.fromtimestamp(start_time).isoformat(),
-                    end_time=end_time_str,
-                    generation_time=generation_time_val
-                )
+                # 如果不是来自聊天，才更新video_records数据库
+                if not is_from_chat:
+                    create_or_update_task(
+                        task_id=unique_id,
+                        status="failed",
+                        text=text,
+                        character=character,
+                        model_name=model_name,
+                        config={"text": text, "character": character, "model_name": model_name},
+                        error_message=error_msg,
+                        start_time=datetime.fromtimestamp(start_time).isoformat(),
+                        end_time=end_time_str,
+                        generation_time=generation_time_val
+                    )
                 return
         
         # 移动音频文件（直接存储在audios目录下，不创建子文件夹）
@@ -1171,26 +1186,31 @@ def run_video_generation_task(unique_id: str, text: str, character: str, model_n
         audio_url_val = f"/audios/{unique_id}.wav" if final_audio_path else None
         text_url_val = f"/texts/{unique_id}.txt" if final_text_path and final_text_path.exists() else None
         
-        # 保存记录到数据库（状态为completed，包含所有路径信息）
-        # 任务完成时直接保存为视频记录，不再单独维护任务状态
-        save_success = add_video_record(
-            unique_id=unique_id,
-            text=text,
-            character=character,
-            model_name=model_name,
-            video_path=video_path_str,
-            audio_path=audio_path_str,
-            text_path=text_path_str,  # 文本文件路径
-            llm_response=llm_response,  # 保留字段，向后兼容
-            generation_time=generation_time,
-            config=config,
-            status='completed'  # 状态为completed，这就是视频记录
-        )
-        
-        if save_success:
-            add_log(f"[任务] {unique_id}: 视频记录保存成功 (状态: completed, 路径: {video_path_str})", "success")
+        # 如果不是来自聊天，才保存到video_records数据库
+        # 来自聊天的视频只保存到chat_messages表，不保存到video_records数据库
+        if not is_from_chat:
+            # 保存记录到数据库（状态为completed，包含所有路径信息）
+            # 任务完成时直接保存为视频记录，不再单独维护任务状态
+            save_success = add_video_record(
+                unique_id=unique_id,
+                text=text,
+                character=character,
+                model_name=model_name,
+                video_path=video_path_str,
+                audio_path=audio_path_str,
+                text_path=text_path_str,  # 文本文件路径
+                llm_response=llm_response,  # 保留字段，向后兼容
+                generation_time=generation_time,
+                config=config,
+                status='completed'  # 状态为completed，这就是视频记录
+            )
+            
+            if save_success:
+                add_log(f"[任务] {unique_id}: 视频记录保存成功 (状态: completed, 路径: {video_path_str})", "success")
+            else:
+                add_log(f"[任务] {unique_id}: 警告: 视频记录保存失败", "warning")
         else:
-            add_log(f"[任务] {unique_id}: 警告: 视频记录保存失败", "warning")
+            add_log(f"[任务] {unique_id}: 来自聊天，跳过保存到video_records数据库", "info")
         
         # 更新内存中的任务状态（用于API响应）
         # 存储文件路径而不是URL，前端会根据路径构造URL
@@ -1217,37 +1237,38 @@ def run_video_generation_task(unique_id: str, text: str, character: str, model_n
                 TASKS[unique_id]["status"] = "failed"
                 TASKS[unique_id]["error"] = error_msg
         
-        # 更新数据库中的任务状态
-        create_or_update_task(
-            task_id=unique_id,
-            status="failed",
-            text=text,
-            character=character,
-            model_name=model_name,
-            config={"text": text, "character": character, "model_name": model_name},
-            error_message=error_msg,
-            start_time=datetime.fromtimestamp(start_time).isoformat(),
-            end_time=end_time_str,
-            generation_time=generation_time_val
-        )
-        
-        # 在数据库中记录失败状态
-        try:
-            add_generation_record(
-                unique_id=unique_id,
+        # 如果不是来自聊天，才更新video_records数据库
+        if not is_from_chat:
+            create_or_update_task(
+                task_id=unique_id,
+                status="failed",
                 text=text,
                 character=character,
                 model_name=model_name,
-                video_path=None,
-                audio_path=None,
-                text_path=None,
-                llm_response=None,
-                generation_time=generation_time_val,
                 config={"text": text, "character": character, "model_name": model_name},
-                status='failed'
+                error_message=error_msg,
+                start_time=datetime.fromtimestamp(start_time).isoformat(),
+                end_time=end_time_str,
+                generation_time=generation_time_val
             )
-        except:
-            pass
+            
+            # 在数据库中记录失败状态
+            try:
+                add_generation_record(
+                    unique_id=unique_id,
+                    text=text,
+                    character=character,
+                    model_name=model_name,
+                    video_path=None,
+                    audio_path=None,
+                    text_path=None,
+                    llm_response=None,
+                    generation_time=generation_time_val,
+                    config={"text": text, "character": character, "model_name": model_name},
+                    status='failed'
+                )
+            except:
+                pass
 
 
 @app.get("/generate_video/status/{unique_id}")
@@ -1729,9 +1750,9 @@ def chat_api(request: ChatRequest):
                 # 默认行为：如果音频已保存为文件，返回URL而不是base64（节省带宽）
                 if assistant_audio_path:
                     result["data"]["audio_url"] = f"/audios/{Path(assistant_audio_path).name}"
-                    # 移除base64数据，避免在响应中传输大量数据
-                    if "audio_base64" in result["data"]:
-                        del result["data"]["audio_base64"]
+                # 移除base64数据，避免在响应中传输大量数据
+                if "audio_base64" in result["data"]:
+                    del result["data"]["audio_base64"]
             
             add_log(f"[聊天] 响应准备完成: session_id={session_id}", "success")
         except Exception as e:
@@ -1939,12 +1960,20 @@ def get_chat_messages_api(session_id: str, limit: int = 1000, offset: int = 0):
     try:
         messages = get_chat_messages(session_id=session_id, limit=limit, offset=offset)
         
-        # 转换音频路径为URL
+        # 转换路径为URL
         for msg in messages:
+            # 转换音频路径为URL（音频文件存储在AUDIOS_STORAGE_DIR，通过/audios/{filename}访问）
             if msg.get('audio_path'):
-                msg['audio_url'] = f"/chat_audios/{session_id}/{Path(msg['audio_path']).name}"
+                audio_filename = Path(msg['audio_path']).name
+                msg['audio_url'] = f"/audios/{audio_filename}"
+            # 转换视频路径为URL（视频文件存储在VIDEOS_STORAGE_DIR，通过/videos/{filename}访问）
+            if msg.get('video_path'):
+                video_filename = Path(msg['video_path']).name
+                msg['video_url'] = f"/videos/{video_filename}"
+            # 转换文本路径为URL（可选，文本通常直接存储在数据库中）
             if msg.get('text_path'):
-                msg['text_url'] = f"/chat_texts/{session_id}/{Path(msg['text_path']).name}"
+                text_filename = Path(msg['text_path']).name
+                msg['text_url'] = f"/texts/{text_filename}"
         
         return {
             "success": True,
@@ -1968,6 +1997,49 @@ def delete_chat_session_api(session_id: str):
         }
     except Exception as e:
         add_log(f"[API] 删除聊天会话失败: {e}", "error")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.put("/chat/messages/{message_id}/video_path")
+def update_message_video_path_api(message_id: str, request_body: dict = Body(...)):
+    """更新聊天消息的视频路径（用于视频生成完成后更新数据库）"""
+    try:
+        # 获取video_path参数
+        video_path = request_body.get("video_path", "") if isinstance(request_body, dict) else ""
+        
+        # 验证路径格式
+        if not video_path:
+            return {
+                "success": False,
+                "error": "视频路径不能为空"
+            }
+        
+        # 如果路径是相对路径（如 "database/videos/task_id.mp4"），转换为绝对路径
+        # 确保路径格式与generate_video API保存的格式一致（绝对路径字符串）
+        video_path_obj = Path(video_path)
+        if not video_path_obj.is_absolute():
+            # 相对路径，提取文件名并转换为绝对路径
+            filename = video_path_obj.name
+            video_path = str(VIDEOS_STORAGE_DIR / filename)
+        
+        # 更新数据库
+        success = update_chat_message_video_path(message_id, video_path)
+        
+        if success:
+            add_log(f"[API] 消息视频路径已更新: message_id={message_id}, video_path={video_path}", "info")
+            return {
+                "success": True
+            }
+        else:
+            return {
+                "success": False,
+                "error": "消息不存在或更新失败"
+            }
+    except Exception as e:
+        add_log(f"[API] 更新消息视频路径失败: {e}", "error")
         return {
             "success": False,
             "error": str(e)
@@ -2528,6 +2600,77 @@ def get_full_logs(debug: bool = False):
         "logs": logs,
         "total": len(DEBUG_LOG_BUFFER) if debug else len(LOG_BUFFER)
     }
+
+
+@app.post("/logs/clear")
+def clear_logs(keep_count: int = 0):
+    """
+    清空日志缓冲区
+    
+    Args:
+        keep_count: 保留的日志条数（0表示全部清空，大于0表示保留最新的N条）
+    
+    Returns:
+        dict: 操作结果
+    """
+    try:
+        if keep_count <= 0:
+            # 全部清空
+            original_count = len(LOG_BUFFER)
+            original_debug_count = len(DEBUG_LOG_BUFFER)
+            LOG_BUFFER.clear()
+            DEBUG_LOG_BUFFER.clear()
+            # 注意：由于清空后立即调用add_log，这条日志会被添加到缓冲区，所以清空后缓冲区会有1条日志
+            # 但这是预期的行为，用户可以看到"日志已清空"的确认信息
+            add_log(f"[日志管理] 所有日志已清空（正常日志: {original_count} 条，调试日志: {original_debug_count} 条）", "info")
+            return {
+                "success": True,
+                "message": f"所有日志已清空（正常日志: {original_count} 条，调试日志: {original_debug_count} 条）",
+                "remaining": 0,
+                "removed_normal": original_count,
+                "removed_debug": original_debug_count
+            }
+        else:
+            # 保留最新的N条
+            original_count = len(LOG_BUFFER)
+            original_debug_count = len(DEBUG_LOG_BUFFER)
+            
+            # 将deque转换为列表，保留最后N条，然后清空并重新填充
+            if len(LOG_BUFFER) > keep_count:
+                kept_logs = list(LOG_BUFFER)[-keep_count:]
+                LOG_BUFFER.clear()
+                # 重新创建deque并添加保留的日志
+                for log in kept_logs:
+                    LOG_BUFFER.append(log)
+            
+            if len(DEBUG_LOG_BUFFER) > keep_count:
+                kept_debug_logs = list(DEBUG_LOG_BUFFER)[-keep_count:]
+                DEBUG_LOG_BUFFER.clear()
+                # 重新创建deque并添加保留的日志
+                for log in kept_debug_logs:
+                    DEBUG_LOG_BUFFER.append(log)
+            
+            removed_normal = original_count - len(LOG_BUFFER)
+            removed_debug = original_debug_count - len(DEBUG_LOG_BUFFER)
+            add_log(f"[日志管理] 已清空 {removed_normal} 条正常日志和 {removed_debug} 条调试日志，保留最新 {len(LOG_BUFFER)} 条正常日志和 {len(DEBUG_LOG_BUFFER)} 条调试日志", "info")
+            return {
+                "success": True,
+                "message": f"已清空 {removed_normal} 条正常日志和 {removed_debug} 条调试日志，保留最新 {len(LOG_BUFFER)} 条正常日志和 {len(DEBUG_LOG_BUFFER)} 条调试日志",
+                "remaining": len(LOG_BUFFER),
+                "remaining_debug": len(DEBUG_LOG_BUFFER),
+                "removed": removed_normal,
+                "removed_debug": removed_debug
+            }
+    except Exception as e:
+        error_msg = f"清空日志失败: {e}"
+        # 不使用add_log，因为可能日志系统本身有问题
+        import traceback
+        print(f"[日志管理] {error_msg}")
+        print(f"[日志管理] 错误详情: {traceback.format_exc()}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 def add_log(message: str, level: str = "info", is_debug: bool = False):

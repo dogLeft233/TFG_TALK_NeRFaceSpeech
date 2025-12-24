@@ -5,12 +5,51 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NeRFFaceSpeech - 开始界面</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="settings.js"></script>
-    <script src="api.js"></script>
+    <link rel="stylesheet" href="style.css" onerror="console.warn('style.css 加载失败，页面可能无法正常显示')">
+    <script src="settings.js" onerror="console.warn('settings.js 加载失败，页面将使用默认设置'); window.settingsJsFailed = true;"></script>
+    <script src="api.js" onerror="console.warn('api.js 加载失败，部分功能可能不可用'); window.apiJsFailed = true;"></script>
+    <script>
+        // 全局错误处理 - 必须在其他脚本之前定义
+        window.addEventListener('error', function(e) {
+            console.error('[start.html] 全局错误:', {
+                message: e.message,
+                filename: e.filename,
+                lineno: e.lineno,
+                colno: e.colno,
+                error: e.error
+            });
+            // 不阻止错误传播，但记录详细信息
+        }, true);
+        
+        // 未处理的Promise拒绝
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('[start.html] 未处理的Promise拒绝:', e.reason);
+            // 不阻止默认行为，但记录错误
+        });
+        
+        // 立即输出日志，确认脚本开始执行
+        console.log('[start.html] 脚本开始执行，时间:', new Date().toISOString());
+    </script>
 </head>
 
 <body>
+    <!-- 立即显示基本内容，防止页面完全空白 -->
+    <script>
+        // 立即执行，确保即使外部脚本失败，页面也有基本内容
+        (function() {
+            try {
+                console.log('[start.html] body脚本开始执行');
+                // 确保body内容可见
+                if (document.body) {
+                    document.body.style.visibility = 'visible';
+                    document.body.style.opacity = '1';
+                }
+            } catch(e) {
+                console.error('[start.html] body脚本执行错误:', e);
+            }
+        })();
+    </script>
+    
     <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
 
     <!-- 侧边栏遮罩 -->
@@ -121,6 +160,9 @@
                 <h2>前端应用</h2>
                 <p>使用核心功能模块<br>视频生成、对话、训练</p>
                 <div class="card-url">Web UI</div>
+                <div class="card-actions" onclick="event.stopPropagation()">
+                    <button class="card-btn secondary" onclick="openGuide()">📖 操作指南</button>
+                </div>
             </div>
         </div>
 
@@ -193,18 +235,76 @@
 
         // 等待页面加载完成
         document.addEventListener('DOMContentLoaded', async () => {
-            // 应用设置（从数据库读取）
-            try {
-                const settings = await fetchSettings();
-                await Promise.all([
-                    applySettingsOnly(settings),
-                    updateThemeSelection(settings),
-                    updateFontSelection(settings),
-                    updateFontSizeSelection(settings)
-                ]);
+            console.log('[start.html] DOMContentLoaded 事件触发，时间:', new Date().toISOString());
+            console.log('[start.html] 页面元素数量:', document.querySelectorAll('*').length);
+            
+            // 定义默认设置
+            const defaultSettings = {
+                nerf_theme: "tech",
+                nerf_font: "Inter",
+                nerf_font_size: "medium",
+                nerf_custom_font_size: "14"
+            };
+            
+            // 立即应用默认设置，确保页面可以立即显示（使用setTimeout避免阻塞）
+            setTimeout(() => {
+                try {
+                    if (typeof applySettingsOnly === 'function') {
+                        applySettingsOnly(defaultSettings).catch(e => {
+                            console.error('应用默认设置失败:', e);
+                        });
+                    } else {
+                        console.warn('applySettingsOnly 函数不可用，跳过设置应用');
+                    }
+                } catch (e) {
+                    console.error('应用默认设置异常:', e);
+                }
+            }, 0);
+            
+            // 然后异步尝试从数据库获取设置（不阻塞页面显示）
+            setTimeout(async () => {
+                try {
+                    console.log('[start.html] 开始获取设置...');
+                    
+                    if (typeof fetchSettings !== 'function') {
+                        console.warn('[start.html] fetchSettings 函数不可用，使用默认设置');
+                        return;
+                    }
+                    
+                    // 设置超时保护
+                    const settingsPromise = fetchSettings().catch(err => {
+                        console.warn('⚠️ fetchSettings 失败，使用默认设置:', err);
+                        return defaultSettings;
+                    });
+                    
+                    const timeoutPromise = new Promise((resolve) => {
+                        setTimeout(() => {
+                            console.warn('⚠️ 获取设置超时（3秒），使用默认设置');
+                            resolve(defaultSettings);
+                        }, 3000); // 3秒超时
+                    });
+                    
+                    const settings = await Promise.race([settingsPromise, timeoutPromise]);
+                    console.log('[start.html] 设置获取完成:', settings);
+                    
+                    // 应用从数据库获取的设置
+                    if (typeof applySettingsOnly === 'function') {
+                        await applySettingsOnly(settings).catch(e => console.error('应用设置失败:', e));
+                    }
+                    if (typeof updateThemeSelection === 'function') {
+                        await updateThemeSelection(settings).catch(e => console.error('更新主题选择失败:', e));
+                    }
+                    if (typeof updateFontSelection === 'function') {
+                        await updateFontSelection(settings).catch(e => console.error('更新字体选择失败:', e));
+                    }
+                    if (typeof updateFontSizeSelection === 'function') {
+                        await updateFontSizeSelection(settings).catch(e => console.error('更新字号选择失败:', e));
+                    }
             } catch (error) {
-                console.error('应用设置失败:', error);
-            }
+                    console.error('异步获取设置失败:', error);
+                    // 失败不影响页面显示
+                }
+            }, 100);
 
             // 设置侧边栏控制
             const settingsBtn = document.getElementById('settingsBtn');
@@ -386,10 +486,25 @@
                 window.open('index.html', '_blank');
             };
 
-            // 页面加载时检查状态
-            await checkBackendStatus();
+            // 打开操作指南
+            window.openGuide = function (e) {
+                if (e) e.stopPropagation(); // 阻止事件冒泡
+                window.open('guide.html', '_blank');
+            };
+
+            // 页面加载时检查状态（使用setTimeout避免阻塞）
+            setTimeout(() => {
+                checkBackendStatus().catch(e => {
+                    console.error('检查后端状态失败:', e);
+                });
+            }, 100);
+            
             // 每5秒检查一次
-            setInterval(checkBackendStatus, 5000);
+            setInterval(() => {
+                checkBackendStatus().catch(e => {
+                    console.error('定期检查后端状态失败:', e);
+                });
+            }, 5000);
 
             // 检查 URL 参数中是否有 api_url
             const urlParams = new URLSearchParams(window.location.search);
@@ -405,7 +520,9 @@
                     window.API_BASE_URL = apiUrlFromUrl;
                 }
                 // 重新检查连接
-                await checkBackendStatus();
+                checkBackendStatus().catch(e => {
+                    console.error('重新检查后端状态失败:', e);
+                });
             }
         });
 

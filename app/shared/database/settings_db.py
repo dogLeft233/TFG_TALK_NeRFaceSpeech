@@ -38,11 +38,33 @@ def init_database():
     try:
         db_path = str(DB_FILE.resolve())
         
-        # 连接数据库（无论文件是否存在）
+        # 检查数据库文件是否已存在
+        db_exists = DB_FILE.exists()
+        
+        if db_exists:
+            # 数据库文件已存在，只验证表结构，不进行初始化
+            print(f"[数据库] 设置数据库文件已存在，跳过初始化: {db_path}")
+            conn = sqlite3.connect(db_path, check_same_thread=False)
+            cursor = conn.cursor()
+            
+            # 验证表结构是否存在（向后兼容）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
+            
+            conn.commit()
+            conn.close()
+            return
+        
+        # 数据库文件不存在，执行初始化
+        print(f"[数据库] 设置数据库文件不存在，开始初始化: {db_path}")
         conn = sqlite3.connect(db_path, check_same_thread=False)
         cursor = conn.cursor()
         
-        # 创建表结构（如果不存在）
+        # 创建表结构
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
@@ -50,30 +72,19 @@ def init_database():
             )
         """)
         
-        # 检查数据库文件是否已存在
-        if DB_FILE.exists():
-            print(f"[数据库] 数据库文件已存在，验证并完善: {db_path}")
-        else:
-            print(f"[数据库] 数据库文件不存在，开始初始化: {db_path}")
-        
-        # 确保所有默认设置都存在（使用 INSERT OR IGNORE 避免重复键错误）
+        # 插入所有默认设置
         inserted_count = 0
         for key, value in DEFAULT_SETTINGS.items():
-            cursor.execute("""
-                INSERT OR IGNORE INTO settings (key, value)
-                VALUES (?, ?)
-            """, (key, value))
-            if cursor.rowcount > 0:
-                inserted_count += 1
+            cursor.execute((key, value))
+            inserted_count += 1
         
         conn.commit()
         conn.close()
         
-        if inserted_count > 0:
-            print(f"[数据库] 已插入 {inserted_count} 条默认设置")
-        print(f"[数据库] 数据库初始化成功: {db_path}")
+        print(f"[数据库] 已插入 {inserted_count} 条默认设置")
+        print(f"[数据库] 设置数据库初始化成功: {db_path}")
     except Exception as e:
-        print(f"[数据库] 错误: 数据库初始化失败: {e}")
+        print(f"[数据库] 错误: 设置数据库初始化失败: {e}")
         print(f"[数据库] 数据库路径: {DB_FILE}")
         raise
 
@@ -174,7 +185,10 @@ def reset_to_defaults():
     conn.close()
 
 
-# 注意：不再在模块导入时自动初始化数据库
-# 数据库初始化应该由 start.py 在启动前完成
-# 这样可以确保数据库初始化失败时，服务器不会启动，网页无法打开
+# 初始化数据库（只在模块导入时执行一次）
+try:
+    init_database()
+except Exception as e:
+    print(f"[数据库] 设置数据库初始化失败: {e}")
+    # 不抛出异常，允许其他模块继续加载
 

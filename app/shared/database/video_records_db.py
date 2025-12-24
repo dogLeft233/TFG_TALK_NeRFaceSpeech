@@ -59,13 +59,13 @@ def init_database():
             conn = sqlite3.connect(db_path, check_same_thread=False)
             cursor = conn.cursor()
             
-            # 创建生成记录表（统一存储视频生成和聊天记录）
+            # 创建视频生成记录表（仅存储视频生成记录，聊天记录存储在chat_messages表）
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS generation_records (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     unique_id TEXT NOT NULL UNIQUE,
                     created_at TEXT NOT NULL,
-                    record_type TEXT NOT NULL DEFAULT 'video',  -- 'video' 或 'chat'
+                    record_type TEXT NOT NULL DEFAULT 'video',  -- 固定为'video'，聊天记录不存储在此表
                     text TEXT NOT NULL,  -- 用户输入的文本（保留字段，兼容旧代码）
                     llm_response TEXT,  -- LLM生成的回答文本（保留字段，兼容旧代码，建议使用text_path）
                     character TEXT NOT NULL,
@@ -99,13 +99,13 @@ def init_database():
         conn = sqlite3.connect(db_path, check_same_thread=False)
         cursor = conn.cursor()
         
-        # 创建生成记录表（统一存储视频生成和聊天记录）
+        # 创建视频生成记录表（仅存储视频生成记录，聊天记录存储在chat_messages表）
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS generation_records (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 unique_id TEXT NOT NULL UNIQUE,
                 created_at TEXT NOT NULL,
-                record_type TEXT NOT NULL DEFAULT 'video',  -- 'video' 或 'chat'
+                record_type TEXT NOT NULL DEFAULT 'video',  -- 固定为'video'，聊天记录不存储在此表
                 text TEXT NOT NULL,  -- 用户输入的文本
                 llm_response TEXT,  -- LLM生成的回答文本（保留字段，兼容旧代码）
                 character TEXT NOT NULL,
@@ -145,7 +145,7 @@ def add_generation_record(
     unique_id: str,
     text: str,
     character: str,
-    record_type: str = 'video',  # 'video' 或 'chat'
+    record_type: str = 'video',  # 固定为'video'，聊天记录使用chat_db.add_chat_message
     llm_response: Optional[str] = None,
     model_name: Optional[str] = None,
     video_path: Optional[str] = None,

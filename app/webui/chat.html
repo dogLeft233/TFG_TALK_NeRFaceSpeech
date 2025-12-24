@@ -6,30 +6,32 @@
   <title>人机对话 - NeRFFaceSpeech</title>
   <style>
     :root {
-      --primary: #1e40af; /* 主色调：深蓝色，用于选中状态、强调按钮 */
-      --primary-2: #3b82f6; /* 次要主色：中间蓝色，用于渐变、次要强调 */
-      --bg: #0b1020; /* 页面背景色：深色背景 */
-      --card: rgba(255,255,255,0.06); /* 卡片背景：半透明白色，用于内容卡片 */
-      --border: rgba(255,255,255,0.14); /* 边框颜色：半透明白色边框 */
-      --text: #e5e7eb; /* 主文字颜色：浅灰色文字 */
-      --muted: #9ca3af; /* 次要文字颜色：灰色，用于辅助信息 */
-      --g1: rgba(59,130,246,0.16); /* 渐变1：蓝色渐变点1 */
-      --card-bg: rgba(59,130,246,0.25); /* 卡片背景色：浅蓝色，用于首页卡片和下拉菜单 */
-      --g2: rgba(14,165,233,0.14); /* 渐变2：青色渐变点2 */
-      --g3: rgba(56,189,248,0.12); /* 渐变3：浅蓝色渐变点3 */
+      --primary: #1e40af;
+      --primary-2: #3b82f6;
+      --bg: #0b1020;
+      --card: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.14);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --g1: rgba(59, 130, 246, 0.16);
+      --g2: rgba(14, 165, 233, 0.14);
+      --g3: rgba(56, 189, 248, 0.12);
+      --card-bg: rgb(24, 66, 134);
+      --base-font-size: 14px;
     }
+
     body.theme-tech {
-      --primary: #1e40af; /* 主色调：深蓝色 */
-      --primary-2: #3b82f6; /* 次要主色：中间蓝色 */
-      --bg: #0b1020; /* 页面背景色：深色背景 */
-      --card: rgba(255,255,255,0.06); /* 卡片背景：半透明白色 */
-      --border: rgba(255,255,255,0.14); /* 边框颜色：半透明白色边框 */
-      --text: #e5e7eb; /* 主文字颜色：浅灰色文字 */
-      --muted: #9ca3af; /* 次要文字颜色：灰色 */
-      --g1: rgba(59,130,246,0.16); /* 渐变1：蓝色渐变点1 */
-      --g2: rgba(14,165,233,0.14); /* 渐变2：青色渐变点2 */
-      --g3: rgba(56,189,248,0.12); /* 渐变3：浅蓝色渐变点3 */
-      --card-bg: rgba(59,130,246,0.25); /* 卡片背景色：浅蓝色 */
+      --primary: #1e40af;
+      --primary-2: #3b82f6;
+      --bg: #0b1020;
+      --card: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.14);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --g1: rgba(59, 130, 246, 0.16);
+      --g2: rgba(14, 165, 233, 0.14);
+      --g3: rgba(56, 189, 248, 0.12);
+      --card-bg: rgb(24, 66, 134);
     }
     body.theme-warm {
       --primary: #f97316; /* 主色调：橙色，用于选中状态、强调按钮 */
@@ -1481,8 +1483,8 @@
             if (customSizeInput) {
                 customSizeInput.addEventListener('change', () => {
             applyFontSize('custom');
-                });
-            }
+        });
+      }
         }
     });
     
@@ -1523,15 +1525,15 @@
                   }
                   
                   return {
-                    text: msg.text_content || '',
-                    isUser: msg.message_type === 'user',
-                    audioBase64: msg.audio_base64 || null,
-                    audioUrl: msg.audio_url || null,
-                    audioDuration: 0,
-                    messageId: msg.message_id,
-                    status: 'sent',
-                    time: msg.created_at,
-                    videoUrl: msg.video_url || null,
+                  text: msg.text_content || '',
+                  isUser: msg.message_type === 'user',
+                  audioBase64: msg.audio_base64 || null,
+                  audioUrl: msg.audio_url || null,
+                  audioDuration: 0,
+                  messageId: msg.message_id,
+                  status: 'sent',
+                  time: msg.created_at,
+                  videoUrl: msg.video_url || null,
                     videoTaskId: msg.video_task_id || null,
                     responseMode: responseMode
                   };
@@ -1812,6 +1814,15 @@
           audio.src = `data:audio/wav;base64,${audioBase64}`;
         }
         
+        // 当音频元数据加载完成后，更新时长显示（如果audioDuration为0或未设置）
+        if (audioDuration <= 0) {
+          audio.addEventListener('loadedmetadata', () => {
+            if (audio.duration && isFinite(audio.duration)) {
+              duration.textContent = `${Math.floor(audio.duration)}秒`;
+            }
+          }, { once: true });
+        }
+        
         // 点击气泡播放音频
         audioBubble.addEventListener("click", () => {
           if (audio.paused) {
@@ -1825,6 +1836,18 @@
           }
         });
         
+        // 播放状态更新图标
+        audio.addEventListener('play', () => {
+          icon.textContent = "🔊";
+        });
+        audio.addEventListener('pause', () => {
+          icon.textContent = "🔊";
+          audio.currentTime = 0;
+        });
+        audio.addEventListener('ended', () => {
+          audio.currentTime = 0;
+        });
+        
         // 直接替换bubble的内容，使用audio-bubble
         bubble.innerHTML = "";
         bubble.className = ""; // 清除message-bubble的样式
@@ -1836,11 +1859,19 @@
           // 视频任务ID模式：显示"视频生成中"
           bubble.textContent = "视频生成中...";
         } else if (messageData && messageData.videoUrl) {
+          // 构建完整的视频URL（如果是相对路径，需要加上FASTAPI_URL前缀）
+          let videoUrl = messageData.videoUrl;
+          if (videoUrl.startsWith('/')) {
+            // 相对路径，需要加上FASTAPI_URL前缀
+            videoUrl = `${FASTAPI_URL}${videoUrl}`;
+          }
+          
           const videoPreviewBox = document.createElement("div");
           videoPreviewBox.className = "video-preview-box";
           
           const video = document.createElement("video");
-          video.src = messageData.videoUrl + '?t=' + Date.now();
+          const urlWithTimestamp = videoUrl + (videoUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+          video.src = urlWithTimestamp;
           video.muted = true;
           video.loop = true;
           video.playsInline = true;
@@ -1852,6 +1883,43 @@
           videoPreviewBox.appendChild(video);
           videoPreviewBox.appendChild(playIcon);
           
+          // 详细的错误处理
+          video.onerror = async function(e) {
+            console.error("视频加载失败:", {
+              videoUrl: videoUrl,
+              src: video.src,
+              error: e,
+              networkState: video.networkState,
+              readyState: video.readyState
+            });
+            
+            // 尝试检查视频文件是否存在
+            let errorMessage = "视频加载失败";
+            try {
+              const checkResponse = await fetch(videoUrl, { method: 'HEAD' });
+              if (!checkResponse.ok) {
+                if (checkResponse.status === 404) {
+                  errorMessage = `视频文件不存在 (404): ${videoUrl}`;
+                } else {
+                  errorMessage = `视频服务器错误 (${checkResponse.status}): ${videoUrl}`;
+                }
+              } else {
+                const contentType = checkResponse.headers.get('content-type');
+                if (!contentType || !contentType.startsWith('video/')) {
+                  errorMessage = `视频格式错误，Content-Type: ${contentType || '未知'}`;
+                } else {
+                  errorMessage = `视频加载失败，可能格式不支持或文件损坏`;
+                }
+              }
+            } catch (fetchError) {
+              errorMessage = `无法访问视频文件: ${fetchError.message || '网络错误'}`;
+            }
+            
+            console.error("视频加载详细错误:", errorMessage);
+            bubble.textContent = errorMessage;
+            videoPreviewBox.style.display = "none";
+          };
+          
           // 点击预览框播放视频
           videoPreviewBox.addEventListener("click", () => {
             const fullVideo = document.createElement("video");
@@ -1860,15 +1928,50 @@
             fullVideo.style.height = "350px";
             fullVideo.style.borderRadius = "12px";
             fullVideo.style.objectFit = "cover";
-            fullVideo.src = messageData.videoUrl + '?t=' + Date.now();
+            const fullUrlWithTimestamp = videoUrl + (videoUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+            fullVideo.src = fullUrlWithTimestamp;
             fullVideo.muted = false;
             
             bubble.innerHTML = "";
             bubble.appendChild(fullVideo);
             
+            fullVideo.onerror = async function(e) {
+              console.error("全屏视频播放失败:", {
+                videoUrl: videoUrl,
+                src: fullVideo.src,
+                error: e,
+                networkState: fullVideo.networkState,
+                readyState: fullVideo.readyState
+              });
+              
+              let errorMessage = "视频播放失败";
+              try {
+                const checkResponse = await fetch(videoUrl, { method: 'HEAD' });
+                if (!checkResponse.ok) {
+                  if (checkResponse.status === 404) {
+                    errorMessage = `视频文件不存在 (404)`;
+                  } else {
+                    errorMessage = `视频服务器错误 (${checkResponse.status})`;
+                  }
+                } else {
+                  const contentType = checkResponse.headers.get('content-type');
+                  if (!contentType || !contentType.startsWith('video/')) {
+                    errorMessage = `视频格式错误 (Content-Type: ${contentType || '未知'})`;
+                  } else {
+                    errorMessage = `视频播放失败，可能格式不支持或文件损坏`;
+                  }
+                }
+              } catch (fetchError) {
+                errorMessage = `无法访问视频文件: ${fetchError.message || '网络错误'}`;
+              }
+              
+              console.error("全屏视频播放详细错误:", errorMessage);
+              showToast(errorMessage, "error");
+            };
+            
             fullVideo.play().catch(e => {
-              console.error("播放视频失败:", e);
-              showToast("播放视频失败", "error");
+              console.error("播放视频异常:", e);
+              showToast(`播放失败: ${e.message || '未知错误'}`, "error");
             });
           });
           
@@ -1889,34 +1992,89 @@
       messageDiv.appendChild(bubble);
       messageDiv.appendChild(time);
       
-      // 如果是AI回复且有音频（兼容旧逻辑，非响应模式）
+      // 如果是AI回复且有音频（兼容旧逻辑，非响应模式）- 改为使用audio-bubble显示
       const hasAudio = (audioBase64 || (messageData && messageData.audioUrl)) && !responseMode;
       if (!isUser && hasAudio) {
-        const audioDiv = document.createElement("div");
-        audioDiv.className = "message-audio";
+        // 使用audio-bubble显示，和响应模式一致
+        const audioBubble = document.createElement("div");
+        audioBubble.className = "audio-bubble";
+        
+        const icon = document.createElement("span");
+        icon.className = "audio-bubble-icon";
+        icon.textContent = "🔊";
+        
+        const duration = document.createElement("span");
+        duration.className = "audio-bubble-duration";
+        // 如果有audioDuration就显示，否则显示"音频"，等加载后更新
+        const durationText = audioDuration > 0 
+          ? `${Math.floor(audioDuration)}秒` 
+          : "音频";
+        duration.textContent = durationText;
+        
+        audioBubble.appendChild(icon);
+        audioBubble.appendChild(duration);
+        
+        // 创建隐藏的音频元素用于播放
         const audio = document.createElement("audio");
-        audio.className = "audio-player";
-        audio.controls = true;
+        audio.style.display = "none";
         if (volumeSlider) {
-        audio.volume = isMuted ? 0 : volumeSlider.value / 100;
+          audio.volume = isMuted ? 0 : volumeSlider.value / 100;
         }
         
         // 优先使用URL，如果不存在则使用base64
         if (messageData && messageData.audioUrl) {
           audio.src = `${FASTAPI_URL}${messageData.audioUrl}`;
+        } else if (messageData && messageData.audioBase64) {
+          audio.src = `data:audio/wav;base64,${messageData.audioBase64}`;
+        } else if (audioUrl) {
+          audio.src = `${FASTAPI_URL}${audioUrl}`;
         } else if (audioBase64) {
-        audio.src = `data:audio/wav;base64,${audioBase64}`;
+          audio.src = `data:audio/wav;base64,${audioBase64}`;
         }
         
-        audioDiv.appendChild(audio);
-        bubble.appendChild(audioDiv);
+        // 当音频元数据加载完成后，更新时长显示
+        audio.addEventListener('loadedmetadata', () => {
+          if (audio.duration && isFinite(audio.duration)) {
+            duration.textContent = `${Math.floor(audio.duration)}秒`;
+          }
+        }, { once: true });
+        
+        // 点击气泡播放音频
+        audioBubble.addEventListener("click", () => {
+          if (audio.paused) {
+            audio.play().catch(e => {
+              console.error("播放音频失败:", e);
+              showToast("播放音频失败", "error");
+            });
+          } else {
+            audio.pause();
+            audio.currentTime = 0;
+          }
+        });
+        
+        // 播放状态更新图标
+        audio.addEventListener('play', () => {
+          icon.textContent = "🔊";
+        });
+        audio.addEventListener('pause', () => {
+          icon.textContent = "🔊";
+          audio.currentTime = 0;
+        });
+        audio.addEventListener('ended', () => {
+          audio.currentTime = 0;
+        });
+        
+        // 清除message-bubble样式，添加audio-bubble
+        bubble.className = "";
+        bubble.appendChild(audioBubble);
+        bubble.appendChild(audio);
         
         // 保存当前音频引用
         currentAudio = audio;
         
         // 设置初始音量
         if (volumeSlider) {
-        audio.volume = isMuted ? 0 : volumeSlider.value / 100;
+          audio.volume = isMuted ? 0 : volumeSlider.value / 100;
         }
         
         // 自动播放（如果未静音）
@@ -1936,21 +2094,58 @@
         videoPlayBtn.className = "video-play-btn";
         videoPlayBtn.textContent = "🎬 播放视频";
         videoPlayBtn.onclick = () => {
-          const videoUrl = messageData.videoUrl || `${FASTAPI_URL}/videos/${messageData.videoTaskId}.mp4`;
+          // 构建完整的视频URL（如果是相对路径，需要加上FASTAPI_URL前缀）
+          let videoUrl = messageData.videoUrl || `${FASTAPI_URL}/videos/${messageData.videoTaskId}.mp4`;
+          if (videoUrl.startsWith('/')) {
+            // 相对路径，需要加上FASTAPI_URL前缀
+            videoUrl = `${FASTAPI_URL}${videoUrl}`;
+          }
+          
           const video = document.createElement("video");
           video.controls = true;
           video.style.width = "100%";
           video.style.maxWidth = "500px";
           video.style.borderRadius = "8px";
-          video.src = videoUrl;
+          const urlWithTimestamp = videoUrl + (videoUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+          video.src = urlWithTimestamp;
           
           videoContainer.innerHTML = "";
           videoContainer.appendChild(video);
           videoContainer.classList.add("active");
           videoPlayBtn.style.display = "none";
           
-          video.onerror = () => {
-            showToast("视频加载失败", "error");
+          video.onerror = async function() {
+            console.error("视频加载失败:", {
+              videoUrl: videoUrl,
+              src: video.src,
+              networkState: video.networkState,
+              readyState: video.readyState
+            });
+            
+            // 尝试检查视频文件是否存在
+            let errorMessage = "视频加载失败";
+            try {
+              const checkResponse = await fetch(videoUrl, { method: 'HEAD' });
+              if (!checkResponse.ok) {
+                if (checkResponse.status === 404) {
+                  errorMessage = `视频文件不存在 (404): ${videoUrl}`;
+                } else {
+                  errorMessage = `视频服务器错误 (${checkResponse.status}): ${videoUrl}`;
+                }
+              } else {
+                const contentType = checkResponse.headers.get('content-type');
+                if (!contentType || !contentType.startsWith('video/')) {
+                  errorMessage = `视频格式错误，Content-Type: ${contentType || '未知'}`;
+                } else {
+                  errorMessage = `视频加载失败，可能格式不支持或文件损坏`;
+                }
+              }
+            } catch (fetchError) {
+              errorMessage = `无法访问视频文件: ${fetchError.message || '网络错误'}`;
+            }
+            
+            console.error("视频加载详细错误:", errorMessage);
+            showToast(errorMessage, "error");
             videoContainer.innerHTML = "";
             videoContainer.classList.remove("active");
             videoPlayBtn.style.display = "block";
@@ -2481,6 +2676,15 @@
                 audio.src = `data:audio/wav;base64,${audioBase64}`;
                 }
                 
+                // 当音频元数据加载完成后，更新时长显示（如果audioDuration为0或未设置）
+                if (audioDuration <= 0) {
+                  audio.addEventListener('loadedmetadata', () => {
+                    if (audio.duration && isFinite(audio.duration)) {
+                      duration.textContent = `${Math.floor(audio.duration)}秒`;
+                    }
+                  }, { once: true });
+                }
+                
                 // 点击气泡播放音频
                 audioBubble.addEventListener("click", () => {
                   if (audio.paused) {
@@ -2494,12 +2698,24 @@
                   }
                 });
                 
+                // 播放状态更新图标
+                audio.addEventListener('play', () => {
+                  icon.textContent = "🔊";
+                });
+                audio.addEventListener('pause', () => {
+                  icon.textContent = "🔊";
+                  audio.currentTime = 0;
+                });
+                audio.addEventListener('ended', () => {
+                  audio.currentTime = 0;
+                });
+                
                 // 直接替换bubble的内容，使用audio-bubble，清除message-bubble样式
                 bubble.innerHTML = "";
                 bubble.className = ""; // 清除message-bubble的样式
                 bubble.appendChild(audioBubble);
                 bubble.appendChild(audio);
-                
+                    
                 // 保存消息到历史记录
                 if (chatHistory[currentChatId]) {
                   const existingMessage = chatHistory[currentChatId].messages.find(m => m.messageId === assistantMessageId);
@@ -2538,11 +2754,13 @@
             }
             
             // 直接调用 /generate_video API（就像generate.html那样）
+            // 注意：来自聊天，传递is_from_chat=true，这样视频不会保存到video_records数据库
             try {
               const videoResult = await generateVideo({
                 text: answer,  // 使用LLM生成的回答作为输入
                 character: character,
-                model_name: model  // 使用模型名（和generate.html完全一致）
+                model_name: model,  // 使用模型名（和generate.html完全一致）
+                is_from_chat: true  // 标记为来自聊天，不保存到video_records数据库
               });
               
               if (!videoResult.success) {
@@ -2550,7 +2768,7 @@
               }
               
               const videoTaskId = videoResult.unique_id;
-              
+                    
               // 更新消息，添加videoTaskId
               if (messageDiv) {
                 const bubble = messageDiv.querySelector('.message-bubble');
@@ -2560,8 +2778,8 @@
                     messageData.videoTaskId = videoTaskId;
                   }
                 }
-              }
-              
+                    }
+                    
               // 开始轮询视频生成状态（完全按照generate.html的逻辑）
               let pollCount = 0;
               let lastProgress = 0;
@@ -2654,7 +2872,23 @@
                     updateProgress('video', 100, false);
                     stopLogPolling();
                                   
+                    // 从任务数据中获取video_path（文件系统路径）
+                    const videoPath = task.video_path;  // 这是文件系统路径，如 /path/to/videos/task_id.mp4
                     const finalVideoUrl = `${FASTAPI_URL}/videos/${videoTaskId}.mp4`;
+                    
+                    // 如果video_path存在，更新chat_messages表的video_path
+                    if (videoPath && typeof updateMessageVideoPath === 'function') {
+                      try {
+                        const updateResult = await updateMessageVideoPath(assistantMessageId, videoPath);
+                        if (updateResult.success) {
+                          console.log('[聊天] 视频路径已更新到数据库:', videoPath);
+                        } else {
+                          console.warn('[聊天] 更新视频路径失败:', updateResult.error);
+                        }
+                      } catch (error) {
+                        console.error('[聊天] 更新视频路径异常:', error);
+                      }
+                    }
                     
                     // 更新消息，显示视频预览框
                                   const messageDiv = document.querySelector(`[data-message-id="${assistantMessageId}"]`);
@@ -2665,10 +2899,48 @@
                         videoPreviewBox.className = "video-preview-box";
                                       
                                         const video = document.createElement("video");
-                        video.src = finalVideoUrl + '?t=' + Date.now();
+                        const urlWithTimestamp = finalVideoUrl + (finalVideoUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+                        video.src = urlWithTimestamp;
                         video.muted = true;
                         video.loop = true;
                         video.playsInline = true;
+                        
+                        // 详细的错误处理
+                        video.onerror = async function(e) {
+                          console.error("视频加载失败:", {
+                            videoUrl: finalVideoUrl,
+                            src: video.src,
+                            error: e,
+                            networkState: video.networkState,
+                            readyState: video.readyState
+                          });
+                          
+                          // 尝试检查视频文件是否存在
+                          let errorMessage = "视频加载失败";
+                          try {
+                            const checkResponse = await fetch(finalVideoUrl, { method: 'HEAD' });
+                            if (!checkResponse.ok) {
+                              if (checkResponse.status === 404) {
+                                errorMessage = `视频文件不存在 (404): ${finalVideoUrl}`;
+                              } else {
+                                errorMessage = `视频服务器错误 (${checkResponse.status}): ${finalVideoUrl}`;
+                              }
+                            } else {
+                              const contentType = checkResponse.headers.get('content-type');
+                              if (!contentType || !contentType.startsWith('video/')) {
+                                errorMessage = `视频格式错误，Content-Type: ${contentType || '未知'}`;
+                              } else {
+                                errorMessage = `视频加载失败，可能格式不支持或文件损坏`;
+                              }
+                            }
+                          } catch (fetchError) {
+                            errorMessage = `无法访问视频文件: ${fetchError.message || '网络错误'}`;
+                          }
+                          
+                          console.error("视频加载详细错误:", errorMessage);
+                          bubble.textContent = errorMessage;
+                          videoPreviewBox.style.display = "none";
+                        };
                         
                         const playIcon = document.createElement("div");
                         playIcon.className = "video-play-icon";
@@ -2684,15 +2956,50 @@
                           fullVideo.style.height = "350px";
                           fullVideo.style.borderRadius = "12px";
                           fullVideo.style.objectFit = "cover";
-                          fullVideo.src = finalVideoUrl + '?t=' + Date.now();
+                          const fullUrlWithTimestamp = finalVideoUrl + (finalVideoUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+                          fullVideo.src = fullUrlWithTimestamp;
                           fullVideo.muted = false;
                           
                           bubble.innerHTML = "";
                           bubble.appendChild(fullVideo);
                           
+                          fullVideo.onerror = async function(e) {
+                            console.error("全屏视频播放失败:", {
+                              videoUrl: finalVideoUrl,
+                              src: fullVideo.src,
+                              error: e,
+                              networkState: fullVideo.networkState,
+                              readyState: fullVideo.readyState
+                            });
+                            
+                            let errorMessage = "视频播放失败";
+                            try {
+                              const checkResponse = await fetch(finalVideoUrl, { method: 'HEAD' });
+                              if (!checkResponse.ok) {
+                                if (checkResponse.status === 404) {
+                                  errorMessage = `视频文件不存在 (404)`;
+                                } else {
+                                  errorMessage = `视频服务器错误 (${checkResponse.status})`;
+                                }
+                              } else {
+                                const contentType = checkResponse.headers.get('content-type');
+                                if (!contentType || !contentType.startsWith('video/')) {
+                                  errorMessage = `视频格式错误 (Content-Type: ${contentType || '未知'})`;
+                                } else {
+                                  errorMessage = `视频播放失败，可能格式不支持或文件损坏`;
+                                }
+                              }
+                            } catch (fetchError) {
+                              errorMessage = `无法访问视频文件: ${fetchError.message || '网络错误'}`;
+                            }
+                            
+                            console.error("全屏视频播放详细错误:", errorMessage);
+                            showToast(errorMessage, "error");
+                          };
+                          
                           fullVideo.play().catch(e => {
-                            console.error("播放视频失败:", e);
-                            showToast("播放视频失败", "error");
+                            console.error("播放视频异常:", e);
+                            showToast(`播放失败: ${e.message || '未知错误'}`, "error");
                           });
                         });
                         
@@ -2727,7 +3034,7 @@
                       const bubble = messageDiv.querySelector('.message-bubble');
                       if (bubble) {
                         bubble.textContent = `视频生成失败: ${error}`;
-                      }
+                                }
                     }
                     showToast(status === 'cancelled' ? '任务已取消' : ('生成失败: ' + error), 'error');
                               } else {
@@ -2762,7 +3069,7 @@
                 }
               }
               showToast("视频任务提交失败: " + (error.message || error), "error");
-            }
+                  }
           }
           
           // 保存消息到历史记录（数据库已自动保存，这里不需要额外操作）
@@ -2775,7 +3082,7 @@
                 responseMode: "video",
                 videoUrl: videoUrl
               });
-              
+            
               // 创建视频预览框
               const messageDiv = document.querySelector(`[data-message-id="${assistantMessageId}"]`);
               if (messageDiv) {
@@ -2816,7 +3123,7 @@
                       showToast("播放视频失败", "error");
                     });
                   });
-                  
+            
                   // 加载视频第一帧作为预览
                   video.addEventListener('loadeddata', () => {
                     video.currentTime = 0.1;
@@ -3323,9 +3630,15 @@
     // ==================== 音量控制 ====================
     function updateAllAudioVolumes() {
       if (!volumeSlider) return;
-      const allAudios = document.querySelectorAll('.audio-player');
+      // 更新所有音频元素的音量（包括隐藏的audio元素）
       const volume = isMuted ? 0 : volumeSlider.value / 100;
-      allAudios.forEach(audio => {
+      // 更新当前音频引用
+      if (currentAudio) {
+        currentAudio.volume = volume;
+      }
+      // 更新所有消息中的隐藏音频元素（audio-bubble中的audio元素）
+      const allMessageAudios = document.querySelectorAll('.message audio');
+      allMessageAudios.forEach(audio => {
         audio.volume = volume;
       });
     }
@@ -3559,15 +3872,21 @@
         isStreaming = true;
         
         messages.forEach(msg => {
-          // 历史记录只显示文本，不显示音频和视频
+          // 历史记录显示完整内容（文本、音频、视频）
+          // 直接使用消息对象中的 responseMode（已在 loadChatHistoryFromDatabase 中推断）
           const messageDiv = addMessage(
             msg.text,
             msg.isUser,
-            null,  // 不传递音频数据
-            0,     // 不传递音频时长
+            msg.audioBase64 || null,  // 传递音频数据
+            msg.audioDuration || 0,   // 传递音频时长
             msg.messageId,
             msg.status || 'sent',
-            null   // 不传递messageData（包括responseMode），这样会只显示文本
+            { 
+              audioUrl: msg.audioUrl,
+              videoUrl: msg.videoUrl,
+              videoTaskId: msg.videoTaskId,
+              responseMode: msg.responseMode  // 使用已推断的 responseMode
+            }
           );
           
           // 如果是错误消息，添加重试按钮

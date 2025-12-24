@@ -350,6 +350,29 @@ def delete_chat_session(session_id: str) -> bool:
         return False
 
 
+def update_chat_message_video_path(message_id: str, video_path: str) -> bool:
+    """更新聊天消息的视频路径"""
+    logger = logging.getLogger()
+    try:
+        db_path = str(DB_FILE.resolve())
+        conn = sqlite3.connect(db_path, check_same_thread=False)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE chat_messages SET video_path = ? WHERE message_id = ?
+        """, (video_path, message_id))
+        
+        conn.commit()
+        conn.close()
+        logger.debug(f"[数据库] 聊天消息视频路径已更新: message_id={message_id}, video_path={video_path}")
+        return cursor.rowcount > 0
+        
+    except Exception as e:
+        logger.error(f"[数据库] 更新聊天消息视频路径失败: message_id={message_id}, 错误={e}")
+        logger.error(f"[数据库] 错误详情: {traceback.format_exc()}")
+        return False
+
+
 # 初始化数据库（只在模块导入时执行一次）
 try:
     init_database()

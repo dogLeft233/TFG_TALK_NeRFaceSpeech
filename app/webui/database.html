@@ -9,27 +9,29 @@
       --primary: #1e40af;
       --primary-2: #3b82f6;
       --bg: #0b1020;
-      --card: rgba(255,255,255,0.08);
-      --border: rgba(255,255,255,0.15);
+      --card: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.14);
       --text: #e5e7eb;
       --muted: #9ca3af;
-      --g1: rgba(59,130,246,0.16);
-      --g2: rgba(14,165,233,0.14);
-      --g3: rgba(56,189,248,0.12);
-      --card-bg: rgba(59,130,246,0.25);
+      --g1: rgba(59, 130, 246, 0.16);
+      --g2: rgba(14, 165, 233, 0.14);
+      --g3: rgba(56, 189, 248, 0.12);
+      --card-bg: rgb(24, 66, 134);
+      --base-font-size: 14px;
     }
+
     body.theme-tech {
       --primary: #1e40af;
       --primary-2: #3b82f6;
       --bg: #0b1020;
-      --card: rgba(255,255,255,0.08);
-      --border: rgba(255,255,255,0.15);
+      --card: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.14);
       --text: #e5e7eb;
       --muted: #9ca3af;
-      --g1: rgba(59,130,246,0.16);
-      --g2: rgba(14,165,233,0.14);
-      --g3: rgba(56,189,248,0.12);
-      --card-bg: rgba(59,130,246,0.25);
+      --g1: rgba(59, 130, 246, 0.16);
+      --g2: rgba(14, 165, 233, 0.14);
+      --g3: rgba(56, 189, 248, 0.12);
+      --card-bg: rgb(24, 66, 134);
     }
     body.theme-warm {
       --primary: #f97316;
@@ -519,6 +521,7 @@
         </select>
         <button class="secondary" id="editModeBtn">✏️ 编辑: 关闭</button>
         <button class="primary" id="saveChangesBtn" disabled style="opacity: 0.5; cursor: not-allowed;">💾 保存更改</button>
+        <button class="secondary" id="deleteSelectedBtn" disabled style="opacity: 0.5; cursor: not-allowed; display: none;">🗑️ 删除选中行</button>
       </div>
       
       <div class="database-content" id="databaseTableContent">
@@ -564,11 +567,13 @@
     let databaseList = [];
     let hasUnsavedChanges = false;
     let originalTableData = null;
+    let selectedRows = new Set(); // 存储选中的行（格式：tableName-rowIndex）
 
     const databaseSelectBtn = document.getElementById('databaseSelectBtn');
     const refreshDatabaseBtn = document.getElementById('refreshDatabaseBtn');
     const editModeBtn = document.getElementById('editModeBtn');
     const saveChangesBtn = document.getElementById('saveChangesBtn');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
     const databaseTableContent = document.getElementById('databaseTableContent');
 
     function escapeHtml(text) {
@@ -633,6 +638,10 @@
         html += `<table class="db-table">`;
         
         html += '<thead><tr>';
+        // 如果是编辑模式，添加复选框列
+        if (editMode) {
+          html += '<th style="width: 40px;"><input type="checkbox" class="select-all-checkbox" data-table="' + escapeHtml(tableName) + '" title="全选/取消全选"></th>';
+        }
         tableData.columns.forEach(col => {
           html += `<th>${escapeHtml(col)}</th>`;
         });
@@ -640,7 +649,12 @@
         
         html += '<tbody>';
         tableData.rows.forEach((row, rowIndex) => {
-          html += '<tr>';
+          const rowKey = `${tableName}-${rowIndex}`;
+          html += '<tr data-row-key="' + rowKey + '">';
+          // 如果是编辑模式，添加复选框
+          if (editMode) {
+            html += '<td><input type="checkbox" class="row-checkbox" data-table="' + escapeHtml(tableName) + '" data-row-index="' + rowIndex + '" data-row-key="' + rowKey + '"></td>';
+          }
           tableData.columns.forEach(col => {
             const value = row[col] !== null && row[col] !== undefined ? String(row[col]) : '';
             if (editMode) {
@@ -663,10 +677,18 @@
       
       if (editMode) {
         addEditHandlers(tables);
+        addDeleteHandlers(tables);
         checkForChanges();
+        updateDeleteButtonState();
+        // 显示删除按钮
+        deleteSelectedBtn.style.display = 'inline-block';
       } else {
         hasUnsavedChanges = false;
+        selectedRows.clear();
         updateSaveButtonState();
+        updateDeleteButtonState();
+        // 隐藏删除按钮
+        deleteSelectedBtn.style.display = 'none';
       }
     }
 
@@ -678,6 +700,85 @@
           checkForChanges();
         });
       });
+    }
+
+    // 添加删除处理（复选框）
+    function addDeleteHandlers(tables) {
+      // 行复选框
+      const rowCheckboxes = databaseTableContent.querySelectorAll('.row-checkbox');
+      rowCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+          const rowKey = checkbox.dataset.rowKey;
+          if (checkbox.checked) {
+            selectedRows.add(rowKey);
+          } else {
+            selectedRows.delete(rowKey);
+          }
+          updateDeleteButtonState();
+          // 更新全选复选框状态
+          updateSelectAllCheckbox(checkbox.dataset.table);
+        });
+      });
+
+      // 全选复选框
+      const selectAllCheckboxes = databaseTableContent.querySelectorAll('.select-all-checkbox');
+      selectAllCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+          const tableName = checkbox.dataset.table;
+          const tableRows = databaseTableContent.querySelectorAll(`tr[data-row-key^="${tableName}-"]`);
+          const isChecked = checkbox.checked;
+          
+          tableRows.forEach(row => {
+            const rowCheckbox = row.querySelector('.row-checkbox');
+            if (rowCheckbox) {
+              rowCheckbox.checked = isChecked;
+              const rowKey = rowCheckbox.dataset.rowKey;
+              if (isChecked) {
+                selectedRows.add(rowKey);
+              } else {
+                selectedRows.delete(rowKey);
+              }
+            }
+          });
+          updateDeleteButtonState();
+        });
+      });
+    }
+
+    // 更新全选复选框状态
+    function updateSelectAllCheckbox(tableName) {
+      const selectAllCheckbox = databaseTableContent.querySelector(`.select-all-checkbox[data-table="${tableName}"]`);
+      if (!selectAllCheckbox) return;
+      
+      const tableRows = databaseTableContent.querySelectorAll(`tr[data-row-key^="${tableName}-"]`);
+      const allChecked = Array.from(tableRows).every(row => {
+        const checkbox = row.querySelector('.row-checkbox');
+        return !checkbox || checkbox.checked;
+      });
+      const someChecked = Array.from(tableRows).some(row => {
+        const checkbox = row.querySelector('.row-checkbox');
+        return checkbox && checkbox.checked;
+      });
+      
+      selectAllCheckbox.checked = allChecked && tableRows.length > 0;
+      selectAllCheckbox.indeterminate = someChecked && !allChecked;
+    }
+
+    // 更新删除按钮状态
+    function updateDeleteButtonState() {
+      if (deleteSelectedBtn) {
+        if (selectedRows.size > 0 && editMode) {
+          deleteSelectedBtn.disabled = false;
+          deleteSelectedBtn.style.opacity = '1';
+          deleteSelectedBtn.style.cursor = 'pointer';
+          deleteSelectedBtn.textContent = `🗑️ 删除选中行 (${selectedRows.size})`;
+        } else {
+          deleteSelectedBtn.disabled = true;
+          deleteSelectedBtn.style.opacity = '0.5';
+          deleteSelectedBtn.style.cursor = 'not-allowed';
+          deleteSelectedBtn.textContent = '🗑️ 删除选中行';
+        }
+      }
     }
 
     // 检查是否有更改
@@ -820,11 +921,13 @@
       
       editMode = !editMode;
       editModeBtn.textContent = `✏️ 编辑: ${editMode ? '开启' : '关闭'}`;
+      selectedRows.clear(); // 清除选中的行
       if (currentDatabase) {
         loadDatabaseContent(currentDatabase);
       } else {
         hasUnsavedChanges = false;
         updateSaveButtonState();
+        updateDeleteButtonState();
       }
     });
 
@@ -832,6 +935,91 @@
     saveChangesBtn.addEventListener('click', () => {
       if (hasUnsavedChanges && editMode) {
         saveAllChanges();
+      }
+    });
+
+    // 删除选中行按钮
+    deleteSelectedBtn.addEventListener('click', async () => {
+      if (selectedRows.size === 0 || !editMode || !currentDatabase || !originalTableData) {
+        return;
+      }
+
+      if (!confirm(`确定要删除选中的 ${selectedRows.size} 行吗？此操作不可撤销。`)) {
+        return;
+      }
+
+      deleteSelectedBtn.disabled = true;
+      deleteSelectedBtn.textContent = '🗑️ 删除中...';
+
+      try {
+        let successCount = 0;
+        let failCount = 0;
+
+        // 按表分组删除
+        const rowsByTable = {};
+        selectedRows.forEach(rowKey => {
+          const [tableName, rowIndex] = rowKey.split('-');
+          if (!rowsByTable[tableName]) {
+            rowsByTable[tableName] = [];
+          }
+          rowsByTable[tableName].push(parseInt(rowIndex));
+        });
+
+        for (const [tableName, rowIndices] of Object.entries(rowsByTable)) {
+          const tableData = originalTableData[tableName];
+          if (!tableData) continue;
+
+          const firstColumn = tableData.columns[0]; // 使用第一列作为主键
+          
+          for (const rowIndex of rowIndices) {
+            if (rowIndex >= tableData.rows.length) continue;
+            
+            const row = tableData.rows[rowIndex];
+            const primaryKeyValue = row[firstColumn];
+            
+            if (primaryKeyValue === null || primaryKeyValue === undefined) {
+              console.warn(`跳过删除：主键为空 (table: ${tableName}, row: ${rowIndex})`);
+              failCount++;
+              continue;
+            }
+
+            try {
+              const response = await fetch(`${FASTAPI_URL}/api/databases/${currentDatabase}/update`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                  table: tableName,
+                  operation: 'delete',
+                  where: {[firstColumn]: primaryKeyValue}
+                })
+              });
+              const result = await response.json();
+              if (result.success) {
+                successCount++;
+              } else {
+                failCount++;
+                console.error(`删除失败 (${tableName}, row ${rowIndex}): ${result.error}`);
+              }
+            } catch (error) {
+              failCount++;
+              console.error(`删除失败 (${tableName}, row ${rowIndex}): ${error.message}`);
+            }
+          }
+        }
+
+        if (failCount > 0) {
+          alert(`删除完成，成功: ${successCount}，失败: ${failCount}。请检查控制台了解详情。`);
+        } else {
+          alert(`成功删除 ${successCount} 行`);
+        }
+
+        // 重新加载数据库内容
+        selectedRows.clear();
+        await loadDatabaseContent(currentDatabase);
+      } catch (error) {
+        alert(`删除失败: ${error.message}`);
+      } finally {
+        updateDeleteButtonState();
       }
     });
 

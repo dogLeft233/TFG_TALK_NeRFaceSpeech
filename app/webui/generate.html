@@ -10,32 +10,32 @@
     <script src="api.js"></script>
     <style>
         :root {
-            --primary: #1e40af;
-            --primary-2: #3b82f6;
-            --bg: #0b1020;
-            --card: rgba(255, 255, 255, 0.06);
-            --border: rgba(255, 255, 255, 0.14);
-            --text: #e5e7eb;
-            --muted: #9ca3af;
-            --g1: rgba(59, 130, 246, 0.16);
-            --g2: rgba(14, 165, 233, 0.14);
-            --g3: rgba(56, 189, 248, 0.12);
-            --card-bg: rgba(59, 130, 246, 0.25);
-            --base-font-size: 14px;
+        --primary: #1e40af;
+        --primary-2: #3b82f6;
+        --bg: #0b1020;
+        --card: rgba(255, 255, 255, 0.06);
+        --border: rgba(255, 255, 255, 0.14);
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --g1: rgba(59, 130, 246, 0.16);
+        --g2: rgba(14, 165, 233, 0.14);
+        --g3: rgba(56, 189, 248, 0.12);
+        --card-bg: rgb(24, 66, 134);
+        --base-font-size: 14px;
         }
 
         body.theme-tech {
-            --primary: #1e40af;
-            --primary-2: #3b82f6;
-            --bg: #0b1020;
-            --card: rgba(255, 255, 255, 0.06);
-            --border: rgba(255, 255, 255, 0.14);
-            --text: #e5e7eb;
-            --muted: #9ca3af;
-            --g1: rgba(59, 130, 246, 0.16);
-            --g2: rgba(14, 165, 233, 0.14);
-            --g3: rgba(56, 189, 248, 0.12);
-            --card-bg: rgba(59, 130, 246, 0.25);
+        --primary: #1e40af;
+        --primary-2: #3b82f6;
+        --bg: #0b1020;
+        --card: rgba(255, 255, 255, 0.06);
+        --border: rgba(255, 255, 255, 0.14);
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --g1: rgba(59, 130, 246, 0.16);
+        --g2: rgba(14, 165, 233, 0.14);
+        --g3: rgba(56, 189, 248, 0.12);
+        --card-bg: rgb(24, 66, 134);
         }
 
         body.theme-warm {
@@ -151,7 +151,6 @@
         }
 
         input,
-        select,
         textarea {
             width: 100%;
             border: 1px solid var(--border);
@@ -159,6 +158,18 @@
             padding: 12px 14px;
             font-size: 15px;
             background: rgba(255, 255, 255, 0.04);
+            color: var(--text);
+            outline: none;
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+
+        select {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 15px;
+            background: var(--card-bg);
             color: var(--text);
             outline: none;
             transition: border-color .15s ease, box-shadow .15s ease;
@@ -1463,12 +1474,8 @@
             // 初始化按钮状态
             updateBackToTaskButton();
             
-            // 定期刷新历史记录列表（确保运行中的任务能显示在历史记录中）
-            setInterval(() => {
-                if (historySidebar.classList.contains('active')) {
-                    loadHistoryList();
-                }
-            }, 5000); // 每5秒刷新一次历史记录列表（仅当侧边栏打开时）
+            // 不再自动刷新历史记录列表，避免屏幕闪烁
+            // 只在用户打开侧边栏时加载一次，或用户手动刷新
         });
 
         // 加载角色列表（带超时处理）
@@ -1892,7 +1899,7 @@
 
                         // 只在任务模式下重置UI
                         if (currentViewMode === 'task') {
-                            resetUI();
+                        resetUI();
                         }
                         showToast('视频生成成功！', 'success');
 
@@ -1914,7 +1921,7 @@
                         
                         // 只在任务模式下重置UI
                         if (currentViewMode === 'task') {
-                            resetUI();
+                        resetUI();
                         }
                     } else {
                         // 未知状态，记录日志但继续轮询
@@ -2014,7 +2021,7 @@
 
             // 只在任务模式下重置UI
             if (currentViewMode === 'task') {
-                resetUI();
+            resetUI();
             }
         }
 

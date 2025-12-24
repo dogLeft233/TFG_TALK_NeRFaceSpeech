@@ -6,30 +6,32 @@
   <title>后端输出 - NeRFFaceSpeech</title>
   <style>
     :root {
-      --primary: #1e40af; /* 主色调：深蓝色，用于选中状态、强调按钮 */
-      --primary-2: #3b82f6; /* 次要主色：中间蓝色，用于渐变、次要强调 */
-      --bg: #0b1020; /* 页面背景色：深色背景 */
-      --card: rgba(255,255,255,0.08); /* 卡片背景：半透明白色，用于内容卡片 */
-      --border: rgba(255,255,255,0.15); /* 边框颜色：半透明白色边框 */
-      --text: #e5e7eb; /* 主文字颜色：浅灰色文字 */
-      --muted: #9ca3af; /* 次要文字颜色：灰色，用于辅助信息 */
-      --g1: rgba(59,130,246,0.16); /* 渐变1：蓝色渐变点1 */
-      --g2: rgba(14,165,233,0.14); /* 渐变2：青色渐变点2 */
-      --g3: rgba(56,189,248,0.12); /* 渐变3：浅蓝色渐变点3 */
-      --card-bg: rgba(59,130,246,0.25); /* 卡片背景色：浅蓝色，用于首页卡片和下拉菜单 */
+      --primary: #1e40af;
+      --primary-2: #3b82f6;
+      --bg: #0b1020;
+      --card: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.14);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --g1: rgba(59, 130, 246, 0.16);
+      --g2: rgba(14, 165, 233, 0.14);
+      --g3: rgba(56, 189, 248, 0.12);
+      --card-bg: rgb(24, 66, 134);
+      --base-font-size: 14px;
     }
+
     body.theme-tech {
-      --primary: #1e40af; /* 主色调：深蓝色 */
-      --primary-2: #3b82f6; /* 次要主色：中间蓝色 */
-      --bg: #0b1020; /* 页面背景色：深色背景 */
-      --card: rgba(255,255,255,0.08); /* 卡片背景：半透明白色 */
-      --border: rgba(255,255,255,0.15); /* 边框颜色：半透明白色边框 */
-      --text: #e5e7eb; /* 主文字颜色：浅灰色文字 */
-      --muted: #9ca3af; /* 次要文字颜色：灰色 */
-      --g1: rgba(59,130,246,0.16); /* 渐变1：蓝色渐变点1 */
-      --g2: rgba(14,165,233,0.14); /* 渐变2：青色渐变点2 */
-      --g3: rgba(56,189,248,0.12); /* 渐变3：浅蓝色渐变点3 */
-      --card-bg: rgba(59,130,246,0.25); /* 卡片背景色：浅蓝色 */
+      --primary: #1e40af;
+      --primary-2: #3b82f6;
+      --bg: #0b1020;
+      --card: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.14);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --g1: rgba(59, 130, 246, 0.16);
+      --g2: rgba(14, 165, 233, 0.14);
+      --g3: rgba(56, 189, 248, 0.12);
+      --card-bg: rgb(24, 66, 134);
     }
     body.theme-warm {
       --primary: #f97316;
@@ -166,7 +168,7 @@
       padding: 8px 16px;
       border: 1px solid var(--border);
       border-radius: 12px;
-      background: rgba(255,255,255,0.08);
+      background: var(--card-bg);
       color: var(--text);
       font-size: 14px;
       font-weight: 600;
@@ -175,7 +177,7 @@
     }
     .controls select:hover {
       border-color: var(--primary);
-      background: rgba(255,255,255,0.12);
+      background: var(--card-bg);
     }
     .controls select:focus {
       border-color: var(--primary);
@@ -761,25 +763,52 @@
       }
     }
 
-    function clearAllLogs() {
+    async function clearAllLogs() {
+      try {
+        const response = await fetch(`${FASTAPI_URL}/logs/clear?keep_count=0`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        const result = await response.json();
+        if (result.success) {
       allLogs = [];
       renderLogs();
+          // 重新获取日志以显示最新的清空确认消息
+          await fetchLogs();
+        } else {
+          alert(`清空日志失败: ${result.error || '未知错误'}`);
+        }
+      } catch (error) {
+        console.error('清空日志失败:', error);
+        alert(`清空日志失败: ${error.message}`);
+      }
     }
 
-    function clearPartialLogs() {
-      // 保留最后100行（按时间排序后的最后100行）
-      const KEEP_LINES = 100;
-      if (allLogs.length > KEEP_LINES) {
-        // 先按时间排序
-        allLogs.sort((a, b) => {
-          const timeA = a.timestamp || '';
-          const timeB = b.timestamp || '';
-          return timeA.localeCompare(timeB);
-        });
+    async function clearPartialLogs() {
         // 保留最后100行
-        allLogs = allLogs.slice(-KEEP_LINES);
-      }
+      const KEEP_LINES = 100;
+      try {
+        const response = await fetch(`${FASTAPI_URL}/logs/clear?keep_count=${KEEP_LINES}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        const result = await response.json();
+        if (result.success) {
+          allLogs = [];
       renderLogs();
+          // 重新获取日志以显示最新的清空确认消息
+          await fetchLogs();
+        } else {
+          alert(`部分清空日志失败: ${result.error || '未知错误'}`);
+        }
+      } catch (error) {
+        console.error('部分清空日志失败:', error);
+        alert(`部分清空日志失败: ${error.message}`);
+      }
     }
 
     function toggleAutoScroll() {

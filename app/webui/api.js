@@ -212,6 +212,16 @@ async function getVideoGenerationStatus(taskId) {
 }
 
 /**
+ * 更新聊天消息的视频路径
+ * @param {string} messageId - 消息ID
+ * @param {string} videoPath - 视频路径
+ * @returns {Promise<object>} 更新结果
+ */
+async function updateMessageVideoPath(messageId, videoPath) {
+    return await apiPut(`/chat/messages/${messageId}/video_path`, { video_path: videoPath });
+}
+
+/**
  * 对话接口
  * @param {object} params - 对话参数
  * @param {string} params.text - 用户输入的文本（可选）
@@ -372,6 +382,7 @@ if (typeof window !== 'undefined') {
     window.getModels = getModels;
     window.generateVideo = generateVideo;
     window.getVideoGenerationStatus = getVideoGenerationStatus;
+    window.updateMessageVideoPath = updateMessageVideoPath;
     window.chat = chat;
     window.transcribeAudio = transcribeAudio;
     window.checkASRHealth = checkASRHealth;
