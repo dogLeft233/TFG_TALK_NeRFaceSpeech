@@ -117,7 +117,7 @@ RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh \
 RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh \
     && conda activate /app/environment/nerffacespeech \
     && conda install -y \
-        https://anaconda.org/pytorch3d/pytorch3d/0.7.8/download/linux-64/pytorch3d-0.7.8-py39_cu121_pyt222.tar.bz2"
+        https://anaconda.org/pytorch3d/pytorch3d/0.7.8/download/linux-64/pytorch3d-0.7.8-py39_cu121_pyt212.tar.bz2"
 
 # 4. 其余 Python 依赖
 RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh \

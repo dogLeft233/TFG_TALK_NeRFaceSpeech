@@ -1,299 +1,188 @@
-# 评估流程 Docker 启动脚本使用说明
+## 评估流程使用说明（Eval Pipeline）
 
-## 概述
+本项目提供统一的评估流程脚本 `run_eval_pipeline.sh`，用于对一批视频进行切分、对齐、推理并计算 SyncNet 等指标。  
+可以在 **本地非 Docker 环境** 或 **Docker 容器中** 运行，核心入口保持一致。
 
-`run_eval_pipeline.sh` 是一个用于在 Docker 环境中运行评估流程的启动脚本。它会自动启动 Docker 容器，使用 syncnet 环境运行完整的评估流程。
+---
 
-## 功能特性
+### 一、准备工作
 
-- ✅ 自动检查 Docker 镜像和容器
-- ✅ 使用 syncnet 环境运行评估流程
-- ✅ 自动创建带时间戳的输出目录
-- ✅ 每8秒切分视频
-- ✅ 每个视频随机选择8段
-- ✅ 使用 FFHQFaceAlignment 进行人脸对齐
-- ✅ 使用 ffhq_1024.pkl 模型进行推理
-- ✅ 完整的错误处理和日志输出
+- **数据准备**
+  - 将待评估视频放到：
+    - `data/geneface_datasets/data/raw/videos`
+  - 支持常见视频格式（如 `.mp4` 等），脚本会自动递归处理该目录下的视频文件。
 
-## 使用方法
+- **模型与权重**
+  - 按 `README.md` 中的数据准备说明，下载并解压 `assets/` 到项目根目录。
+  - 确保存在核心模型：
+    - `NeRFFaceSpeech_Code/pretrained_networks/ffhq_1024.pkl`
+  - 推荐执行一次：
 
-### 基本使用
+    ```bash
+    # 使用 llm_talk 环境
+    source "$HOME/miniconda3/etc/profile.d/conda.sh"
+    conda activate ./environment/llm_talk
 
-```bash
-./run_eval_pipeline.sh
-```
+    bash prepare_project.sh
+    ```
 
-### 前置条件
+    该脚本会：
+    - 用软链接的方式，将各处模型权重统一指向 `assets/models`
+    - 预下载 Whisper base 与 HuggingFace `ResembleAI/chatterbox` 模型（如需）
 
-1. **Docker 环境**
-   - 已安装 Docker 和 nvidia-docker
-   - Docker 镜像 `nerffacespeech:latest` 已构建（脚本会自动检查并构建）
+- **环境准备**
+  - 按 `README.md` 中“环境安装”部分完成 4 个环境创建，至少需要 **syncnet 环境**：
+    - `environment/syncnet`：用于运行 `eval_pipline` 模块和 SyncNet / face-alignment。
 
-2. **输入数据**
-   - 输入视频目录: `data/geneface_datasets/data/raw/videos/`
-   - 目录中应包含 `.mp4` 视频文件
+---
 
-3. **模型文件**
-   - 模型路径: `NeRFFaceSpeech_Code/pretrained_networks/ffhq_1024.pkl`
-   - 模型文件必须存在
+### 二、本地非 Docker 环境运行
 
-## 配置参数
+脚本：`run_eval_pipeline.sh`（位于项目根目录）
 
-脚本中的默认配置：
+#### 1. 默认行为（推荐）
 
-```bash
-INPUT_DIR="data/geneface_datasets/data/raw/videos"
-OUTPUT_DIR="output/eval_$(date +%Y%m%d_%H%M%S)"  # 自动生成时间戳
-MODEL_PATH="NeRFFaceSpeech_Code/pretrained_networks/ffhq_1024.pkl"
-SEGMENT_SEC=8          # 每8秒一切
-MAX_SEGMENTS=8         # 每个视频随机取8段
-```
-
-### 修改配置
-
-如果需要修改配置，编辑 `run_eval_pipeline.sh` 文件中的相应变量：
+直接在项目根目录运行：
 
 ```bash
-# 修改输入目录
-INPUT_DIR="$PROJECT_ROOT/data/your_videos"
-
-# 修改输出目录（固定路径）
-OUTPUT_DIR="$PROJECT_ROOT/output/my_eval_result"
-
-# 修改模型路径
-MODEL_PATH="$PROJECT_ROOT/path/to/your_model.pkl"
-
-# 修改切分参数
-SEGMENT_SEC=10         # 每10秒一切
-MAX_SEGMENTS=5         # 每个视频随机取5段
+cd /path/to/NeRFFaceSpeech
+bash run_eval_pipeline.sh
 ```
 
-## 评估流程步骤
+脚本会自动：
 
-脚本会执行以下步骤：
+- 使用 `environment/syncnet` 环境：
+  - 自动查找并激活本机 Miniconda/Anaconda，再 `conda activate environment/syncnet`
+- 使用默认配置：
+  - 输入目录：`data/geneface_datasets/data/raw/videos`
+  - 输出目录：`output/eval_YYYYMMDD_HHMMSS`
+  - 模型路径：`NeRFFaceSpeech_Code/pretrained_networks/ffhq_1024.pkl`
+  - 每段时长：`8` 秒
+  - 每视频最多段数：`8` 段（随机选取）
+  - 对齐方式：`FFHQFaceAlignment`
+  - 设备：`cuda`
 
-1. **视频切分** (`videos_split/`)
-   - 将输入视频每8秒切分为一段
-   - 每个视频随机选择8段（如果视频足够长）
-
-2. **人脸检测和裁剪** (`videos_cropped/`)
-   - 使用 FFHQFaceAlignment 进行人脸对齐
-   - 从第一帧计算对齐参数，应用到所有帧
-   - 确保 GT 和生成视频在同一坐标系
-
-3. **模型推理** (`videos_infer/`)
-   - 使用 `ffhq_1024.pkl` 模型进行推理
-   - 输入：对齐后的视频（第一帧图像 + 完整音频）
-   - 输出：生成的视频
-
-4. **指标计算** (`metrics.json`)
-   - 计算 FID、LSE-C、LSE-D 等指标
-   - 使用对齐后的 GT 视频和生成视频进行比较
-
-## 输出结构
-
-```
-output/eval_YYYYMMDD_HHMMSS/
-├── videos_split/          # 切分后的视频
-│   ├── video1_seg_000.mp4
-│   ├── video1_seg_001.mp4
-│   └── ...
-├── videos_cropped/       # 对齐和裁剪后的视频
-│   ├── video1_seg_000.mp4
-│   ├── video1_seg_001.mp4
-│   └── ...
-├── videos_infer/         # 模型推理结果
-│   ├── video1_seg_000.mp4
-│   ├── video1_seg_001.mp4
-│   └── ...
-└── metrics.json          # 评估指标结果
-```
-
-## 环境要求
-
-### Docker 环境
-
-- **镜像**: `nerffacespeech:latest`
-- **环境**: syncnet conda 环境
-- **GPU**: 需要 NVIDIA GPU 支持（通过 `--gpus all` 传递）
-
-### 挂载的目录
-
-脚本会自动挂载以下目录：
-
-- `data/` → `/app/data` (只读)
-- `output/` → `/app/output` (读写)
-- `NeRFFaceSpeech_Code/` → `/app/NeRFFaceSpeech_Code` (只读)
-- `eval_pipline/` → `/app/eval_pipline` (只读)
-- `weights/` → `/app/weights` (读写，模型缓存)
-- `Hugging_Face/` → `/app/Hugging_Face` (读写，HuggingFace 缓存)
-
-## 故障排查
-
-### 1. Docker 镜像不存在
-
-**问题**: 脚本提示镜像不存在
-
-**解决**:
-```bash
-cd docker
-docker build -t nerffacespeech:latest ..
-```
-
-### 2. 容器启动失败
-
-**问题**: 容器无法启动
-
-**解决**:
-- 检查 Docker 是否运行: `docker ps`
-- 检查 GPU 支持: `nvidia-smi`
-- 检查端口占用: `docker ps -a`
-
-### 3. 输入目录不存在
-
-**问题**: 脚本提示输入目录不存在
-
-**解决**:
-- 确保 `data/geneface_datasets/data/raw/videos/` 目录存在
-- 或修改脚本中的 `INPUT_DIR` 变量
-
-### 4. 模型文件不存在
-
-**问题**: 脚本提示模型文件不存在
-
-**解决**:
-- 确保 `NeRFFaceSpeech_Code/pretrained_networks/ffhq_1024.pkl` 存在
-- 或修改脚本中的 `MODEL_PATH` 变量
-
-### 5. syncnet 环境不存在
-
-**问题**: 容器内 syncnet 环境不存在
-
-**解决**:
-- 确保 Docker 镜像构建时包含了 syncnet 环境
-- 检查 `environment/syncnet.yaml` 是否存在
-- 重新构建 Docker 镜像
-
-### 6. FFHQFaceAlignment 依赖缺失
-
-**问题**: FFHQFaceAlignment 相关错误
-
-**解决**:
-```bash
-# 进入容器
-docker exec -it nerffacespeech-eval bash
-
-# 激活 syncnet 环境
-source /opt/conda/etc/profile.d/conda.sh
-conda activate /app/environment/syncnet
-
-# 安装依赖
-cd /app/eval_pipline/FFHQFaceAlignment
-pip install -r requirements.txt
-python download.py
-```
-
-### 7. 查看容器日志
-
-如果评估流程失败，可以查看容器日志：
+执行过程中，会调用：
 
 ```bash
-docker logs nerffacespeech-eval
+python -m eval_pipline \
+  --input-dir "$INPUT_DIR" \
+  --output-dir "$OUTPUT_DIR" \
+  --network "$MODEL_PATH" \
+  --segment-sec "$SEGMENT_SEC" \
+  --max-segments "$MAX_SEGMENTS" \
+  --random-segments \
+  --ffhq-alignment \
+  --device cuda
 ```
 
-### 8. 进入容器调试
+评估成功后，输出目录结构类似：
+
+- `output/eval_YYYYMMDD_HHMMSS/`
+  - `videos_split/`：按段切分后的原始视频片段
+  - `videos_cropped/`：对齐/裁剪后的视频
+  - `videos_infer/`：推理生成的视频
+  - `metrics.json`：汇总指标（如 SyncNet 分数）
+
+#### 2. 修改默认参数
+
+当前 `run_eval_pipeline.sh` 中的参数集中在顶部变量：
+
+- `INPUT_DIR`
+- `OUTPUT_DIR`
+- `MODEL_PATH`
+- `SEGMENT_SEC`
+- `MAX_SEGMENTS`
+- `CONDA_ENV_NAME`
+
+如需自定义：
 
 ```bash
-docker exec -it nerffacespeech-eval bash
-source /opt/conda/etc/profile.d/conda.sh
-conda activate /app/environment/syncnet
-cd /app
+# 修改脚本头部变量后再运行
+vim run_eval_pipeline.sh   # 或任意编辑器
+bash run_eval_pipeline.sh
 ```
 
-## 高级用法
+如果你希望在命令行直接覆写参数，可以根据 `eval_pipline` 的 argparse 解析方式，参考脚本中的 `python -m eval_pipline ...` 行，手动执行自定义命令。
 
-### 自定义参数
+---
 
-如果需要使用不同的参数，可以修改脚本中的命令部分，或直接使用 Docker 命令：
+### 三、Docker 环境运行
+
+脚本：`docker/run_eval_pipeline_docker.sh`
+
+该脚本会：
+
+- 使用 `docker/docker-compose.yml` 中的 `nerffacespeech` 服务
+- 自动构建镜像（如尚未构建）
+- 自动挂载数据 / 输出 / 模型 / 缓存目录：
+  - `assets/.cache` → `/app/assets/.cache`
+  - `assets/models` → `/app/assets/models`
+  - `data` → `/app/data`
+  - `database` → `/app/database`
+  - `output` → `/app/output`
+  - `outputs` → `/app/outputs`
+  - `NeRFFaceSpeech_Code`、`eval_pipline`、`run_eval_pipeline.sh` 等以只读方式挂载到容器中
+- 在容器内执行：
+
+  ```bash
+  bash /app/run_eval_pipeline.sh "$@"
+  ```
+
+#### 使用方式
+
+在项目根目录执行：
 
 ```bash
-docker exec -it nerffacespeech-eval bash -c "
-    source /opt/conda/etc/profile.d/conda.sh
-    conda activate /app/environment/syncnet
-    cd /app
-    python -m eval_pipline \\
-        --input-dir /app/data/your_videos \\
-        --output-dir /app/output/your_output \\
-        --network /app/path/to/model.pkl \\
-        --segment-sec 10 \\
-        --max-segments 5 \\
-        --random-segments \\
-        --ffhq-alignment \\
-        --device cuda
-"
+cd /path/to/NeRFFaceSpeech
+bash docker/run_eval_pipeline_docker.sh [你的参数...]
 ```
 
-### 跳过某些步骤
+- 传给 `docker/run_eval_pipeline_docker.sh` 的参数会原样传递给容器内的 `run_eval_pipeline.sh`。
+- 如果你没有修改 `run_eval_pipeline.sh` 以支持命令行参数，则可以直接运行不带参数版本（使用默认配置）：
 
-如果需要跳过某些步骤（例如只运行推理），可以修改脚本添加相应的跳过参数：
+  ```bash
+  bash docker/run_eval_pipeline_docker.sh
+  ```
 
-```bash
---skip-split    # 跳过视频切分
---skip-crop     # 跳过人脸裁剪
---skip-infer    # 跳过模型推理
---skip-eval     # 跳过指标计算
-```
+容器内的行为与本地非 Docker 运行时一致，只是依赖环境与 CUDA 驱动通过 Docker + NVIDIA runtime 提供。
 
-### 并行处理
+---
 
-如果需要并行处理多个视频，可以：
+### 四、常见问题（FAQ）
 
-1. 修改脚本，为每个视频创建单独的输出目录
-2. 使用多个容器并行运行
-3. 使用任务队列系统（如 Celery）
+- **Q1：找不到输入目录 / 数据集不存在？**
+  - 请确认已下载并放置数据到：
+    - `data/geneface_datasets/data/raw/videos`
+  - Docker 模式下，请确认宿主机路径与 `docker/docker-compose.yml` 中的挂载设置一致。
 
-## 性能优化
+- **Q2：提示找不到 `ffhq_1024.pkl`？**
+  - 检查：
+    - `NeRFFaceSpeech_Code/pretrained_networks/ffhq_1024.pkl` 是否存在
+  - 若使用了 `assets/` + 软链接管理，请确保：
+    - 已执行 `bash prepare_project.sh`
+    - 软链接指向的目标文件存在于 `assets/models/...` 下
 
-1. **GPU 内存**: 确保 GPU 有足够内存（建议至少 8GB）
-2. **批量大小**: 可以调整 `--batch-size` 参数（默认 32）
-3. **最大帧数**: 可以使用 `--max-frames` 限制处理的帧数
-4. **跳过 LSE**: 如果不需要 LSE 指标，可以使用 `--skip-lse`
+- **Q3：SyncNet / face-alignment 相关模块导入失败？**
+  - 确保 **syncnet 环境** 已正确安装依赖：
 
-## 注意事项
+    ```bash
+    conda activate ./environment/syncnet
+    pip install -r environment/package/syncnet/requirements.torch.txt
+    pip install -r environment/package/syncnet/requirements.txt
+    pip install face-alignment
+    ```
 
-1. **首次运行**: 首次运行可能需要下载一些模型文件（如 FFHQFaceAlignment 模型）
-2. **存储空间**: 确保有足够的存储空间（输出目录可能很大）
-3. **运行时间**: 完整的评估流程可能需要较长时间，取决于视频数量和长度
-4. **容器状态**: 脚本会保持容器运行，可以重复使用
+- **Q4：显卡不可见或 CUDA 错误？**
+  - 非 Docker：
+    - 确认 `nvidia-smi` 正常，PyTorch 能检测到 GPU（`torch.cuda.is_available()` 为 True）
+  - Docker：
+    - 确认已安装 NVIDIA Container Toolkit
+    - `docker run --gpus all nvidia/cuda:12.1.0-devel-ubuntu22.04 nvidia-smi` 能显示显卡
+    - 使用 `docker compose -f docker/docker-compose.yml up` 时，`runtime: nvidia` 和 `NVIDIA_VISIBLE_DEVICES` 已正确配置
 
-## 清理
+---
 
-### 停止并删除容器
+如需对评估配置（切分策略、对齐方式、指标计算等）做更细粒度的修改，可直接阅读并修改 `eval_pipline` 模块及 `run_eval_pipeline.sh` 中调用部分。该文档仅覆盖最常用、推荐的使用路径。 
 
-```bash
-docker stop nerffacespeech-eval
-docker rm nerffacespeech-eval
-```
-
-### 清理输出目录
-
-```bash
-rm -rf output/eval_*
-```
-
-## 相关文件
-
-- `run_eval_pipeline.sh` - 启动脚本
-- `eval_pipline/__main__.py` - 评估流程主入口
-- `docker/Dockerfile` - Docker 镜像定义
-- `docker/docker-compose.yml` - Docker Compose 配置
-
-## 更新日志
-
-- **2025-12-20**: 初始版本
-  - ✓ 创建 Docker 启动脚本
-  - ✓ 支持 syncnet 环境
-  - ✓ 支持 FFHQFaceAlignment
-  - ✓ 自动创建输出目录
-  - ✓ 完整的错误处理
 
