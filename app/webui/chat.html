@@ -3547,7 +3547,10 @@
     
     audioUpload.addEventListener("change", async (e) => {
       const file = e.target.files[0];
-      if (!file) return;
+      if (!file) {
+        audioUpload.value = "";
+        return;
+      }
       
       // 如果正在处理语音识别，禁止上传
       if (isTranscribing) {
@@ -3557,74 +3560,109 @@
       }
       
       if (!file.type.startsWith('audio/')) {
-        alert("请选择音频文件！");
+        showToast("请选择音频文件！", "error");
         audioUpload.value = "";
         return;
       }
       
-      try {
-        // 读取文件并转换为Base64
-        const reader = new FileReader();
-        reader.onload = async () => {
+      // 检查文件大小（限制为50MB）
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxSize) {
+        showToast("音频文件过大，请选择小于50MB的文件", "error");
+        audioUpload.value = "";
+        return;
+      }
+      
+      console.log('开始处理上传的音频文件:', {
+        name: file.name,
+        type: file.type,
+        size: file.size
+      });
+      
+      // 读取文件并转换为Base64（完全按照录音的方式处理）
+      const reader = new FileReader();
+      
+      reader.onload = async () => {
+        try {
+          const arrayBuffer = reader.result;
+          console.log('文件读取完成，ArrayBuffer大小:', arrayBuffer.byteLength);
+          
+          // 使用与录音相同的方式转换为Base64（处理大文件）
+          const uint8Array = new Uint8Array(arrayBuffer);
+          // 对于大文件，分块处理避免"Maximum call stack size exceeded"错误
+          let base64 = '';
+          const chunkSize = 8192; // 每次处理8KB
+          for (let i = 0; i < uint8Array.length; i += chunkSize) {
+            const chunk = uint8Array.slice(i, i + chunkSize);
+            base64 += String.fromCharCode.apply(null, chunk);
+          }
+          base64 = btoa(base64);
+          
+          console.log('Base64转换完成，长度:', base64.length);
+          currentAudioBase64 = base64;
+          
+          // 禁用输入控件，开始语音识别（与录音完全一致）
+          isTranscribing = true;
+          setInputControlsDisabled(true);
+          showToast("正在识别语音...", "info");
+          
           try {
-            const arrayBuffer = reader.result;
-            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-            currentAudioBase64 = base64;
-            
-            // 禁用输入控件，开始语音识别
-            isTranscribing = true;
-            setInputControlsDisabled(true);
-            showToast("正在识别语音...", "info");
-            
-            try {
-              // 自动进行语音识别
-              const text = await performTranscription();
-              if (text) {
-                // 将识别到的文本填入输入框
-                chatInput.value = text;
-                showToast("语音识别完成", "success");
-                // 可选：自动发送消息
-                // sendMessage(text);
-              } else {
-                showToast("语音识别失败", "error");
-              }
-            } catch (error) {
-              console.error('语音识别出错:', error);
-              showToast("语音识别失败: " + (error.message || "未知错误"), "error");
-            } finally {
-              // 恢复输入控件
-              isTranscribing = false;
-              setInputControlsDisabled(false);
+            // 自动进行语音识别（与录音使用相同的函数）
+            const text = await performTranscription();
+            if (text && text.trim()) {
+              // 将识别到的文本填入输入框
+              chatInput.value = text;
+              showToast("语音识别完成", "success");
+              console.log('语音识别成功，文本:', text);
+              // 可选：自动发送消息
+              // sendMessage(text);
+            } else {
+              showToast("语音识别失败：未识别到文本", "error");
+              console.warn('语音识别返回空文本');
             }
           } catch (error) {
-            console.error('Base64转换失败:', error);
-            showToast('音频文件处理失败: ' + error.message, "error");
-            currentAudioBase64 = null;
+            console.error('语音识别出错:', error);
+            showToast("语音识别失败: " + (error.message || "未知错误"), "error");
+          } finally {
             // 恢复输入控件
             isTranscribing = false;
             setInputControlsDisabled(false);
+            currentAudioBase64 = null; // 清理，释放内存
           }
-        };
-        reader.onerror = (error) => {
-          console.error('文件读取错误:', error);
-          showToast('读取音频文件失败', "error");
+        } catch (error) {
+          console.error('Base64转换失败:', error);
+          showToast('音频文件处理失败: ' + (error.message || "未知错误"), "error");
           currentAudioBase64 = null;
           // 恢复输入控件
           isTranscribing = false;
           setInputControlsDisabled(false);
-        };
-        reader.readAsArrayBuffer(file);
-      } catch (error) {
-        console.error('读取文件失败:', error);
-        showToast('读取音频文件失败: ' + error.message, "error");
+        }
+      };
+      
+      reader.onerror = (error) => {
+        console.error('文件读取错误:', error);
+        showToast('读取音频文件失败', "error");
         currentAudioBase64 = null;
         // 恢复输入控件
         isTranscribing = false;
         setInputControlsDisabled(false);
+      };
+      
+      // 开始读取文件（与录音使用相同的方式）
+      try {
+        reader.readAsArrayBuffer(file);
+      } catch (error) {
+        console.error('读取文件失败:', error);
+        showToast('读取音频文件失败: ' + (error.message || "未知错误"), "error");
+        currentAudioBase64 = null;
+        // 恢复输入控件
+        isTranscribing = false;
+        setInputControlsDisabled(false);
+        audioUpload.value = "";
       }
       
-      // 重置文件输入
-      audioUpload.value = "";
+      // 注意：不在这里重置文件输入，等处理完成后再重置
+      // 如果立即重置，可能会导致某些浏览器的问题
     });
     
     // ==================== 音量控制 ====================

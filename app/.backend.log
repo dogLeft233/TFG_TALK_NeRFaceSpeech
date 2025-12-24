@@ -1,0 +1,140 @@
+INFO:     Started server process [10235]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[数据库] 数据库目录: /root/autodl-tmp/TFG_TALK_NeRFaceSpeech/database
+[数据库] 数据库文件: /root/autodl-tmp/TFG_TALK_NeRFaceSpeech/database/settings.db
+[数据库] 设置数据库文件已存在，跳过初始化: /root/autodl-tmp/TFG_TALK_NeRFaceSpeech/database/settings.db
+INFO:     127.0.0.1:38448 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38464 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38464 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38464 - "GET /chat/sessions?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38448 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38464 - "GET /chat/sessions/chat-f82c3447-61b8-428f-9d87-78c35e04baf6/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38464 - "GET /chat/sessions/chat-2aa0484d-b201-4acd-825c-d2656286e2a9/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38464 - "GET /chat/sessions/chat-2d5f92ea-dbc3-434c-bfe8-699bb0755bb8/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38464 - "GET /chat/sessions/chat-2584efd7-a862-42b6-9d7a-f124b9a268aa/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38464 - "GET /chat/sessions/chat-bf92b292-e40d-4647-8936-14dd6975c3fb/messages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38464 - "OPTIONS /character/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38466 - "OPTIONS /character/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38448 - "OPTIONS /models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38464 - "OPTIONS /models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38448 - "GET /models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38466 - "GET /character/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38464 - "GET /models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38448 - "GET /character/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38448 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50732 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50732 - "OPTIONS /asr/transcribe HTTP/1.1" 200 OK
+2025-12-24 10:54:33 - shared.utils.asr_client - INFO - [ASR Subprocess] 开始语音识别: model=base, language=None, task=transcribe, audio_base64_length=1883708
+2025-12-24 10:54:33 - shared.utils.asr_client - INFO - [ASR Subprocess] 使用 Python: /root/autodl-tmp/TFG_TALK_NeRFaceSpeech/environment/llm_talk/bin/python
+2025-12-24 10:54:33 - shared.utils.asr_client - INFO - [ASR Subprocess] 创建临时文件存储参数...
+2025-12-24 10:54:33 - shared.utils.asr_client - INFO - [ASR Subprocess] 临时文件已创建: /tmp/tmpf5oofp6w.json
+2025-12-24 10:54:33 - shared.utils.asr_client - INFO - [ASR Subprocess] Conda 环境 bin 目录已添加到 PATH: /root/autodl-tmp/TFG_TALK_NeRFaceSpeech/environment/llm_talk/bin
+2025-12-24 10:54:33 - shared.utils.asr_client - INFO - [ASR Subprocess] 执行命令: /root/autodl-tmp/TFG_TALK_NeRFaceSpeech/environment/llm_talk/bin/python -c 
+import sys
+import json
+import os
+import traceback
+
+try:
+    sys.path.insert(0, r'/root/autodl-tmp/TFG_TALK_NeRFaceSpeech')
+    
+    # 读取参数文件
+    with open(r'/tmp/tmpf5oofp6w.json', 'r', encoding='utf-8') as f:
+        params = json.load(f)
+    
+    from llm_talk.asr import get_asr_response_api
+    
+    result = get_asr_response_api(
+        audio_input=params['audio_base64'],
+        model_name=params['model_name'],
+        language=params['language'],
+        task=params['task']
+    )
+    
+    # 确保结果是字典格式
+    if not isinstance(result, dict):
+        result = {"success": False, "error": {"message": "ASR 函数返回了非字典类型", "type": "TypeError"}, "data": None}
+    
+    print(json.dumps(result, ensure_ascii=False))
+    
+except ImportError as e:
+    error_result = {
+        "success": False,
+        "error": {
+            "code": "IMPORT_ERROR",
+            "message": f"导入错误: {str(e)}",
+            "type": "ImportError",
+            "traceback": traceback.format_exc()
+        },
+        "data": None
+    }
+    print(json.dumps(error_result, ensure_ascii=False))
+except Exception as e:
+    error_result = {
+        "success": False,
+        "error": {
+            "code": "EXECUTION_ERROR",
+            "message": f"执行错误: {str(e)}",
+            "type": type(e).__name__,
+            "traceback": traceback.format_exc()
+        },
+        "data": None
+    }
+    print(json.dumps(error_result, ensure_ascii=False))
+finally:
+    # 清理临时文件
+    try:
+        os.unlink(r'/tmp/tmpf5oofp6w.json')
+    except:
+        pass
+... (Python代码已省略)
+2025-12-24 10:54:33 - shared.utils.asr_client - INFO - [ASR Subprocess] 工作目录: /root/autodl-tmp/TFG_TALK_NeRFaceSpeech
+2025-12-24 10:54:33 - shared.utils.asr_client - INFO - [ASR Subprocess] 开始执行 subprocess，超时时间: 300秒
+2025-12-24 10:54:33 - shared.utils.asr_client - INFO - [ASR Subprocess] 进程已启动，PID: 10375
+INFO:     127.0.0.1:50744 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50744 - "HEAD /docs HTTP/1.1" 200 OK
+2025-12-24 10:54:40 - shared.utils.asr_client - INFO - [ASR Subprocess] 进程执行完成，返回码: 0
+2025-12-24 10:54:40 - shared.utils.asr_client - INFO - [ASR Subprocess] 成功解析 JSON 输出，result.success = True
+INFO:     127.0.0.1:50732 - "POST /asr/transcribe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50732 - "GET /logs/full?debug=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50744 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50732 - "GET /logs/full?debug=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50732 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50732 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50732 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50732 - "GET /logs/full?debug=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50732 - "GET /logs/full?debug=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50732 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50732 - "GET /logs/full?debug=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50732 - "GET /logs/full?debug=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50732 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50732 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33418 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33418 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "GET /logs/full?debug=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "GET /logs/full?debug=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "GET /logs/full?debug=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "GET /logs/full?debug=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "GET /api/databases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "GET /api/databases/chat_records.db/content HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33422 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44566 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44566 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57916 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57918 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57918 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [10235]
