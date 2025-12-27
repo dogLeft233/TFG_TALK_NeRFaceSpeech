@@ -1,0 +1,32 @@
+services:
+  nerffacespeech:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.workspace
+    image: nerffacespeech:workspace
+    container_name: nerffacespeech-workspace
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+      - TORCH_HOME=/app/assets/.cache/torch
+      - XDG_CACHE_HOME=/app/assets/.cache
+      - HF_HOME=/app/assets/.cache/huggingface
+      - SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+      - SSL_CERT_DIR=/etc/ssl/certs
+    volumes:
+      # 将整个工作目录挂载进来（读写）
+      - ..:/app:rw
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+    restart: unless-stopped
+

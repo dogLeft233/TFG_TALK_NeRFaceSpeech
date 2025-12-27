@@ -43,57 +43,8 @@ RUN /opt/conda/bin/conda config --remove-key channels || true \
     && /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main \
     && /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
 
-# ==================== 工作目录 ====================
+
 WORKDIR /app
 
-# ==================== 只复制环境定义（缓存关键点） ====================
-COPY environment/package/ /app/environment/package/
-COPY environment/*.yaml /app/environment/
-
-# ==================== 创建目录 ====================
-RUN mkdir -p \
-    /app/assets/.cache/{torch,huggingface} \
-    /app/assets/models \
-    /app/database/videos \
-    /app/outputs/{audio,video} \
-    /app/NeRFFaceSpeech_Code/pretrained_networks \
-    /app/environment/{nerffacespeech,api,syncnet,llm_talk}
-
-# ==================== 声明挂载卷（与 Dockerfile_ 对齐，提升缓存可复用） ====================
-VOLUME ["/app/assets/.cache", "/app/assets/models", "/app/outputs", "/app/database"]
-
-# =====================================================================
-# ==================== nerffacespeech 环境 =============================
-# =====================================================================
-
-# 1. 只创建 conda 环境（最稳定层）
-
-RUN conda env create \
-    -f /app/environment/package/syncnet/environment.min.yaml \
-    -p /app/environment/syncnet
-
-# =====================================================================
-# ==================== api 环境 =======================================
-# =====================================================================
-
-# =====================================================================
-# ==================== syncnet 环境 ===================================
-# =====================================================================
-
-RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh \
-    && conda activate /app/environment/syncnet \
-    && pip install -r /app/environment/package/syncnet/requirements.torch.txt"
-
-RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh \
-    && conda activate /app/environment/syncnet \
-    && pip install -r /app/environment/package/syncnet/requirements.txt \
-    && pip install face-alignment"
-
-# =====================================================================
-# ==================== 复制项目代码（最后） ============================
-# =====================================================================
-
-COPY . /app/
-
-# ==================== 默认命令 ====================
 CMD ["/bin/bash"]
+
